@@ -29,8 +29,12 @@ export interface SyncPayload {
      * an instruction from somebody's surgeon is not a thing to lose on a phone
      * upgrade.
      */
+    /**
+     * The two movement self-check fields. Inert now that the self-checks are
+     * gone, and still carried so an older device syncing in does not have its
+     * copy of the profile rejected. See UserProfile in lib/store.ts.
+     */
     screenPassed?: string[];
-    /** Movement checks answered in a session by somebody who skipped the screen. */
     patternChecks?: Record<string, boolean>;
     clinicalAvoid?: string[];
     maxKitKg?: number;

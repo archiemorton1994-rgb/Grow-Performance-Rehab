@@ -195,7 +195,7 @@ check(
       !/exercise-levels/.test(src) &&
       !/experienceLevel/.test(src) &&
       !/earnedLevelBonus/.test(src) &&
-      !/patternCeiling/.test(src)
+      !/levelBandForExperience/.test(src)
     );
   })(),
   'a number that decided the prescription would be a number people chase'
@@ -289,6 +289,56 @@ check(
     XP_BY_BADGE_TIER.silver < XP_BY_BADGE_TIER.gold &&
     XP_BY_BADGE_TIER.gold < XP_BY_BADGE_TIER.grow,
   JSON.stringify(XP_BY_BADGE_TIER)
+);
+
+// ─── Nothing is paid for a thing the app no longer does ─────────────────────
+//
+// Finishing the builder used to pay 100 XP for taking the movement self-check.
+// The self-check is gone, so the payment is gone, and this is the assertion
+// that says so: the same builder answers, walked twice, once carrying the old
+// screen answer and once not, have to arrive at the same total.
+console.log('\n[4b] The builder pays nothing for a movement screen');
+
+check(
+  'finishing the builder is worth the same whether or not a screen answer is in the draft',
+  (() => {
+    const answers = (extra) => ({
+      look: 'light',
+      units: 'kg',
+      name: 'A',
+      guided: 'yes',
+      focus: 'strength',
+      days: '3',
+      minutes: '45',
+      length: '12',
+      experience: 'intermediate',
+      age: 34,
+      sex: 'male',
+      bodyweight: 82,
+      equipment: ['fullgym'],
+      sore: 'no',
+      avoid: ['none'],
+      ...extra,
+    });
+    const walk = (extra) => {
+      useAppStore.getState().resetProgress();
+      useAppStore.setState({
+        completedSessions: [],
+        completedCount: 0,
+        xpTotal: 0,
+        earnedBadges: [],
+        newlyUnlockedBadges: [],
+        programme: null,
+      });
+      useAppStore.getState().applyProfileTree(answers(extra), '2026-06-01T09:00:00.000Z');
+      return useAppStore.getState().xpTotal;
+    };
+    const plain = walk({});
+    const withScreen = walk({ screen: ['hinge', 'squat', 'lunge', 'push', 'pull', 'carry'] });
+    const withNone = walk({ screen: ['none'] });
+    return plain === withScreen && plain === withNone;
+  })(),
+  'a leftover answer from an older draft must not buy anybody a level'
 );
 
 console.log('\n[5] Nobody arrives at level 1 with a year behind them');

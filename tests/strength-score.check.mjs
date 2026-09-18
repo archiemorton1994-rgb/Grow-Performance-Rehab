@@ -180,7 +180,7 @@ check(
     const src = stripComments(read('lib/strength-score.ts'));
     return (
       !/exercise-levels/.test(src) &&
-      !/patternCeiling/.test(src) &&
+      !/levelBandForExperience/.test(src) &&
       !/xpStanding/.test(src) &&
       !/earnedLevelBonus/.test(src)
     );

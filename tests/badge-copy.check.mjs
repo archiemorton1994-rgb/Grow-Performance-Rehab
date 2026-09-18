@@ -42,7 +42,7 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { evaluateBadges } from '../lib/badge-engine.ts';
-import { BADGE_CATALOG, BADGE_MAP } from '../lib/badges.ts';
+import { ACTIVE_BADGES, BADGE_CATALOG, BADGE_MAP } from '../lib/badges.ts';
 
 let failures = 0;
 let total = 0;
@@ -126,11 +126,26 @@ check(
   new Set(BADGE_CATALOG.map((b) => b.id)).size === BADGE_CATALOG.length,
   'a duplicate id means one of the two can never be shown'
 );
-const unreachable = BADGE_CATALOG.filter((b) => !awardable(b.id));
+/**
+ * A RETIRED BADGE IS SUPPOSED TO BE UNREACHABLE, so it is exempt here and held
+ * to the opposite rule below.
+ *
+ * It is a badge for something the app has stopped doing, kept in the catalogue
+ * so that everybody who won it keeps a card with a name on it. Requiring the
+ * engine to be able to award one would be requiring the app to go on offering
+ * the thing it retired.
+ */
+const unreachable = ACTIVE_BADGES.filter((b) => !awardable(b.id));
 check(
-  'every badge in the cabinet can actually be won',
+  'every badge still on offer can actually be won',
   unreachable.length === 0,
   `the engine never awards: ${unreachable.map((b) => b.id).join(', ')}`
+);
+const stillAwarded = BADGE_CATALOG.filter((b) => b.retired && awardable(b.id));
+check(
+  'and no retired badge has an award rule left behind for it',
+  stillAwarded.length === 0,
+  `retired but still awarded: ${stillAwarded.map((b) => b.id).join(', ')}`
 );
 const catalogueIds = new Set(BADGE_CATALOG.map((b) => b.id));
 const orphans = [...literals].filter((l) => l.includes('_') && !catalogueIds.has(l));

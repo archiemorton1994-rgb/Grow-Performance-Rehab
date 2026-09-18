@@ -1481,7 +1481,6 @@ const outcome = (over = {}) => ({
   soreFor: null,
   testWeekFrequency: 'never',
   oneRepMaxes: { squat: null, bench: null, deadlift: null },
-  screenPassed: null,
   avoidRegions: [],
   maxKitKg: 0,
   ...over,
@@ -1490,33 +1489,39 @@ const outcome = (over = {}) => ({
 const said = (over) => programmeReasons(outcome(over)).join(' ');
 
 check(
-  'a movement check they have not got yet is named, and in words they would use',
-  (() => {
-    const line = said({ screenPassed: ['hinge', 'squat', 'push', 'lunge', 'carry'] });
-    // "pull" is what the ladder calls it. Nobody says it about themselves.
-    return /pull-up/.test(line) && /foundation/.test(line) && !/\bpull\b(?!-)/.test(line);
-  })(),
-  said({ screenPassed: ['hinge', 'squat', 'push', 'lunge', 'carry'] })
-);
-check(
-  // A full house changes nothing, so a line about it would be an explanation of
-  // something that did not happen.
-  'passing all six says nothing at all',
-  !/foundation version/.test(said({ screenPassed: ['hinge', 'squat', 'lunge', 'push', 'pull', 'carry'] })),
-  ''
-);
-check(
-  'and skipping the screen says nothing either',
-  !/foundation version/.test(said({ screenPassed: null })),
-  'somebody who was never asked must not be told what their answer did'
-);
-check(
-  'passing none of it is said in one sentence rather than six',
-  (() => {
-    const line = said({ screenPassed: [] });
-    return /everything starts from the foundation version/i.test(line);
-  })(),
+  /**
+   * NOTHING IS SAID ABOUT MOVEMENT CHECKS, BECAUSE NOTHING HAPPENS BECAUSE OF
+   * THEM.
+   *
+   * Three sentences used to live here, naming the patterns somebody had left
+   * unticked on the builder's zero-load screen and telling them those movements
+   * would start from the foundation version. The screen is gone and the ceiling
+   * comes from the experience answer alone, so any surviving sentence would be
+   * explaining a decision the app no longer makes - which is the exact failure
+   * this whole section exists to catch, pointing the other way.
+   *
+   * Asserted over the reasons produced for a FULL set of answers, including the
+   * stale fields an older draft could still carry, rather than for one fixture.
+   */
+  'the certificate never explains a movement check, whatever it is handed',
+  [
+    said({}),
+    said({ screenPassed: [] }),
+    said({ screenPassed: ['hinge'] }),
+    said({ experience: 'beginner' }),
+    said({ experience: 'advanced', maxKitKg: 20, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' }),
+  ].every((line) => !/foundation version|movement check|checks yet|pull-up/i.test(line)),
   said({ screenPassed: [] })
+);
+check(
+  // The reasons list still has to do its job, or the check above would pass on
+  // an empty list saying nothing about anything.
+  'while every other answer that changed something still says so',
+  (() => {
+    const line = said({ maxKitKg: 24, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' });
+    return line.length > 80 && /24 kg/.test(line) && /clinician/.test(line);
+  })(),
+  said({ maxKitKg: 24, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' })
 );
 check(
   'the kit ceiling is named with its number',
@@ -1535,8 +1540,8 @@ check(
   'no reason ever reads as an unfinished sentence',
   [
     said({}),
-    said({ screenPassed: [] }),
-    said({ screenPassed: ['hinge'] }),
+    said({ experience: 'beginner' }),
+    said({ soreRegions: ['knee'], soreFor: 'days' }),
     said({ maxKitKg: 20, avoidRegions: ['knee'] }),
   ].every((line) => !/undefined|NaN|null|,\s*\./.test(line)),
   ''

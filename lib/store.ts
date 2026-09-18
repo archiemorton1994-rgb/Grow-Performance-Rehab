@@ -499,38 +499,23 @@ export interface UserProfile {
    */
   earnedLevelBonus?: number;
   /**
-   * WHICH MOVEMENT PATTERNS THEY CAN ACTUALLY DO, from the builder's zero-load
-   * screen. See PROGRESSION-LADDERS.md, Phase 1.
+   * DEAD FIELDS, KEPT SO NOBODY HAS TO BE MIGRATED.
    *
-   * UNDEFINED IS NOT AN EMPTY LIST. Undefined means no screen was ever taken -
-   * every account before this existed, and anybody who skipped the question -
-   * and must leave the app behaving exactly as it does for them today. An empty
-   * array is somebody who took the screen and passed none of it, and every
-   * pattern starts from foundations.
+   * These two held the answers to the movement self-checks: the builder's
+   * zero-load screen, and the same question asked one card at a time inside a
+   * session. Both are gone. How long somebody has been training is what sets
+   * their movement ceiling now, because a self-graded benchmark collects how
+   * a person feels about a movement rather than measuring it, and the person
+   * the gate existed to protect is the one most likely to tick every box.
+   *
+   * NOT DELETED, BECAUSE NOTHING READS THEM. A stored field that no code
+   * touches changes no behaviour, so removing it would buy a persist version
+   * bump, a migration, a matching normalisation in mergeServerData and a stale
+   * synced copy able to undo all three, in exchange for nothing. They stay,
+   * inert, and the day the schema is rewritten for another reason they go with
+   * it.
    */
   screenPassed?: string[];
-  /**
-   * THE SAME QUESTION, ASKED ONE AT A TIME, WHERE IT MATTERS.
-   *
-   * The builder's movement screen is optional and always will be: reviewed from
-   * outside, a wall of movement self-tests during sign-up was called out as the
-   * kind of friction that makes people drop out, and skipping it deliberately
-   * caps nothing. That leaves a gap. Somebody who skipped it and described
-   * themselves as experienced is handed complex movements with nothing having
-   * checked anything.
-   *
-   * So the check moved to the point of use for those people: the first time a
-   * session offers a genuinely complex movement on a ladder they have never
-   * answered for, the card asks one plain question and eases the movement down
-   * if the answer is no. The answer is kept here.
-   *
-   * KEPT APART FROM screenPassed ON PURPOSE. That field has three states and the
-   * difference between them is load-bearing: undefined is "no screen taken" and
-   * caps nothing, an empty array is "took it and passed none" and caps
-   * everything. Writing one in-session answer into it would flip somebody from
-   * the first state to the second and clamp the other five patterns on the
-   * strength of a question about one.
-   */
   patternChecks?: Record<string, boolean>;
   /**
    * Areas a CLINICIAN has told them to stay off, which is not the same list as
@@ -1089,13 +1074,6 @@ interface AppState {
    * only thing that edits it.
    */
   acceptLevelStep: (toBonus: number) => void;
-  /**
-   * Record a movement check answered inside a session.
-   *
-   * Only ever reached by somebody who SKIPPED the builder screen - see
-   * patternChecks on UserProfile for why the two are kept apart.
-   */
-  setPatternCheck: (pattern: string, canDo: boolean) => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
   /**
@@ -2078,10 +2056,6 @@ export const useAppStore = create<AppState>()(
             ageYears: outcome.ageYears > 0 ? outcome.ageYears : undefined,
             standingSoreRegions: outcome.soreRegions,
             standingSoreSince: outcome.soreFor,
-            // Null means the screen was skipped, and undefined is how the rest
-            // of the app spells "never taken". Kept apart from an empty array,
-            // which is somebody who took it and passed nothing.
-            screenPassed: outcome.screenPassed ?? undefined,
             clinicalAvoid: outcome.avoidRegions,
             maxKitKg: outcome.maxKitKg > 0 ? outcome.maxKitKg : undefined,
           },
@@ -2095,14 +2069,9 @@ export const useAppStore = create<AppState>()(
           oneRepMaxes: maxes.length ? [...maxes, ...s.oneRepMaxes] : s.oneRepMaxes,
           programme: selectProgramme(outcome, nowIso, s.completedSessions.length),
         });
-        // Finishing the builder enrols them in a block and can answer the
-        // movement screen, and both of those are badges. This path never told
-        // the engine anything had happened either.
+        // Finishing the builder enrols them in a block, and that is a badge.
+        // This path never told the engine anything had happened either.
         get().awardNewBadges();
-        // And the screen is worth something on its own. Paid only when it was
-        // actually answered - skipping it is allowed and earns nothing rather
-        // than being punished, which is the same distinction the engine makes.
-        if (outcome.screenPassed !== null) get().awardXp(XP.screenTaken);
       },
 
       /**
@@ -2286,14 +2255,6 @@ export const useAppStore = create<AppState>()(
       },
 
       clearPendingProgrammeReport: () => set({ pendingProgrammeReportId: null }),
-
-      setPatternCheck: (pattern, canDo) =>
-        set((st) => ({
-          userProfile: {
-            ...st.userProfile,
-            patternChecks: { ...(st.userProfile.patternChecks ?? {}), [pattern]: canDo },
-          },
-        })),
 
       acceptLevelStep: (toBonus) => {
         // Only pays when the rung actually moves, so re-opening a report and

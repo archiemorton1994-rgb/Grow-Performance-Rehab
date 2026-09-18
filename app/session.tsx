@@ -97,11 +97,6 @@ import { uploadUserData } from '@/lib/sync';
 import { ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from '@/lib/acute-rehab';
 import { videoUrlFor } from '@/lib/exercise-videos';
 import {
-  isLadderPattern,
-  CHECK_FROM_LEVEL,
-  PATTERN_CHECK_QUESTIONS,
-} from '@/lib/exercise-levels';
-import {
   scheduleMissedWorkoutNudge,
   cancelRestTimerNotification,
   cancelStreakProtectionAlert,
@@ -1382,7 +1377,6 @@ export function ExerciseCard({
   onEditSet,
   onVideoPress,
   onSwapPress,
-  movementCheck,
   onSwapMachine,
   onSkipExercise,
   isDumbbellSession,
@@ -1420,11 +1414,6 @@ export function ExerciseCard({
   onEditSet?: (setIndex: number) => void;
   onVideoPress: () => void;
   onSwapPress: () => void;
-  /**
-   * The one movement question to ask on this card, or null when there is
-   * nothing to ask - which is nearly always. See where it is rendered.
-   */
-  movementCheck?: { question: string; answer: (canDo: boolean) => void } | null;
   /** Only passed for a warm-up card that is actually a machine. */
   onSwapMachine?: () => void;
   onSkipExercise?: () => void;
@@ -1855,51 +1844,6 @@ export function ExerciseCard({
                   <Text style={styles.recalledNoteText} numberOfLines={3}>
                     {previousNote}
                   </Text>
-                </View>
-              )}
-
-              {/* ── The one safety question, asked where it matters ──────────
-                  The builder's movement screen is optional, and skipping it
-                  deliberately caps nothing - a wall of movement self-tests at
-                  sign-up is exactly the friction that makes people give up
-                  before they have trained once. That leaves a gap: somebody who
-                  skipped it and called themselves experienced is handed complex
-                  movements with nothing having checked anything.
-
-                  So for those people only, the first time a session offers a
-                  genuinely complex movement on a ladder they have never
-                  answered for, the card asks the one question that matters
-                  about it. Answering no eases every movement on that ladder
-                  down to foundations, from the next session on.
-
-                  INLINE, NOT A MODAL. Every "the app has frozen" report this
-                  project has had was two native modals at once, and a safety
-                  question that freezes the app is not a safety feature. */}
-              {!!movementCheck && (
-                <View style={styles.moveCheck} testID={`move-check-${index}`}>
-                  <View style={styles.moveCheckHead}>
-                    <Ionicons name="shield-checkmark-outline" size={15} color={C.primaryText} />
-                    <Text style={styles.moveCheckTitle}>Quick check</Text>
-                  </View>
-                  <Text style={styles.moveCheckQ}>{movementCheck.question}</Text>
-                  <View style={styles.moveCheckRow}>
-                    <Pressable
-                      onPress={() => movementCheck.answer(true)}
-                      style={[styles.moveCheckBtn, styles.moveCheckYes]}
-                      testID={`move-check-yes-${index}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.moveCheckYesText}>Yes</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => movementCheck.answer(false)}
-                      style={styles.moveCheckBtn}
-                      testID={`move-check-no-${index}`}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.moveCheckNoText}>Not yet</Text>
-                    </Pressable>
-                  </View>
                 </View>
               )}
 
@@ -3001,7 +2945,6 @@ export default function SessionScreen() {
     completeSession,
     addOneRepMax,
     userProfile,
-    setPatternCheck,
     exerciseFeedback,
     getBestORM,
     completedSessions,
@@ -4043,44 +3986,16 @@ export default function SessionScreen() {
    * enough that only the cue needs to change.
    */
   /**
-   * WHETHER THIS CARD SHOULD ASK ITS ONE MOVEMENT QUESTION.
+   * THE CARD NO LONGER ASKS A MOVEMENT QUESTION.
    *
-   * Four conditions, and all of them have to hold, because a safety prompt that
-   * fires often is a safety prompt people learn to tap through:
-   *
-   *   THEY SKIPPED THE BUILDER SCREEN. Anybody who took it has already answered
-   *   about all six patterns with the whole question in front of them, and that
-   *   answer wins. screenPassed being undefined is the only "never asked".
-   *
-   *   THIS MOVEMENT IS ON A LADDER. Rehab, conditioning and mobility are not,
-   *   and that is most of a session and none of the risk.
-   *
-   *   AND IT IS GENUINELY COMPLEX. Level 3 up. Asking before every loaded
-   *   movement would put a question on nearly every card.
-   *
-   *   AND THAT LADDER HAS NOT BEEN ANSWERED YET, in a session or anywhere else.
-   *
-   * Answering no caps that whole ladder at foundations from the next session
-   * onwards - the same effect the builder screen would have had. It does not
-   * rewrite today's card underneath somebody mid-set.
+   * A "quick check" used to appear on any genuinely complex card whose ladder
+   * the person had never answered for, and a "not yet" held that whole ladder
+   * at foundations from the next session on. It is gone along with the
+   * builder's movement screen it stood in for: how long somebody has been
+   * training is what sets their ceiling now, and a self-graded question asked
+   * mid-session was collecting how they felt about the movement rather than
+   * measuring anything.
    */
-  const movementCheckFor = (
-    ex: Exercise
-  ): { question: string; answer: (canDo: boolean) => void } | null => {
-    if (userProfile.screenPassed !== undefined) return null;
-    const pattern = ex.movementPattern;
-    if (!isLadderPattern(pattern)) return null;
-    if ((ex.level ?? 1) < CHECK_FROM_LEVEL) return null;
-    if (userProfile.patternChecks?.[pattern] !== undefined) return null;
-    return {
-      question: PATTERN_CHECK_QUESTIONS[pattern],
-      answer: (canDo: boolean) => {
-        if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setPatternCheck(pattern, canDo);
-      },
-    };
-  };
-
   const openExerciseVideo = (exercise: {
     name: string;
     videoId?: string;
@@ -4935,7 +4850,6 @@ export default function SessionScreen() {
               onSetChange={isDemo ? () => {} : (si, u) => handleSetChange(index, si, u)}
               onEditSet={isDemo ? undefined : (si) => handleEditSet(index, si)}
               onVideoPress={() => openExerciseVideo(displayExercise)}
-              movementCheck={isDemo ? null : movementCheckFor(displayExercise)}
               onSwapPress={
                 isDemo ? () => {} : () => setSwapModal({ index, exercise: displayExercise })
               }
@@ -5714,49 +5628,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     // height of the phone now, so without this the row floated wherever the
     // exercise happened to end and left the foot of the page empty - which is
     // the dead space this move is filling.
-    // The one movement question, for somebody who skipped the builder screen.
-    // Tinted rather than boxed in a warning colour: this is a check, not a
-    // problem, and colouring it like an alert would make it read as one.
-    moveCheck: {
-      // NOT marginTop:'auto' any more. At the bottom of the card the buttons
-      // sat behind the set-logging bar, so the one question the card exists to
-      // ask could be read but not answered. A gate belongs before the thing it
-      // gates, which is the top of the card.
-      marginTop: 4,
-      marginBottom: 4,
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: C.primarySurface,
-      borderWidth: 1,
-      borderColor: C.primaryMuted,
-      gap: 8,
-    },
-    moveCheckHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    moveCheckTitle: {
-      fontSize: 11.5,
-      fontFamily: 'Inter_700Bold',
-      color: C.primaryText,
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-    },
-    moveCheckQ: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.text, lineHeight: 20 },
-    moveCheckRow: { flexDirection: 'row', gap: 8 },
-    moveCheckBtn: {
-      flex: 1,
-      alignItems: 'center',
-      paddingVertical: 10,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: C.border,
-      backgroundColor: C.surface,
-    },
-    moveCheckYes: { backgroundColor: C.primaryDark, borderColor: C.primaryDark },
-    moveCheckYesText: {
-      fontSize: 14,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.primaryDarkText,
-    },
-    moveCheckNoText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     howRow: {
       flexDirection: 'row',
       alignItems: 'center',

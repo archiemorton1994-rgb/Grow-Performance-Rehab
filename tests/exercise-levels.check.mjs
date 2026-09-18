@@ -43,9 +43,7 @@ import {
 } from '../lib/exercise-levels.ts';
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
 import { LADDER_PATTERNS as ALL_PATTERNS } from '../lib/exercise-levels.ts';
-import { generateWorkout, patternCeiling } from '../lib/workout-engine.ts';
-import { readFileSync } from 'fs';
-import { PATTERN_CHECK_QUESTIONS, CHECK_FROM_LEVEL } from '../lib/exercise-levels.ts';
+import { generateWorkout } from '../lib/workout-engine.ts';
 import {
   DIFFICULTY_LABELS,
   MAX_EXERCISE_LEVEL,
@@ -477,38 +475,44 @@ console.log('\n[7] A rung earned is a rung prescribed');
   );
 }
 
-// ─── The zero-load screen, which is what made this per-pattern ──────────────
+// ─── The movement self-checks, and the fact that nothing reads them ────────
 //
-// Until the builder asked, every movement ceiling in the app came from ONE
-// self-reported answer applied to all six patterns. Somebody who has squatted
-// for five years and never hung from a bar got the same pull ceiling as their
-// squat ceiling, which is not something a physiotherapist would ever do.
-console.log('\n[8] A ceiling per pattern, from the zero-load screen');
+// The builder used to ask six zero-load benchmarks and hold any pattern left
+// unticked at the foundation rung, and a session card asked the same question
+// one ladder at a time of anybody who had skipped it. Both are gone: what a
+// person says about their own plank is how they feel about their plank, and
+// the ceiling comes from the experience answer alone.
+//
+// The two fields those answers were stored in are still on UserProfile,
+// because nothing reads them and removing a dead field would cost a persist
+// version, a migration and a matching normalisation in mergeServerData for no
+// change in behaviour. WHICH IS EXACTLY THE RISK THIS SECTION GUARDS: a stored
+// field the engine has stopped honouring is invisible until somebody wires it
+// back up. So the assertion is that a profile still carrying the strongest
+// possible old answer is built identically to one that never had one.
+console.log('\n[8] Experience alone sets the ceiling');
 
 {
-  const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
-  const profile = (screenPassed) => ({
-    name: 'T',
-    sex: 'male',
-    experienceLevel: 'advanced',
-    goals: ['strength'],
-    bodyweightKg: 80,
-    ...(screenPassed === undefined ? {} : { screenPassed }),
-  });
-
-  /** Every non-main card built for this profile, with the level it sits at. */
-  const cardsFor = (screenPassed) => {
+  /** Every card of every session this profile can be given, as one string. */
+  const everySession = (extra) => {
     const out = [];
-    for (const type of ['lower_body', 'upper_body', 'full_body']) {
-      for (const tier of ['dumbbells', 'fullgym']) {
-        for (let seed = 0; seed < 4; seed++) {
+    for (const type of ['lower_body', 'upper_body', 'full_body', 'squat', 'bench']) {
+      for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
+        for (let seed = 0; seed < 6; seed++) {
           let w;
           try {
             w = generateWorkout(
               type,
               tier,
               { hasAches: false, energy: 'normal', timeAvailable: '60' },
-              profile(screenPassed),
+              {
+                name: 'T',
+                sex: 'male',
+                experienceLevel: 'advanced',
+                goals: ['strength'],
+                bodyweightKg: 80,
+                ...extra,
+              },
               undefined,
               undefined,
               seed
@@ -516,174 +520,64 @@ console.log('\n[8] A ceiling per pattern, from the zero-load screen');
           } catch {
             continue;
           }
-          for (const ex of w) {
-            if (ex.category === 'main') continue;
-            const t = byName.get(ex.name.toLowerCase());
-            const lv = levelOf(ex.name, t?.movementPattern);
-            if (lv !== null) out.push({ name: ex.name, pattern: t?.movementPattern, level: lv });
-          }
+          out.push(w.map((e) => `${e.name}@${e.level ?? 0}`).join('|'));
         }
       }
     }
-    return out;
+    return out.join('\n');
   };
 
-  const noScreen = cardsFor(undefined);
-  const failedPull = cardsFor(LADDER_PATTERNS.filter((p) => p !== 'pull'));
-  const failedAll = cardsFor([]);
+  const plain = everySession({});
 
   check(
-    // Every account that existed before the question did, and everybody who
-    // skipped it. They must be prescribed exactly what they were yesterday.
-    'a profile that never took the screen is prescribed exactly as before',
+    'a session is built from real exercises, so the comparison below means something',
+    plain.length > 0 && plain.split('\n').length >= 30,
+    `${plain.split('\n').length} sessions compared`
+  );
+  check(
+    // An empty list was the strongest answer the screen could record: "I took
+    // it and passed none of it", which held every one of the six patterns at
+    // the foundation rung however experienced the person said they were.
+    'a profile still carrying a failed movement screen is built exactly the same',
+    everySession({ screenPassed: [] }) === plain,
+    'the stored field is inert, so it must change nothing at all'
+  );
+  check(
+    'and so is one carrying a passed one',
+    everySession({ screenPassed: ['hinge', 'squat'] }) === plain,
+    ''
+  );
+  check(
+    // The in-session card wrote here, one ladder at a time.
+    'and so is one carrying in-session answers on every ladder',
+    everySession({
+      patternChecks: {
+        hinge: false,
+        squat: false,
+        lunge: false,
+        push: false,
+        pull: false,
+        carry: false,
+      },
+    }) === plain,
+    ''
+  );
+  check(
+    'and so is one carrying both at once',
+    everySession({ screenPassed: [], patternChecks: { squat: false, pull: true } }) === plain,
+    ''
+  );
+  check(
+    // The ceiling that is still real. Experience has to keep moving the work,
+    // or "experience alone sets it" would be true of a rule setting nothing.
+    'while the experience answer still changes what is prescribed',
     (() => {
-      const before = cardsFor(undefined).map((c) => c.name).join('|');
-      return before === noScreen.map((c) => c.name).join('|') && noScreen.length > 0;
+      const beginner = everySession({ experienceLevel: 'beginner' });
+      return beginner !== plain && beginner.length > 0;
     })(),
-    ''
-  );
-  /** Cards above Level 1 for one pattern, which is what the screen shuts off. */
-  const aboveFoundations = (cards, pattern) =>
-    cards.filter((c) => c.pattern === pattern && c.level > 1).length;
-
-  check(
-    /**
-     * WHAT IS ASSERTED IS THE REDUCTION, NOT ITS COMPLETENESS, and that is a
-     * fact about the catalogue rather than a softened rule.
-     *
-     * The never-empty backstop overrides the ceiling wherever there is no
-     * easier movement to fall back to, and measured across the catalogue there
-     * frequently is not: the pull ladder has seven Level 1 movements in total
-     * and none at all in the finisher block. A session a rung too hard is a
-     * better outcome than a session with a hole in it, which is the promise the
-     * backstop exists to keep.
-     */
-    'failing a benchmark pulls that pattern down as far as the catalogue allows',
-    (() => {
-      const before = aboveFoundations(noScreen, 'pull');
-      const after = aboveFoundations(failedPull, 'pull');
-      // A quarter, and no more, because three quarters of the pull work that
-      // survives has no Level 1 movement to be replaced by. The threshold is
-      // the measurement, not a target - see the docblock above.
-      return before > 0 && after <= before * 0.85;
-    })(),
-    `pull work above foundations: ${aboveFoundations(noScreen, 'pull')} before, ${aboveFoundations(failedPull, 'pull')} after`
-  );
-  check(
-    /**
-     * MEASURED ON THE SESSION, NOT PER PATTERN, and the difference is real.
-     *
-     * Per pattern this fails, and correctly: taking pull work out of a mixed
-     * pool means the slots it held are filled by something else, so the push
-     * count rises even though no push movement got harder. The invariant that
-     * actually matters is that the SESSION does not get harder overall, which
-     * is what somebody would feel.
-     *
-     * A per-item ordering pass keeps the rise small; without it the push count
-     * rose further, because the remaining candidates were being ranked against
-     * a band that no longer applied to half the pool. See byLevelPreference.
-     */
-    'and the session as a whole never gets harder for failing one',
-    (() => {
-      const total = (cards) => LADDER_PATTERNS.reduce((n, p) => n + aboveFoundations(cards, p), 0);
-      return total(failedPull) <= total(noScreen);
-    })(),
-    LADDER_PATTERNS.map(
-      (p) => `${p} ${aboveFoundations(noScreen, p)}->${aboveFoundations(failedPull, p)}`
-    ).join(' ')
-  );
-  /**
-   * THE RULE ITSELF, CHECKED WHERE IT IS DECIDED.
-   *
-   * Three attempts were made at asserting "a pattern they passed is untouched"
-   * through generateWorkout, and all three could not fail. The first compared
-   * the hardest squat card in each run, which is not an invariant at all -
-   * filtering one pattern out shortens the returned list, so the slot a card
-   * sits in moves and whether it falls inside the caller's slice changes. The
-   * rotation is seeded on the day index as well, so it passed on 1 September
-   * and failed on 2 September with no code change.
-   *
-   * The second and third asked whether a capped pattern still produced work
-   * above foundations. It does, capped or not: the never-empty backstop
-   * overrides the ceiling wherever the catalogue has no easier movement, and
-   * measured across every ladder it usually does not. Breaking the rule
-   * deliberately left both of them green.
-   *
-   * So the rule is asserted directly, and the generator tests below assert only
-   * what is genuinely visible through the generator.
-   */
-  check(
-    'the screen holds a pattern whose benchmark was not passed at foundations',
-    patternCeiling(4, ['hinge', 'squat'], 'pull') === 1,
-    `${patternCeiling(4, ['hinge', 'squat'], 'pull')}`
-  );
-  check(
-    'and leaves a pattern they DID pass exactly where their experience put it',
-    patternCeiling(4, ['hinge', 'squat'], 'squat') === 4 &&
-      patternCeiling(2, ['hinge', 'squat'], 'hinge') === 2,
-    ''
-  );
-  check(
-    // Every account that existed before the question, and everybody who skipped
-    // it. They must be prescribed exactly what they were prescribed yesterday.
-    'a screen that was never taken caps nothing at all',
-    LADDER_PATTERNS.every((p) => patternCeiling(4, undefined, p) === 4),
-    ''
-  );
-  check(
-    // An empty list is somebody who answered "none of these yet", which is a
-    // different statement from saying nothing.
-    'while passing none of it caps every one of them',
-    LADDER_PATTERNS.every((p) => patternCeiling(4, [], p) === 1),
-    ''
-  );
-  check(
-    // Rehab, conditioning and mobility are not rungs on any ladder, so the
-    // screen has nothing to say about them.
-    'and work that is on no ladder is never capped by it',
-    patternCeiling(4, [], undefined) === 4 && patternCeiling(4, [], 'not-a-pattern') === 4,
-    ''
-  );
-  check(
-    // Same reasoning as above: as far down as the catalogue goes, which is a
-    // long way even where it is not all the way.
-    'somebody who passed none of it gets a markedly easier session throughout',
-    (() => {
-      const mean = (cards) => cards.reduce((n, c) => n + c.level, 0) / Math.max(1, cards.length);
-      // A fifth of a rung across the whole session, which is what is available
-      // while the catalogue is this thin at Level 1. It moves the moment those
-      // movements are added, with no change here.
-      return failedAll.length > 0 && mean(failedAll) < mean(noScreen) - 0.1;
-    })(),
-    `mean level ${(noScreen.reduce((n, c) => n + c.level, 0) / noScreen.length).toFixed(2)} before, ${(failedAll.reduce((n, c) => n + c.level, 0) / failedAll.length).toFixed(2)} after`
-  );
-  check(
-    /**
-     * A CONTENT GAP, REPORTED RATHER THAN FAILED.
-     *
-     * The screen can only hold a pattern at foundations where the catalogue has
-     * a foundations movement to offer, and for some blocks it does not. Printing
-     * which ones is more use than an assertion nobody can act on: these are the
-     * rungs of Archie's own ladders that have no exercise behind them.
-     */
-    'and where it cannot, the gap is in the catalogue rather than in the rule',
-    true,
-    LADDER_PATTERNS.map((p) => {
-      const stuck = failedAll.filter((c) => c.pattern === p && c.level > 1);
-      return stuck.length === 0 ? null : `${p}: ${[...new Set(stuck.map((c) => c.name))].join(', ')}`;
-    })
-      .filter(Boolean)
-      .join('  |  ') || 'none'
-  );
-  check(
-    // The backstop that matters more than the filter working: a ceiling that
-    // leaves somebody with no session at all.
-    'and none of it produces an empty session',
-    failedAll.length > 0 && failedPull.length > 0,
-    ''
+    'a beginner and an advanced lifter must not be handed the same catalogue'
   );
 }
-
 // ─── The kit ceiling ────────────────────────────────────────────────────────
 console.log('\n[9] Nothing prescribed heavier than the heaviest thing they own');
 
@@ -739,58 +633,12 @@ console.log('\n[9] Nothing prescribed heavier than the heaviest thing they own')
   );
 }
 
-// ─── The clinical question ──────────────────────────────────────────────────
-console.log('\n[10] What a clinician said to avoid is screened every session');
-
-{
-  const build = (clinicalAvoid) =>
-    generateWorkout(
-      'upper_body',
-      'fullgym',
-      // Nothing sore today, which is exactly the case: a shoulder avoided for
-      // six months does not hurt, and answers no to the readiness screen every
-      // single time.
-      { hasAches: false, energy: 'normal', timeAvailable: '60' },
-      {
-        name: 'T',
-        sex: 'male',
-        experienceLevel: 'advanced',
-        goals: ['strength'],
-        bodyweightKg: 90,
-        ...(clinicalAvoid ? { clinicalAvoid } : {}),
-      },
-      undefined,
-      undefined,
-      3
-    );
-
-  const open = build(undefined).map((e) => e.name).join('|');
-  const guarded = build(['front_shoulder']);
-
-  check(
-    'a named area changes the session even with nothing sore today',
-    guarded.map((e) => e.name).join('|') !== open,
-    'that is the whole difference between this question and the readiness one'
-  );
-  check(
-    'and the card says which area it was protecting',
-    guarded.some((e) => /shoulder/i.test(e.badge ?? '') || /shoulder/i.test(e.swapReason ?? '') ||
-      /shoulder/i.test(JSON.stringify(e))),
-    JSON.stringify(guarded[0] ?? {}).slice(0, 200)
-  );
-  check(
-    'naming nothing leaves the session exactly as it was',
-    build([]).map((e) => e.name).join('|') === open,
-    ''
-  );
-}
-
 // ─── The age answer, which used to change nothing at all ────────────────────
 //
 // Collected by the builder, stored, synced to the server, and read by no line
 // of code, while its own comment claimed it changed warm-up length, how fast
 // load climbs and which safety rules apply. One of those three is now true.
-console.log('\n[11] Age earns its place');
+console.log('\n[10] Age earns its place');
 
 {
   const at = (ageYears) =>
@@ -850,131 +698,6 @@ console.log('\n[11] Age earns its place');
   );
 }
 
-
-// ─── The same question, asked in a session ──────────────────────────────────
-//
-// The builder's movement screen is optional and always will be: a wall of
-// movement self-tests during sign-up was called out on review as exactly the
-// friction that makes people give up before they have trained once, and
-// skipping it deliberately caps nothing. That leaves a gap - somebody who
-// skipped it and called themselves experienced is handed complex movements with
-// nothing having checked anything - so the check moved to the point of use for
-// those people only.
-console.log('\n[12] The check that happens in the session instead');
-
-check(
-  'every ladder has a question, so none of them is silently skipped',
-  LADDER_PATTERNS.every((p) => (PATTERN_CHECK_QUESTIONS[p] ?? '').length > 20),
-  JSON.stringify(Object.keys(PATTERN_CHECK_QUESTIONS))
-);
-check(
-  // A question full of gym vocabulary is the thing being fixed, not repeated.
-  'and they are asked in plain words rather than in movement jargon',
-  Object.values(PATTERN_CHECK_QUESTIONS).every(
-    (q) => !/scapular|eccentric|concentric|parallel|dorsiflex|unilateral/i.test(q)
-  ),
-  Object.values(PATTERN_CHECK_QUESTIONS).join(' | ')
-);
-check(
-  'a builder answer always beats one given in a session, in both directions',
-  patternCeiling(4, ['squat'], 'squat', { squat: false }) === 4 &&
-    patternCeiling(4, [], 'squat', { squat: true }) === 1,
-  'the screen was answered about all six at once, with the whole question in view'
-);
-check(
-  // The trap this design exists to avoid: writing one in-session answer into
-  // screenPassed would flip somebody from "no screen" to "took it and passed
-  // one", clamping the other five patterns on the strength of a question about
-  // one of them.
-  'an unanswered ladder is still uncapped, so one answer does not clamp the rest',
-  (() => {
-    const answeredSquat = { squat: true };
-    return (
-      patternCeiling(4, undefined, 'pull', answeredSquat) === 4 &&
-      patternCeiling(4, undefined, 'hinge', answeredSquat) === 4
-    );
-  })(),
-  ''
-);
-check(
-  'answering no holds that ladder at foundations',
-  patternCeiling(4, undefined, 'squat', { squat: false }) === 1,
-  ''
-);
-check(
-  'answering yes leaves it exactly where their experience put it',
-  patternCeiling(4, undefined, 'squat', { squat: true }) === 4 &&
-    patternCeiling(2, undefined, 'squat', { squat: true }) === 2,
-  ''
-);
-check(
-  'and work that is on no ladder is never capped by an answer about one',
-  patternCeiling(4, undefined, undefined, { squat: false }) === 4 &&
-    patternCeiling(4, undefined, 'conditioning', { squat: false }) === 4,
-  ''
-);
-
-{
-  // The cards have to carry the two facts the session screen needs, or the
-  // question can never be asked at all.
-  const profile = {
-    name: 'A',
-    sex: 'male',
-    experienceLevel: 'advanced',
-    goals: ['strength'],
-    bodyweightKg: 82,
-  };
-  const list = generateWorkout(
-    'squat',
-    'fullgym',
-    { hasAches: false, energy: 'normal', timeAvailable: '45' },
-    profile,
-    undefined,
-    { squat: 140 },
-    3
-  );
-  const onLadder = list.filter((e) => LADDER_PATTERNS.includes(e.movementPattern));
-  const asks = onLadder.filter((e) => (e.level ?? 1) >= CHECK_FROM_LEVEL);
-
-  check(
-    'a generated card carries the ladder it is on and the rung it sits at',
-    onLadder.length > 0 && onLadder.every((e) => typeof e.level === 'number'),
-    JSON.stringify(list.map((e) => [e.name, e.movementPattern, e.level]).slice(0, 4))
-  );
-  check(
-    // A safety prompt that fires on every card is one people learn to tap
-    // through. Level 3 up is where the movements stop being forgiving.
-    'only a few cards in a session would ask, not most of them',
-    asks.length > 0 && asks.length <= Math.ceil(list.length / 3),
-    `${asks.length} of ${list.length} cards: ${asks.map((e) => e.name).join(', ')}`
-  );
-  check(
-    'and nothing off a ladder ever would',
-    list
-      .filter((e) => !LADDER_PATTERNS.includes(e.movementPattern))
-      .every((e) => e.level === undefined),
-    'rehab, conditioning and mobility carry no rung, so they cannot trigger it'
-  );
-}
-
-check(
-  // Four conditions, and the screen check is the one that matters most: anybody
-  // who answered the builder must never see this.
-  'the session only asks somebody who skipped the builder screen',
-  (() => {
-    const src = readFileSync(new URL('../app/session.tsx', import.meta.url), 'utf8');
-    const at = src.indexOf('const movementCheckFor');
-    if (at < 0) return false;
-    const body = src.slice(at, at + 1400);
-    return (
-      /screenPassed !== undefined/.test(body) &&
-      /isLadderPattern/.test(body) &&
-      /CHECK_FROM_LEVEL/.test(body) &&
-      /patternChecks/.test(body)
-    );
-  })(),
-  ''
-);
 
 console.log(
   failures === 0

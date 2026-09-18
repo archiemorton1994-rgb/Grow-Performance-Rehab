@@ -20,10 +20,12 @@ import { EmptyState } from '@/components/EmptyState';
 import { BadgeMedallion } from '@/components/BadgeMedallion';
 import { useAppStore } from '@/lib/store';
 import {
-  BADGE_CATALOG,
+  ACTIVE_BADGES,
   BADGE_CATEGORY_LABELS,
   BADGE_CATEGORY_ORDER,
   BADGE_MAP,
+  countedEarned,
+  visibleBadges,
   Badge,
   BadgeCategory,
   BadgeCriteriaType,
@@ -138,7 +140,7 @@ function TourCallout({ onDismiss }: { onDismiss: () => void }) {
         {/* Tips */}
         <View style={{ gap: 7 }}>
           {[
-            `${BADGE_CATALOG.length} badges across milestones, streaks, strength, and more`,
+            `${ACTIVE_BADGES.length} badges across milestones, streaks, strength, and more`,
             'Swipe a shelf sideways to see the rest of that family',
             'Tap any badge to see exactly what unlocks it',
           ].map((tip, i) => (
@@ -362,9 +364,13 @@ export default function AchievementsScreen() {
 
   // One shelf per family, in the catalogue's own order (which is difficulty
   // order, so the left of every shelf is the easiest badge in it).
+  //
+  // A retired badge is on its shelf only for somebody who already earned it,
+  // and it is counted by nothing: the shelf's own "3 of 8" is measured against
+  // the badges still on offer. See the `retired` flag in lib/badges.ts.
   const shelves = useMemo<Shelf[]>(() => {
     const byCategory = new Map<BadgeCategory, Badge[]>();
-    for (const b of BADGE_CATALOG) {
+    for (const b of visibleBadges(earnedSet)) {
       const list = byCategory.get(b.category) ?? [];
       list.push(b);
       byCategory.set(b.category, list);
@@ -372,6 +378,7 @@ export default function AchievementsScreen() {
     return BADGE_CATEGORY_ORDER.filter((cat) => byCategory.has(cat))
       .map((cat) => {
         const all = byCategory.get(cat)!;
+        const counted = all.filter((b) => !b.retired);
         const data =
           activeFilter === 'all'
             ? all
@@ -381,17 +388,20 @@ export default function AchievementsScreen() {
         return {
           category: cat,
           data,
-          earnedCount: all.filter((b) => earnedSet.has(b.id)).length,
-          totalCount: all.length,
+          earnedCount: counted.filter((b) => earnedSet.has(b.id)).length,
+          totalCount: counted.length,
         };
       })
       .filter((s) => s.data.length > 0);
   }, [activeFilter, earnedSet]);
 
-  const totalEarned = earnedBadges.length;
+  // Both halves of the headline figure are measured against the same set, and
+  // the arithmetic lives in lib/badges.ts so that a check can run it rather
+  // than read this line looking for a spelling. See countedEarned.
+  const totalEarned = useMemo(() => countedEarned(earnedBadges), [earnedBadges]);
   // Counts only what this user can actually get — see isKpiLocked.
   const totalBadges = useMemo(
-    () => BADGE_CATALOG.filter((b) => !isKpiLocked(b)).length,
+    () => ACTIVE_BADGES.filter((b) => !isKpiLocked(b)).length,
     [isKpiLocked]
   );
 
@@ -433,7 +443,7 @@ export default function AchievementsScreen() {
   // something you train towards.
   const firstMilestone = useMemo(
     () =>
-      BADGE_CATALOG.find(
+      ACTIVE_BADGES.find(
         (b) =>
           b.category === 'milestone' && b.criteriaType !== 'profile_action' && !earnedSet.has(b.id)
       ),
@@ -442,10 +452,12 @@ export default function AchievementsScreen() {
 
   // Rarity breakdown. "12/277" alone says almost nothing — twelve could be
   // twelve first-timers or twelve of the hardest badges in the app.
+  // Retired badges sit outside it for the same reason they sit outside the
+  // headline figure: a row nobody can complete is not a breakdown of anything.
   const tierStats = useMemo(() => {
     const order: BadgeTier[] = ['bronze', 'silver', 'gold', 'grow'];
     return order.map((tier) => {
-      const all = BADGE_CATALOG.filter((b) => b.tier === tier);
+      const all = ACTIVE_BADGES.filter((b) => b.tier === tier);
       return { tier, earned: all.filter((b) => earnedSet.has(b.id)).length, total: all.length };
     });
   }, [earnedSet]);

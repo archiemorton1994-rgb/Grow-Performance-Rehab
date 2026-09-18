@@ -8,10 +8,9 @@
  *
  * IT IS NOT A CONSOLATION PRIZE, and the copy works hard not to read as one.
  * Choosing your own sessions is not choosing less: every session is still built
- * from the same profile, the same movement screen, the same injuries and the
- * same kit. The difference is who picks which one. So the card leads with what
- * has been set up FOR them - the same tuning a programme user got - and then
- * says where to go.
+ * from the same profile, the same injuries and the same kit. The difference is
+ * who picks which one. So the card leads with what has been set up FOR them -
+ * the same tuning a programme user got - and then says where to go.
  *
  * SAME PAPER AS THE CERTIFICATE. One builder, one ending, two contents. A
  * different visual language here would make the choice feel like two different
@@ -42,18 +41,17 @@ function whatIsSetUp(outcome: TreeOutcome): { icon: string; title: string; body:
 
   const band = levelBandForExperience(outcome.experience, 0);
   /**
-   * `screenPassed` is null when the screen was never taken and an ARRAY when it
-   * was, including an empty one. The first version tested `length >= 0`, which
-   * is true of every array and told somebody who had skipped the question that
-   * their movements were set from it. Photographing the walk caught it.
+   * ONE SENTENCE, BECAUSE THERE IS ONLY ONE ANSWER BEHIND IT NOW.
+   *
+   * This row used to fork on whether the builder's movement self-check had been
+   * taken, and the version for somebody who skipped it ended by inviting them
+   * to go and take it. The self-check is gone, so both the fork and the
+   * invitation would be describing a screen that no longer exists.
    */
-  const tookScreen = Array.isArray(outcome.screenPassed);
   out.push({
     icon: 'barbell-outline',
     title: 'Your movements',
-    body: tookScreen
-      ? `Set from what you told us you can do right now, rather than from a guess. ${bandLabel(band)}, out of five.`
-      : `${bandLabel(band)}, out of five, from how long you have been training. Take the movement check any time to make it more exact.`,
+    body: `${bandLabel(band)}, out of five, set from your training experience rather than from an average.`,
   });
 
   if (outcome.equipmentTiers.length > 0) {

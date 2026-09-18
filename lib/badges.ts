@@ -101,6 +101,34 @@ export interface Badge {
   icon: string; // Ionicons glyph map key
   color: string; // hex — always the tier colour; see BadgeTier
   tier: BadgeTier;
+  /**
+   * NO LONGER ON OFFER, BUT NOT DELETED.
+   *
+   * A badge for something the app has stopped doing. Deleting the seed would be
+   * the tidy move and it is the wrong one: the id stays in earnedBadges for
+   * everybody who won it, so a deleted badge unlocks as a blank card with no
+   * name on the achievements screen, and the number they have collected drops
+   * overnight through no fault of theirs. Stripping the id out of their earned
+   * list instead is worse again, because it takes something away.
+   *
+   * So a retired badge stays in the catalogue and three rules apply to it:
+   *
+   *   IT IS NEVER NEWLY AWARDED. evaluateBadges refuses it at the one choke
+   *   point every award goes through, so no rule left behind by accident can
+   *   hand one out.
+   *
+   *   IT IS ONLY SHOWN TO SOMEBODY WHO ALREADY HAS IT. Nobody is shown a locked
+   *   card for a thing they can never do.
+   *
+   *   AND IT COUNTS TOWARDS NOTHING. Not the shelf's own count, not the overall
+   *   total, not the rarity breakdown. A denominator that includes badges
+   *   nobody can win is a progress bar that can never fill.
+   *
+   * It also keeps the tier colours of every other badge exactly where they
+   * were: tiers are assigned by POSITION within a family, so removing a seed
+   * would re-colour the ones around it. See applyVisualSystem.
+   */
+  retired?: boolean;
 }
 
 // ─── Color palette ───────────────────────────────────────────────────────────
@@ -1947,6 +1975,10 @@ const programmeBadges: BadgeSeed[] = [
  */
 const progressionBadges: BadgeSeed[] = [
   {
+    /**
+     * RETIRED. The movement self-check is gone from the app, so nobody can take
+     * it any more. Kept in place, with its colour, for the people who did.
+     */
     id: 'screen_taken',
     name: 'Measured, Not Guessed',
     description: 'Take the movement screen, so your sessions are built on what you can do',
@@ -1954,6 +1986,7 @@ const progressionBadges: BadgeSeed[] = [
     criteriaType: 'level_progress',
     icon: 'trending-up-outline',
     color: C.green,
+    retired: true,
   },
   {
     id: 'programme_deload_4',
@@ -1989,6 +2022,7 @@ const progressionBadges: BadgeSeed[] = [
     color: C.green,
   },
   {
+    /** RETIRED, for the same reason as screen_taken above. */
     id: 'screen_all_patterns',
     name: 'Six for Six',
     description: 'Pass the movement screen in all six patterns',
@@ -1996,6 +2030,7 @@ const progressionBadges: BadgeSeed[] = [
     criteriaType: 'level_progress',
     icon: 'trending-up-outline',
     color: C.green,
+    retired: true,
   },
   {
     /**
@@ -2050,6 +2085,50 @@ export const BADGE_CATALOG: Badge[] = applyVisualSystem([
 /** Quick O(1) lookup by ID. Computed once at module load. */
 export const BADGE_MAP: ReadonlyMap<string, Badge> = new Map(BADGE_CATALOG.map((b) => [b.id, b]));
 
+/**
+ * The badges still on offer, and the only ones any total may count.
+ *
+ * Every "x of y", every progress bar and every rarity row is measured against
+ * this rather than against the whole catalogue, so a badge nobody can win any
+ * more cannot sit in a denominator making the collection look less complete
+ * than it is. See the `retired` flag on Badge.
+ */
+export const ACTIVE_BADGES: Badge[] = BADGE_CATALOG.filter((b) => !b.retired);
+
+/** Whether this id is a badge the app has stopped awarding. */
+export function isRetiredBadge(id: string): boolean {
+  return BADGE_MAP.get(id)?.retired === true;
+}
+
+/**
+ * The badges to put in front of THIS person.
+ *
+ * Everything still on offer, plus any retired badge they already earned. A
+ * retired badge they never got is not shown at all: a locked card for
+ * something that cannot be done any more is a promise the app cannot keep.
+ */
+export function visibleBadges(earnedIds: ReadonlySet<string>): Badge[] {
+  return BADGE_CATALOG.filter((b) => !b.retired || earnedIds.has(b.id));
+}
+
+/**
+ * How many they have collected, for the "x of y" at the top of Achievements.
+ *
+ * BOTH HALVES OF THAT FIGURE HAVE TO BE MEASURED AGAINST THE SAME SET. The
+ * denominator is ACTIVE_BADGES, which leaves retired badges out; counting a
+ * retired one here and not there is how somebody ends up being shown "278 of
+ * 277". So a retired badge they earned is left out of both. It is still on
+ * their shelf; it is simply not part of the arithmetic, because nobody can
+ * finish a collection that has a badge in it that cannot be won.
+ *
+ * KEPT HERE RATHER THAN IN THE SCREEN so that it can be tested by running it.
+ * As three characters inside a useMemo it was reachable only by reading the
+ * source for a spelling, which is this repository's commonest broken test.
+ */
+export function countedEarned(earnedIds: readonly string[]): number {
+  return earnedIds.filter((id) => !isRetiredBadge(id)).length;
+}
+
 export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
   programme: 'Training Blocks',
   progression: 'Moving Up',
@@ -2080,19 +2159,21 @@ export const BADGE_CATEGORY_LABELS: Record<BadgeCategory, string> = {
 /** Ordered list of categories for the Achievements screen. */
 export const BADGE_CATEGORY_ORDER: BadgeCategory[] = [
   /**
-   * FIRST, ABOVE MILESTONES, because blocks are the spine of the product.
+   * MILESTONES FIRST, THEN BLOCKS, THEN THE RUNGS.
    *
    * A category missing from this array never renders at all, so this list is
-   * load-bearing rather than cosmetic. Putting the thing the app is actually
-   * built around at the top of the cabinet is the point of the exercise: until
-   * now a user could enrol in a programme, train it for twelve sessions, sit
-   * through a planned easier week, finish the block, read a frozen report and
-   * be offered a level step, and earn exactly ONE badge for the whole arc -
-   * a session-count milestone that would have fired anyway.
+   * load-bearing rather than cosmetic.
+   *
+   * Blocks used to open the cabinet, because a whole programme arc used to earn
+   * exactly ONE badge and that was wrong. It still opens with the two shelves
+   * about training blocks high up, but not above milestones: the first shelf
+   * somebody sees on a new account should be the one they have already started
+   * filling. A brand new user opening on two shelves of entirely grey cards is
+   * shown what they have not done before anything they have.
    */
+  'milestone',
   'programme',
   'progression',
-  'milestone',
   'streak',
   'consistency',
   'strength_progress',

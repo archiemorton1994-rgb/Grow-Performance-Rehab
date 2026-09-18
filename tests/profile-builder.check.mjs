@@ -31,7 +31,6 @@
  */
 import { readFileSync } from 'fs';
 import { PROFILE_TREE, nextNode, visibleNodes, outcomeFrom } from '../lib/profile-tree.ts';
-import { LADDER_PATTERNS } from '../lib/exercise-levels.ts';
 
 let passed = 0;
 let failed = 0;
@@ -158,18 +157,18 @@ check(
 );
 check(
   /**
-   * FOUR NOW, AND THE RULE IS UNCHANGED: a question may be passed only when
+   * TWO NOW, AND THE RULE IS UNCHANGED: a question may be passed only when
    * "I would rather not" or "I do not know" is a real answer to it rather than
    * a hole in the profile.
    *
-   *   bodyweight  a guess is better than an interrogation, and the guess is
-   *               never quoted back at them
    *   lifts       plenty of people have never tested a one rep max
-   *   screen      skipping means no movement screen was taken, which leaves
-   *               every ceiling exactly where the experience answer put it.
-   *               "None of these yet" is the separate, explicit answer
    *   kit         somebody who genuinely does not know what their heaviest
    *               dumbbell is should not be blocked by it
+   *
+   * The movement self-check used to be the third, on the reasoning that
+   * skipping it left every ceiling where the experience answer put it. The
+   * question is gone rather than optional now: experience is what sets the
+   * ceiling, and a self-graded benchmark was never measuring anything.
    *
    * Everything else changes the programme in a way nothing can fill in.
    */
@@ -177,7 +176,7 @@ check(
   PROFILE_TREE.filter((n) => n.optional)
     .map((n) => n.id)
     .sort()
-    .join(',') === 'kit,lifts,screen',
+    .join(',') === 'kit,lifts',
   PROFILE_TREE.filter((n) => n.optional).map((n) => n.id).join(',')
 );
 check(
@@ -192,11 +191,10 @@ check(
    * opens them about 35% too heavy on the one session where they are least able
    * to tell that a weight is wrong for them.
    *
-   * The other three are genuinely answerable with "I do not know": a movement
-   * screen nobody took leaves the ceilings where experience put them, a
-   * heaviest dumbbell nobody has measured should not block the form, and
-   * unknown best lifts are estimated from bodyweight - which is now always
-   * there to estimate from.
+   * The other two are genuinely answerable with "I do not know": a heaviest
+   * dumbbell nobody has measured should not block the form, and unknown best
+   * lifts are estimated from bodyweight - which is now always there to estimate
+   * from.
    */
   'and bodyweight is not one of them, so there is no way past it',
   !PROFILE_TREE.some((n) => n.id === 'bodyweight' && (n.optional || n.skipLabel)),
@@ -347,43 +345,53 @@ check(
 // does not exist. Two fields were already in that state when these were added -
 // ageYears and standingSoreRegions - which is why every one of these asserts
 // that the answer LANDS somewhere as well as that it is asked.
-console.log('\n[8] The movement screen, the kit ceiling and the clinical question');
+console.log('\n[8] The kit ceiling and the clinical question, and no self-check');
 
 const byIdNode = (id) => PROFILE_TREE.find((n) => n.id === id);
 
 check(
-  'the zero-load screen is asked, and covers every ladder in the app',
+  /**
+   * NO NODE COLLECTS A MOVEMENT SELF-CHECK, and the assertion is about what the
+   * nodes DO rather than about one node's id.
+   *
+   * A question used to sit here asking which of six zero-load benchmarks
+   * somebody could manage, and holding any pattern they left unticked at the
+   * foundation rung. Deleting it by id would leave the door open to the same
+   * question coming back under another name, which is the version of this
+   * mistake that costs a physiotherapist's credibility: the answer it collects
+   * is how somebody feels about a movement, and the person the gate existed to
+   * protect is the one most likely to tick every box.
+   *
+   * So the rule is that no node anywhere in the tree asks somebody to grade
+   * their own movement. Experience is the one question, and it is asked.
+   */
+  'no question in the builder asks somebody to grade their own movement',
   (() => {
-    const n = byIdNode('screen');
-    if (!n || n.kind !== 'multi') return false;
-    const values = (n.options ?? []).map((o) => o.value);
-    return LADDER_PATTERNS.every((p) => values.includes(p)) && values.includes('none');
+    const words =
+      /squat down and stand|plank|hang from a bar|touch your shins|lower your knee|shopping bag|without it hurting|movement (check|screen)/i;
+    return PROFILE_TREE.every((n) => {
+      const text = [n.question, n.hint ?? '', ...(n.options ?? []).map((o) => `${o.label} ${o.hint ?? ''}`)].join(' ');
+      return !words.test(text);
+    });
   })(),
-  JSON.stringify((byIdNode('screen')?.options ?? []).map((o) => o.value))
+  PROFILE_TREE.map((n) => n.id).join(', ')
 );
 check(
-  // Skipping it must leave the app doing exactly what it does today, or every
-  // account that existed before the question would be silently demoted.
-  'skipping it is a different answer from failing it',
+  // The other half of it: the finished outcome carries no list of passed
+  // patterns for anything downstream to read.
+  'and a finished tree hands nothing about movement checks to the rest of the app',
   (() => {
-    const skipped = outcomeFrom({}).screenPassed;
-    const failed = outcomeFrom({ screen: ['none'] }).screenPassed;
-    const passed = outcomeFrom({ screen: ['hinge', 'squat'] }).screenPassed;
-    return (
-      skipped === null &&
-      Array.isArray(failed) &&
-      failed.length === 0 &&
-      passed?.join(',') === 'hinge,squat'
-    );
+    const out = outcomeFrom({ screen: ['hinge', 'squat'], experience: 'advanced' });
+    return !('screenPassed' in out) && !('patternChecks' in out);
   })(),
-  JSON.stringify({ skipped: outcomeFrom({}).screenPassed, failed: outcomeFrom({ screen: ['none'] }).screenPassed })
+  Object.keys(outcomeFrom({})).join(', ')
 );
 check(
-  'and every benchmark on it is something you can do with no kit at all',
-  (byIdNode('screen')?.options ?? [])
-    .filter((o) => o.value !== 'none')
-    .every((o) => !/barbell|dumbbell|kettlebell|machine|rack/i.test(o.label + ' ' + (o.hint ?? ''))),
-  'the whole point of a zero-load gate is that it needs nothing'
+  // Experience is what is left, so it had better survive the walk intact.
+  'while the experience answer still reaches the outcome',
+  outcomeFrom({ experience: 'advanced' }).experience === 'advanced' &&
+    outcomeFrom({}).experience === 'beginner',
+  ''
 );
 
 check(

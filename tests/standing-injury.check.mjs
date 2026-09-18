@@ -29,6 +29,11 @@
  *   area "goes in" was removed rather than faked, and so was the two-week
  *   easing that no code implemented.
  *
+ *   AND AN INSTRUCTION FROM A CLINICIAN IS SCREENED EVERY SESSION. Section 5,
+ *   moved in from tests/exercise-levels.check.mjs when the movement self-checks
+ *   were removed and that file was rewritten around their absence. It is a
+ *   clinical rule, so it belongs with the other clinical rules.
+ *
  * Run:  npx tsx tests/standing-injury.check.mjs
  */
 globalThis.__DEV__ = false;
@@ -221,7 +226,6 @@ const outcome = (over = {}) => ({
   soreRegions: [],
   soreFor: null,
   testWeekFrequency: 12,
-  screenPassed: null,
   avoidRegions: [],
   maxKitKg: 0,
   oneRepMaxes: { squat: null, bench: null, deadlift: null },
@@ -262,6 +266,64 @@ check(
   !/works around it/.test(programmeReasons(outcome()).join(' ')),
   ''
 );
+
+// ─── The clinician's instruction, in the generator ──────────────────────────
+//
+// MOVED HERE FROM tests/exercise-levels.check.mjs, where it was section 10.
+// These three assert a CLINICAL rule - an area a physio, doctor or surgeon
+// named is worked around every session - and they were sitting in the file
+// about movement ladders only because the builder question that collects it was
+// added in the same piece of work as the movement self-check. The self-check is
+// gone and that file was rewritten around its removal; a clinical rule is not
+// something to leave inside a file being torn up for another reason.
+console.log('\n[5] What a clinician said to avoid is screened every session');
+
+{
+  const clinical = (clinicalAvoid) =>
+    generateWorkout(
+      'upper_body',
+      'fullgym',
+      // Nothing sore today, which is exactly the case: a shoulder avoided for
+      // six months does not hurt, and answers no to the readiness screen every
+      // single time.
+      { hasAches: false, energy: 'normal', timeAvailable: '60' },
+      {
+        name: 'T',
+        sex: 'male',
+        experienceLevel: 'advanced',
+        goals: ['strength'],
+        bodyweightKg: 90,
+        ...(clinicalAvoid ? { clinicalAvoid } : {}),
+      },
+      undefined,
+      undefined,
+      3
+    );
+
+  const open = clinical(undefined).map((e) => e.name).join('|');
+  const guarded = clinical(['front_shoulder']);
+
+  check(
+    'a named area changes the session even with nothing sore today',
+    guarded.map((e) => e.name).join('|') !== open,
+    'that is the whole difference between this question and the readiness one'
+  );
+  check(
+    'and the card says which area it was protecting',
+    guarded.some(
+      (e) =>
+        /shoulder/i.test(e.badge ?? '') ||
+        /shoulder/i.test(e.swapReason ?? '') ||
+        /shoulder/i.test(JSON.stringify(e))
+    ),
+    JSON.stringify(guarded[0] ?? {}).slice(0, 200)
+  );
+  check(
+    'naming nothing leaves the session exactly as it was',
+    clinical([]).map((e) => e.name).join('|') === open,
+    ''
+  );
+}
 
 console.log(`\nstanding-injury: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

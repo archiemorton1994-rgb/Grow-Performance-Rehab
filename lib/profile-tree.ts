@@ -45,7 +45,6 @@
  * than read a copy of it. The type-only import from ./store is erased at compile
  * time, which lib/rep-scheme.ts already relies on.
  */
-import { LADDER_PATTERNS, type LadderPattern } from './exercise-levels';
 import type {
   EquipmentTier,
   ExperienceLevel,
@@ -296,11 +295,11 @@ export const PROFILE_TREE: TreeNode[] = [
      * answering "let me explore" skips all four rather than collecting answers
      * for a thing nobody is building.
      *
-     * EVERYTHING IN THE SECOND TIER IS STILL ASKED EITHER WAY. Experience, the
-     * movement screen, injuries and equipment decide what somebody is
-     * PRESCRIBED, and a person choosing their own sessions needs those to be
-     * right exactly as much as somebody on a block does. Arguably more: nobody
-     * is checking their week for them.
+     * EVERYTHING IN THE SECOND TIER IS STILL ASKED EITHER WAY. Experience,
+     * injuries and equipment decide what somebody is PRESCRIBED, and a person
+     * choosing their own sessions needs those to be right exactly as much as
+     * somebody on a block does. Arguably more: nobody is checking their week
+     * for them.
      */
     id: 'guided',
     question: 'Want a programme built for you?',
@@ -437,76 +436,26 @@ export const PROFILE_TREE: TreeNode[] = [
       { value: 'advanced', label: '3 years or more', hint: 'I know my numbers' },
     ],
   },
-  {
-    /**
-     * PHASE 1 OF THE SCREENING MATRIX, from PROGRESSION-LADDERS.md.
-     *
-     * The weakest link in the level system, and this is the fix for it. Every
-     * movement ceiling in the app comes from the one answer above this: how
-     * long somebody says they have been training. One number, applied to six
-     * different patterns. Somebody who has squatted for five years and never
-     * hung from a bar gets the same pull ceiling as their squat ceiling.
-     *
-     * Six benchmarks, one per pattern, all zero-load and all doable in a
-     * kitchen. Each one is the gate between Level 1 and Level 2 of its ladder,
-     * so an unticked pattern is built from foundations however experienced the
-     * person is - which is exactly what a physiotherapist would do, and exactly
-     * what the app has never been able to do.
-     *
-     * THE PAIN GATE IS FOLDED INTO THE TICK. The matrix asks separately whether
-     * a movement produces sharp pain, and routes a yes to Level 1. Since not
-     * being able to do it and it hurting when you try lead to the same answer,
-     * one box does both jobs, and the hint says so.
-     *
-     * OPTIONAL, AND THAT IS LOAD-BEARING. Skipping means no screen was taken,
-     * which leaves the app doing exactly what it does today. Only an answer
-     * given caps anything. Somebody who genuinely passes none of them has
-     * "None of these yet" to say so, which is a different statement from
-     * saying nothing.
-     */
-    id: 'screen',
-    question: 'Which of these can you do right now?',
-    hint: 'Tick what you could do today without it hurting. No kit needed, and nothing here is a test. Skip it if you would rather just start.',
-    kind: 'multi',
-    tier: 'tune',
-    optional: true,
-    skipLabel: 'Skip this',
-    options: [
-      /**
-       * PLAIN ENGLISH, AND THE JARGON IS GONE.
-       *
-       * The first version of this asked about "strict scapular pull-ups or
-       * pulldowns", "a slow split squat" and squatting "to parallel". Reviewed
-       * from outside, the verdict was that it reads as niche technical
-       * terminology and causes exactly the friction that makes people drop out
-       * of an onboarding flow - and the pull one was worse than jargon, because
-       * it named two exercises needing different equipment, so somebody at home
-       * literally could not test it. Leaving it unticked then clamped every
-       * pulling movement they would ever be given to the easiest rung.
-       *
-       * So each option is now something a person can picture doing in their
-       * kitchen, described the way they would describe it themselves. The
-       * benchmark - the number that decides whether it passes - stays on the
-       * hint line, because "squat down and stand back up" without "ten times"
-       * is a question somebody ticks having done one.
-       *
-       * WHAT IT MEASURES HAS NOT CHANGED. These are still the six patterns and
-       * still the gate between Level 1 and Level 2 of each ladder. Only the
-       * words a person reads are different.
-       */
-      { value: 'hinge', label: 'Touch your shins without rounding your back', hint: '10 times, back staying flat' },
-      { value: 'squat', label: 'Squat down and stand back up', hint: '10 times, heels staying down' },
-      { value: 'push', label: 'Hold a plank', hint: '30 seconds, hips level' },
-      { value: 'pull', label: 'Hang from a bar, or pull a band down to your chest', hint: '5 times, either one counts' },
-      { value: 'lunge', label: 'Step one foot back and lower your knee', hint: '5 times each side, without wobbling' },
-      { value: 'carry', label: 'Carry a heavy shopping bag in one hand', hint: '30 seconds without leaning' },
-      {
-        value: 'none',
-        label: 'None of these yet',
-        hint: 'Everything starts from foundations',
-      },
-    ],
-  },
+  /**
+   * THERE IS NO MOVEMENT SELF-CHECK HERE, AND THAT IS A DECISION.
+   *
+   * A node used to sit between the experience question and this one, asking
+   * which of six zero-load benchmarks somebody could do right now, and holding
+   * any pattern they left unticked at the foundation rung.
+   *
+   * It is gone, on Archie's instruction, and the ceiling now comes from the
+   * experience answer alone. Two reasons, and the second is the clinical one.
+   *
+   * A wall of movement self-tests during sign-up is the friction that makes
+   * people give up before they have trained once, which was true the day the
+   * question was written and was the reason it was optional.
+   *
+   * And a self-graded benchmark is not an assessment. "Could you hold a plank
+   * for thirty seconds" collects how somebody feels about their plank, so the
+   * confident over-report, the cautious under-report, and the person it was
+   * meant to protect is the one most likely to tick every box. Experience is
+   * the honest signal, it is one question, and it is already asked.
+   */
   {
     /**
      * Not currently asked anywhere, and it is the first line of every
@@ -956,15 +905,6 @@ export interface TreeOutcome {
   soreFor: InjuryAge | null;
   testWeekFrequency: TestWeekFrequency;
   oneRepMaxes: { squat: number | null; bench: number | null; deadlift: number | null };
-  /**
-   * The movement patterns whose zero-load benchmark they can do.
-   *
-   * NULL WHEN THE SCREEN WAS NOT TAKEN, which is a different thing from an
-   * empty list. Null leaves every ceiling exactly where the experience answer
-   * put it, which is the app as it is today; an empty list is somebody saying
-   * "none of these yet" and means every pattern starts at foundations.
-   */
-  screenPassed: LadderPattern[] | null;
   /** Areas a clinician has told them to stay off. Empty when there are none. */
   avoidRegions: PainRegion[];
   /**
@@ -1056,32 +996,6 @@ export function outcomeFrom(answers: Answers): TreeOutcome {
     soreRegions: answers.sore === 'yes' ? soreRegions : [],
     soreFor: answers.sore === 'yes' ? ((answers.soreAge as InjuryAge) ?? null) : null,
     testWeekFrequency,
-    /**
-     * "none" is an ANSWER, and the empty list it produces is not the same as no
-     * answer at all. Somebody who ticked nothing at all skipped the screen and
-     * is treated exactly as they are today; somebody who ticked "none of these
-     * yet" has told us something, and every pattern starts from foundations.
-     */
-    /**
-     * AND A SKIPPED SCREEN IS NOT AN EMPTY ONE, which is the distinction the
-     * whole question rests on and which the skip button quietly broke.
-     *
-     * The skip handler clears the node's answer, and clearing a multi-select
-     * means writing an empty array. That is the value meaning "I took the
-     * screen and passed nothing", which caps EVERY pattern at foundations - so
-     * tapping "Not sure" gave an advanced lifter the most restrictive answer in
-     * the question rather than no answer at all. Measured: an advanced profile
-     * that skipped came out with a pull ceiling of 1.
-     *
-     * The skip already leaves a marker behind. Reading it here is what turns
-     * "I would rather not say" back into silence.
-     */
-    screenPassed:
-      Array.isArray(answers.screen) && answers.screen__skipped !== true
-        ? (answers.screen as string[]).filter((v): v is LadderPattern =>
-            LADDER_PATTERNS.includes(v as LadderPattern)
-          )
-        : null,
     avoidRegions: Array.isArray(answers.avoid)
       ? (answers.avoid as string[]).filter((v): v is PainRegion => v !== 'none')
       : [],

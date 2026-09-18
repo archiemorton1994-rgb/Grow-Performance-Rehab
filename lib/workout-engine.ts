@@ -55,7 +55,7 @@ import {
 } from './exercise-db';
 import { byLevelPreference, levelOf, withinLevel } from './exercise-levels';
 import { levelBandForExperience } from './programme';
-import { isLadderPattern, type ExerciseLevel, type LevelBand } from './exercise-levels';
+import { type ExerciseLevel } from './exercise-levels';
 import {
   isEquipmentVariant,
   isSameMuscleAlternative,
@@ -2557,45 +2557,25 @@ function sameJobAlternatives(
  * See the docblock in lib/exercise-levels.ts for why that is not an oversight.
  */
 /**
- * THE HARDEST RUNG OF ONE PATTERN THIS PERSON MAY BE PRESCRIBED.
+ * THE HARDEST RUNG THIS PERSON MAY BE PRESCRIBED, AND EXPERIENCE ALONE SETS IT.
  *
- * Two inputs and one rule. The experience ceiling applies to everything; the
- * builder's zero-load screen then holds any pattern whose benchmark was not
- * passed at foundations, because that benchmark IS the gate between Level 1 and
- * Level 2 of that ladder, whatever anybody has said about how long they have
- * been training.
+ * There used to be a second input. The builder asked six zero-load benchmarks
+ * and held any pattern whose box was left unticked at the foundation rung,
+ * whatever somebody had said about how long they had been training, and a card
+ * mid-session asked the same question one ladder at a time for anybody who had
+ * skipped it.
  *
- * UNDEFINED IS NOT AN EMPTY LIST, and the distinction is the whole safety of
- * this. Undefined means no screen was ever taken - every account that existed
- * before the question, and everybody who skipped it - and those people must be
- * prescribed exactly what they were prescribed yesterday. An empty array is
- * somebody who answered "none of these yet".
+ * Both are gone, on Archie's instruction, and the reasoning is clinical rather
+ * than about friction. A self-graded benchmark records how somebody feels about
+ * a movement: the confident over-report it, the cautious under-report it, and
+ * the person the gate existed to protect is the one most likely to tick every
+ * box. Experience is the honest signal, it is one question, and the app already
+ * asks it.
  *
- * EXPORTED SO IT CAN BE TESTED WHERE IT IS DECIDED. Through generateWorkout this
- * rule is close to invisible: the never-empty backstop overrides it wherever the
- * catalogue has no easier movement to fall back to, which across these ladders
- * is most of the time. Two attempts at a behavioural check for it both passed
- * with the rule deliberately broken.
+ * So there is one ceiling per person, it is band.max, and it applies to every
+ * pattern equally. A profile still carrying the old stored answers is built
+ * exactly like one that never had them.
  */
-export function patternCeiling(
-  experienceCeiling: ExerciseLevel,
-  screenPassed: string[] | undefined,
-  pattern?: string,
-  /**
-   * Answers given in a session rather than in the builder, for somebody who
-   * skipped the screen. Read only when there is no screen to read, so a builder
-   * answer always wins - it was given about all six patterns at once and with
-   * the whole question in front of them.
-   */
-  patternChecks?: Record<string, boolean>
-): ExerciseLevel {
-  if (!isLadderPattern(pattern)) return experienceCeiling;
-  if (screenPassed) return screenPassed.includes(pattern) ? experienceCeiling : 1;
-  const answered = patternChecks?.[pattern];
-  if (answered === undefined) return experienceCeiling;
-  return answered ? experienceCeiling : 1;
-}
-
 function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): ExerciseTemplate[] {
   /**
    * The WHOLE profile, not just the experience answer.
@@ -2610,93 +2590,16 @@ function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): Exercis
     profile?.earnedLevelBonus ?? 0
   );
   /**
-   * AND A CEILING PER PATTERN, from the builder's zero-load screen.
+   * THE FILTER FALLS BACK POOL-WIDE, and that is the promise it exists to keep.
    *
-   * The weakest link in the whole level system until now: one self-reported
-   * answer set the ceiling for all six movement patterns at once, so somebody
-   * who has squatted for five years and never hung from a bar got the same pull
-   * ceiling as their squat ceiling. Phase 1 of the screening matrix in
-   * PROGRESSION-LADDERS.md is the fix, and this is where it lands.
-   *
-   * UNDEFINED IS NOT AN EMPTY LIST. Undefined means no screen was taken - every
-   * account that existed before the question did, and everybody who skipped it -
-   * and those people are prescribed exactly what they are prescribed today. An
-   * empty array is somebody who answered "none of these yet".
-   */
-  const screened = profile?.screenPassed;
-  const ceilingFor = (pattern?: string): ExerciseLevel =>
-    patternCeiling(band.max, screened, pattern, profile?.patternChecks);
-  /**
-   * TWO FILTERS, WITH DIFFERENT BACKSTOPS, AND THEY MUST NOT BE MERGED.
-   *
-   * The first is the person's own ceiling, and it falls back POOL-WIDE: a pool
-   * with nothing inside the ceiling comes back untouched, because a session
-   * missing its warm-up is a worse outcome than a warm-up a rung too hard.
-   * Unchanged, and it has to be, because it is the promise that nobody is ever
-   * prescribed past the hardest band their experience can reach.
-   *
-   * The second is the movement screen's extra cap on one pattern, and it falls
-   * back PER PATTERN. Measured while writing this: doing both per pattern
-   * quietly weakened the first, because a group with no in-ceiling option now
-   * fell back on its own where before the pool as a whole had survived the
-   * filter. Eight level 3 movements and three level 4 ones reached beginners
-   * that had not reached them the day before.
+   * A pool with nothing inside the ceiling comes back untouched, because a
+   * session missing its warm-up is a worse outcome than a warm-up a rung too
+   * hard. Nobody is ever prescribed past the hardest band their experience can
+   * reach while the catalogue has anything at all to offer inside it.
    */
   const withinCeiling = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
   const base = withinCeiling.length > 0 ? withinCeiling : pool;
-  if (!screened) return byLevelPreference(base, band, (t) => t);
-
-  const groups = new Map<string, ExerciseTemplate[]>();
-  for (const t of base) {
-    const key = isLadderPattern(t.movementPattern) ? t.movementPattern : '';
-    const list = groups.get(key);
-    if (list) list.push(t);
-    else groups.set(key, [t]);
-  }
-  /**
-   * THE SCREEN CHANGES WHICH MOVEMENT YOU GET, NOT HOW MUCH OF THE PATTERN.
-   *
-   * Two wrong versions of this before the right one, both found by measuring
-   * rather than by reading.
-   *
-   * Sorting the whole filtered pool by the person's one band pushed the capped
-   * pattern's easy work to the BACK, because level 1 is a long way from a
-   * band built on level 4 - so failing the pull benchmark nearly deleted pull
-   * work from the session and filled the slots with push.
-   *
-   * Sorting it by each item's OWN band did the opposite and put the capped
-   * work at the very front, because level 1 measured against a ceiling of 1 is
-   * a perfect match - so the failed pattern crowded out the squat work of
-   * somebody whose squat was never in question.
-   *
-   * Neither is what a screen should do. Somebody who cannot yet do a scapular
-   * pull-up should get the same amount of pulling and an easier version of it,
-   * so the ordering happens INSIDE each pattern and the patterns keep the slots
-   * they already had.
-   */
-  const sorted = new Map<string, ExerciseTemplate[]>();
-  for (const [pattern, list] of groups) {
-    const ceiling = ceilingFor(pattern || undefined);
-    const within = list.filter((t) => withinLevel(t.name, t.movementPattern, ceiling));
-    const kept = within.length > 0 ? within : list;
-    const own: LevelBand = ceiling >= band.max ? band : { prefer: ceiling, max: ceiling };
-    sorted.set(pattern, byLevelPreference(kept, own, (t) => t));
-  }
-  const taken = new Map<string, number>();
-  const out: ExerciseTemplate[] = [];
-  for (const t of base) {
-    const key = isLadderPattern(t.movementPattern) ? t.movementPattern : '';
-    const queue = sorted.get(key) ?? [];
-    const at = taken.get(key) ?? 0;
-    // A group that lost members to the filter runs out before its slots do, and
-    // the slots simply go unfilled: the caller is taking the first N of a list
-    // that is allowed to be shorter than the pool it came from.
-    if (at < queue.length) {
-      out.push(queue[at]);
-      taken.set(key, at + 1);
-    }
-  }
-  return out.length > 0 ? out : base;
+  return byLevelPreference(base, band, (t) => t);
 }
 
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {

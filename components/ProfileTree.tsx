@@ -947,17 +947,11 @@ function answerSummary(
   if (v == null || v === '') return '';
   if (Array.isArray(v)) {
     /**
-     * The two long multi-selects say how MANY, not which.
-     *
-     * "Bend at the hips with a flat back, Squat to parallel with your heels
-     * down and 2 more" is longer than the question that produced it and reads
-     * as an error. A count is the only useful thing to say about six ticks in
-     * a collapsed row, and the card itself is one tap away.
+     * The movement self-check used to be summarised here as "4 of 6", because
+     * its six long option labels ran longer than the question that produced
+     * them. That question is gone, and so is the special case: the remaining
+     * multi-selects all have short labels and read fine as a list.
      */
-    if (node.id === 'screen') {
-      const n = v.filter((x) => x !== 'none').length;
-      return n === 0 ? 'None of these yet' : `${n} of 6`;
-    }
     if (node.id === 'avoid' && (v.length === 0 || v.includes('none'))) return 'Nothing';
     const labels = v.map((x) => options.find((o) => o.value === x)?.label ?? x);
     return labels.length > 2 ? `${labels.slice(0, 2).join(', ')} and ${labels.length - 2} more` : labels.join(', ');

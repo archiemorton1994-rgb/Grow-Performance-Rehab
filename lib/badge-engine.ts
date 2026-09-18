@@ -20,10 +20,9 @@ import type {
 } from '@/lib/store';
 import { isoWeek } from '@/lib/utils';
 import type { EnrolledProgramme } from '@/lib/programme';
-import { LADDER_PATTERNS } from '@/lib/exercise-levels';
 import type { CompletedProgramme } from '@/lib/programme-report';
 import { MAX_EARNED_BONUS } from '@/lib/programme-report';
-import { TOUR_WELCOME_BADGE_ID } from '@/lib/badges';
+import { TOUR_WELCOME_BADGE_ID, isRetiredBadge } from '@/lib/badges';
 
 export interface BadgeEvalState {
   completedSessions: CompletedSession[];
@@ -295,8 +294,17 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   const earned: string[] = [];
   const s = computeStats(state);
 
+  /**
+   * A RETIRED BADGE IS REFUSED HERE, at the one point every award goes through.
+   *
+   * Removing the rule that awarded one is the real fix and it is not a durable
+   * one: the next person to write a rule near it, or to restore a deleted
+   * branch while fixing something else, can hand out a badge for a thing the
+   * app no longer does. The catalogue already says which badges are retired, so
+   * the gate belongs where it cannot be walked around.
+   */
   function awardIf(condition: boolean, id: string) {
-    if (condition) earned.push(id);
+    if (condition && !isRetiredBadge(id)) earned.push(id);
   }
 
   // ── 1. Milestones ──────────────────────────────────────────────────────────
@@ -860,17 +868,13 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
   );
 
   // ── 29. Moving Up ─────────────────────────────────────────────────────────
+  //
+  // The two movement-screen badges used to be awarded here. The screen itself
+  // is gone - experience is what sets the ceiling now - so they are retired in
+  // the catalogue and no longer evaluated. Anybody who earned one keeps it.
+  //
   // Optional-chained for the same reason as the two defaults above: this is
   // driven by plain-JavaScript check scripts whose fixtures predate the field.
-  const screen = state.userProfile?.screenPassed;
-  // An empty array counts: somebody who took it and passed nothing has still
-  // taken it, and the difference between that and never taking it is the whole
-  // design of the question.
-  awardIf(screen !== undefined, 'screen_taken');
-  awardIf(
-    screen !== undefined && LADDER_PATTERNS.every((p) => screen.includes(p)),
-    'screen_all_patterns'
-  );
   const bonus = state.userProfile?.earnedLevelBonus ?? 0;
   awardIf(bonus >= 1, 'level_step_1');
   awardIf(bonus >= MAX_EARNED_BONUS, 'level_step_max');

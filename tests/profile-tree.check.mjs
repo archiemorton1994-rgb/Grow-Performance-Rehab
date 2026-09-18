@@ -443,6 +443,47 @@ check(
   empty.focus === 'strength',
   'defaulting to barbell is exactly the bug this whole change exists to fix'
 );
+check(
+  /**
+   * NOBODY IS ASKED TO GRADE THEIR OWN MOVEMENT, ON ANY JOURNEY.
+   *
+   * A node used to sit on the trunk asking which of six zero-load benchmarks
+   * somebody could manage, and any pattern they left unticked was held at the
+   * foundation rung. It is gone: what that question collects is how a person
+   * feels about the movement, and the person it existed to protect is the one
+   * most likely to tick every box.
+   *
+   * ASSERTED OVER EVERY JOURNEY rather than by looking for one node id, because
+   * the failure to catch is the same question returning under a different name
+   * on one branch. Multi-selects that name body areas are fine and are the
+   * point of the sore and clinical questions; what must not come back is a
+   * question asking whether they can perform a movement.
+   */
+  'no journey through the tree asks anybody to grade their own movement',
+  (() => {
+    /**
+     * The six benchmarks in the words they were asked in, plus the two names
+     * the question went by. "Can you" on its own is not one of them: "how many
+     * days a week can you train" is a perfectly ordinary question and matching
+     * it would make this check fail for the wrong reason, which is how a test
+     * ends up being loosened until it guards nothing.
+     */
+    const selfCheck =
+      /squat down and stand|plank|hang from a bar|touch your shins|lower your knee|shopping bag|without it hurting|movement (check|screen)/i;
+    for (const journey of everyJourney()) {
+      for (const node of visibleNodes(journey)) {
+        const text = [
+          node.question,
+          node.hint ?? '',
+          ...(node.options ?? []).map((o) => `${o.label} ${o.hint ?? ''}`),
+        ].join(' ');
+        if (selfCheck.test(text)) return false;
+      }
+    }
+    return true;
+  })(),
+  'experience is the one question that sets the ceiling now'
+);
 
 // ─── The block-length question ──────────────────────────────────────────────
 console.log('\n[block length]');
@@ -504,12 +545,14 @@ console.log('\n[Skipping, and the unit the boxes are in]');
   );
   check(
     /**
-     * The clinical one. The movement screen is designed so that skipping means
-     * no screen was taken and nothing is capped - undefined and an empty array
-     * are deliberately different things, and patternCeiling reads the
-     * difference. Leaving ticked boxes behind recorded a screen that HAD been
-     * taken and failed on everything unticked, holding those patterns at the
-     * easiest rung on a question the user declined to answer.
+     * The clinical one. Leaving ticked boxes behind after a skip records an
+     * answer nobody gave, and two of the multi-selects here name body areas: a
+     * half-ticked "a clinician said to avoid" that survives the skip would
+     * suppress work for a region on the strength of a question the person
+     * declined to answer. This was first written about the movement screen,
+     * where a leftover empty list meant "took it and passed nothing" and capped
+     * every pattern; that question is gone and the rule still stands for the
+     * ones that remain.
      */
     'and a multi-select is cleared to nothing rather than to a partial answer',
     /focusNode\.kind === 'multi' \? \[\] : ''/.test(tree),

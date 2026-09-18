@@ -131,8 +131,9 @@ export const XP = {
   testSession: 150,
   /** Finishing a whole block, on top of the session that finished it. */
   blockComplete: 750,
-  /** Taking the movement screen. Once, ever. */
-  screenTaken: 100,
+  // There used to be a payment here for taking the movement screen. The screen
+  // is gone, so the line is gone with it rather than left in the table paying
+  // for something nobody can do.
   /** Accepting a level step a finished block offered. */
   levelStep: 250,
 } as const;
