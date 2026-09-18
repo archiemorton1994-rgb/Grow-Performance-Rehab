@@ -203,44 +203,67 @@ check(
   `said: "${ormTooHigh}"`
 );
 
-// A validator nothing consults is decoration. In the tree there is one gate,
-// issueFor, and one place the message is drawn, so what has to be proved is
-// that every typed question is routed through it and that nothing can advance
-// while it has something to say.
-const builder = read('components/ProfileTree.tsx');
+/**
+ * A validator nothing consults is decoration.
+ *
+ * SIX ASSERTIONS USED TO STAND HERE, all regular expressions over
+ * components/ProfileTree.tsx, the retired builder's screen. They are RUN now
+ * rather than read: the sign-up's gate is pageIssue and canContinue in
+ * lib/sign-up.ts, which has no React in it, so this file can put a number
+ * through the real gate the way a person typing one does.
+ *
+ * One of the six said the opposite of what is true today. "A blank bodyweight
+ * is still allowed through" was a position honestly held and it was overturned:
+ * bodyweight scales the opening load of everything prescribed before the app has
+ * watched anybody lift, so it is required in both units now. That reversal is
+ * asserted below rather than quietly dropped.
+ */
+const { canContinue, pageIssue } = await import('../lib/sign-up.ts');
+const answersWith = (over) => ({
+  name: 'Jo',
+  age: '34',
+  sex: 'female',
+  bodyweight: '68',
+  experience: 'intermediate',
+  goals: ['strength'],
+  equipment: ['bodyweight'],
+  sore: [],
+  avoid: [],
+  ...over,
+});
 
 check(
-  'the bodyweight answer is put through its validator',
-  /bodyweightIssue\(t, weightUnit\)/.test(builder),
-  'and blank has to pass, because the question is optional'
+  'an impossible bodyweight is refused out loud, in the unit it was typed in',
+  (() => {
+    const said = pageIssue('bodyweight', answersWith({ bodyweight: '9999' }), 'kg');
+    return typeof said === 'string' && said.length > 10;
+  })(),
+  `said: "${pageIssue('bodyweight', answersWith({ bodyweight: '9999' }), 'kg')}"`
 );
 check(
-  'a blank bodyweight is still allowed through',
-  /t\.trim\(\) === '' \? null : bodyweightIssue/.test(builder),
-  'nobody should have to type their weight to use the app'
+  'and nothing advances while it has something to say',
+  !canContinue('bodyweight', answersWith({ bodyweight: '9999' }), 'kg') &&
+    canContinue('bodyweight', answersWith({ bodyweight: '68' }), 'kg'),
+  'a gate that does not consult the validator is decoration'
 );
 check(
-  'every best-lift box is put through its validator, not just the first',
-  /for \(const f of node\.subFields\) \{[\s\S]{0,180}?oneRepMaxIssue\(String\(answers\[f\.key\]/.test(
-    builder
-  ),
-  'it used to return true unconditionally, so 10000 kg reached the store'
+  'a blank bodyweight is no longer allowed through, which reverses what stood here',
+  !canContinue('bodyweight', answersWith({ bodyweight: '' }), 'kg') &&
+    !canContinue('bodyweight', answersWith({ bodyweight: '   ' }), 'kg'),
+  'a guessed bodyweight is a guess in every session, not just this one'
 );
 check(
-  'and the age answer too, which is a question the pager never asked',
-  /if \(node\.id === 'age'\) return ageIssue/.test(builder),
-  'a new question with no validator is the old bug with a new name'
-);
-check(
-  'nothing advances while any of them has something to say',
-  /issueFor\(focusNode\) === null &&/.test(builder),
-  'canAdvance has to consult the validator, or the gate is decoration'
-);
-check(
-  'and the message is rendered, not just computed',
-  /issue={state === 'focus' \? issueFor\(node\) : null}/.test(builder) &&
-    /<Text style={styles\.issueText}>{issue}<\/Text>/.test(builder),
-  'a validator whose message never reaches the screen is the same silent refusal as before'
+  'the age answer is put through its own validator too',
+  (() => {
+    const said = pageIssue('age', answersWith({ age: '12' }), 'kg');
+    return (
+      typeof said === 'string' &&
+      said.length > 5 &&
+      !canContinue('age', answersWith({ age: '12' }), 'kg') &&
+      canContinue('age', answersWith({ age: '34' }), 'kg')
+    );
+  })(),
+  `said: "${pageIssue('age', answersWith({ age: '12' }), 'kg')}"`
 );
 // ─── 3. The profile screen, in whichever unit the user uses ──────────────────
 console.log('\n[3] Editing bodyweight later is held to the same rule');
@@ -357,7 +380,6 @@ console.log('\n[5] A reload does not throw the answers away');
  * What still has to be true is what those checks were protecting.
  */
 const builderScreen = read('app/onboarding.tsx');
-const builderTree = read('components/ProfileTree.tsx');
 
 check(
   // The sign-up is a pager again, and the trap is the one the tree did not have,
@@ -373,11 +395,12 @@ check(
   /saveOnboardingDraft\(answersToDraft\(answers, page/.test(builderScreen),
   'saving them one at a time is what let the first pager drop the ones nobody remembered to list'
 );
-check(
-  'nothing is cleared when the builder mounts',
-  !/useEffect\([\s\S]{0,200}?setAnswers\(\{\}\)/.test(builderTree),
-  'the pager cleared equipment on an effect that also ran on mount, so a restore wiped what it had just restored'
-);
+// A THIRD ASSERTION STOOD HERE, over components/ProfileTree.tsx: that nothing
+// was cleared when the builder mounted. The trap it named belongs to a screen
+// holding one useState per answer, which neither the tree nor the pager that
+// replaced it does. tests/onboarding-pager.check.mjs section 8 proves the whole
+// promise instead, by round-tripping a half-finished set of answers through the
+// real draft and asserting every field and the page come back.
 
 // The draft is device state, so it has to survive the app being killed.
 const partialize = extractBlock(storeSrc, 'partialize: (state) => {', 'partialize');
@@ -427,32 +450,39 @@ check(
 console.log('\n[Copy on the units and bodyweight questions]');
 
 /**
- * READ OFF THE QUESTION OBJECTS, not off a screen.
+ * RE-HOMED ONTO THE PAGE THAT ASKS THE QUESTION.
  *
- * These four intents were guarded by regexing app/onboarding.tsx, which meant
- * they were really checking where the copy lived. The questions are data now
- * (lib/profile-tree.ts), so the checks run against the thing itself.
+ * These read the question objects in lib/profile-tree.ts until the builder was
+ * deleted. The two questions are one page of the sign-up pager now, and its
+ * words live in the screen, so the screen is what they read. That is a source
+ * check on purpose and it is the only kind available: what is being asserted
+ * here is COPY, and a React Native screen cannot be imported under tsx. The
+ * behaviour behind the copy is run rather than read, in section 2 above and in
+ * tests/onboarding-pager.check.mjs sections 3 and 10.
  */
-const { PROFILE_TREE } = await import('../lib/profile-tree.ts');
-const node = (id) => PROFILE_TREE.find((n) => n.id === id);
-const units = node('units');
-const bw = node('bodyweight');
+const bwPage = (() => {
+  const at = onboardingSrc.indexOf('5. Bodyweight');
+  if (at < 0) return '';
+  // The page's own block, up to the comment that opens the next page.
+  const end = onboardingSrc.indexOf('6. Experience', at);
+  return end < 0 ? onboardingSrc.slice(at) : onboardingSrc.slice(at, end);
+})();
 
 check(
-  'both questions were found, so the checks below mean something',
-  !!units && !!bw,
-  'the questions have moved and this section has gone blind'
+  'the bodyweight page was found, so the checks below mean something',
+  bwPage.length > 400 && /What do you weigh\?/.test(bwPage),
+  'the page has moved and this section has gone blind'
 );
 check(
-  'the unit question gives the choice and leaves it there',
-  !/default in the (UK|US)|usually used/i.test(JSON.stringify(units)) &&
-    units.options.some((o) => /Kilograms \(kg\)/.test(o.label)) &&
-    units.options.some((o) => /Pounds \(lbs\)/.test(o.label)),
+  'the unit switch gives the choice and leaves it there',
+  !/default in the (UK|US)|usually used/i.test(onboardingSrc) &&
+    /label: 'Kilograms'/.test(onboardingSrc) &&
+    /label: 'Pounds'/.test(onboardingSrc),
   'it explained where each unit is "usually used", which is a geography lesson nobody asked for on a two-option question'
 );
 check(
-  'and still says it can be changed later',
-  /change it anytime in settings/i.test(units.hint ?? ''),
+  'and the page still says the answer can be changed later',
+  /change it any time in Profile/i.test(bwPage),
   'the one piece of context worth keeping'
 );
 
@@ -474,33 +504,29 @@ check(
  * So the question stays plain, keeps its reason attached, and has no way past.
  */
 check(
-  'answering it is required, with no skip offered',
-  bw.optional !== true && bw.skipLabel === undefined,
+  'nothing on the page offers a way past it',
+  !/Optional|Skip|skipLabel|I would rather not say/i.test(bwPage),
   'a guessed bodyweight is a guess in every session, not just this one'
 );
 check(
   'and the question says why it is needed rather than just demanding it',
-  /needed/i.test(bw.hint ?? '') && /prescribe|worked out from it/i.test(bw.hint ?? ''),
+  /work your weights out from/i.test(bwPage) && /too\s+heavy/i.test(bwPage),
   'a required field with no reason on it is the one people abandon a form over'
 );
 check(
   // Unchanged, and still right: the people most likely to balk are the ones the
   // guess is furthest out for, so it is never read back at them.
   'it never prints an assumed figure at the user',
-  !/\b165|\b75 ?kg|ASSUMED/.test(JSON.stringify(bw)),
+  !/\b165|\b75 ?kg|ASSUMED/.test(bwPage),
   'it said "the app assumes 165.3 lbs", and put the same number in the input as a placeholder'
 );
 check(
-  'there is no way past it anywhere in the builder',
-  (() => {
-    const tree = read('lib/profile-tree.ts');
-    const at = tree.indexOf("id: 'bodyweight',");
-    if (at < 0) return false;
-    // The node's own block, up to the next node's opening brace.
-    const block = tree.slice(at, tree.indexOf('\n  {', at));
-    return !/optional:\s*true/.test(block) && !/skipLabel/.test(block);
-  })(),
-  'the skip button only renders for an optional node, so this is the whole gate'
+  // The whole gate, and it is behaviour rather than copy: Continue is dead in
+  // either unit until a plausible number is in the box.
+  'and there is genuinely no way past it, in either unit',
+  !canContinue('bodyweight', answersWith({ bodyweight: '' }), 'kg') &&
+    !canContinue('bodyweight', answersWith({ bodyweight: '' }), 'lbs'),
+  'the copy above is only worth asserting while the gate behind it holds'
 );
 
 console.log('');

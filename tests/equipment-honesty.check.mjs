@@ -592,8 +592,7 @@ check(
 console.log('\n[The app adapts on the day, and says so]');
 
 const readiness = stripComments(src('app/readiness.tsx'));
-const tree = stripComments(src('lib/profile-tree.ts'));
-const programmeSrc = stripComments(src('lib/programme.ts'));
+const signUp = stripComments(src('app/onboarding.tsx'));
 
 check(
   'the readiness picker says it is only about today',
@@ -601,14 +600,21 @@ check(
   'the picker reads as a summary of what you own until something says otherwise'
 );
 check(
-  'and the builder tells them the question comes back before every session',
-  /asked again before every session/.test(tree),
+  // Re-homed. It used to read the same sentence off lib/profile-tree.ts, the
+  // retired builder's question table. The kit page in the sign-up pager is where
+  // the question is put now, so that is where the promise has to be made.
+  'and the kit question tells them it comes back before every session',
+  /asked again before every session/.test(signUp),
   'somebody answering for their worst day rather than their usual one gets a worse programme'
 );
 check(
-  'the certificate says it too, where the answers are being explained back',
-  /turning up without some of it rebuilds the session/.test(programmeSrc),
-  ''
+  // The other half of the same sentence, and the half people needed: what
+  // happens on the day the gym is shut. It used to be said a second time on the
+  // programme certificate, which the builder ended on and which is now deleted,
+  // so the sign-up page is the only place it is promised and has to say it all.
+  'and says what happens on the day they have not got it',
+  /a day\s+without the gym just builds a different one/.test(signUp),
+  'a question asked before every session, above no explanation of why it is asked again'
 );
 check(
   // Belt and braces on the sentence above: a promise about rebuilding is only

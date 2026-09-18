@@ -25,18 +25,11 @@ import { readFileSync } from 'fs';
 import {
   PROGRAMMES,
   PROGRAMME_IDS,
-  PROGRAMME_PROMISES,
   blockPlan,
   cycleFor,
   nextSessionType,
-  programmeCareNote,
   programmePosition,
-  programmeReasons,
-  selectProgramme,
-  templateIdFor,
   extrasFor,
-  otherProgrammes,
-  includedInGrow,
   tagSessions,
   cycleOf,
   programmeFor,
@@ -61,7 +54,6 @@ import {
   weeksFor,
   SESSION_COUNTS,
 } from '../lib/programme.ts';
-import { outcomeFrom } from '../lib/profile-tree.ts';
 import './_persist-shim.mjs';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
 
@@ -88,7 +80,6 @@ const SESSION_TYPES = (() => {
   return [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
 })();
 
-const FOCUSES = ['barbell', 'strength', 'muscle', 'comeback', 'fitness', 'joints'];
 const DAYS = [2, 3, 4, 5];
 /** Every training level the app has, from the store. Not a copy of them. */
 const LEVELS = [...EXPERIENCE_LEVELS];
@@ -171,43 +162,15 @@ check(
   'dropping a lift to make room for an accessory day would break the strength test'
 );
 
-// ─── 3. Every answer lands somewhere ────────────────────────────────────────
-console.log('\n[3] No combination of answers falls through');
-
-const misses = [];
-for (const focus of FOCUSES) {
-  for (const days of DAYS) {
-    for (const experience of LEVELS) {
-      const id = templateIdFor(focus, days, experience === 'beginner');
-      if (!PROGRAMME_IDS.includes(id)) misses.push(`${focus}/${days}/${experience} -> ${id}`);
-    }
-  }
-}
-check(
-  `all ${FOCUSES.length * DAYS.length * LEVELS.length} combinations produce a real programme`,
-  misses.length === 0,
-  misses.slice(0, 4).join(' | ')
-);
-
-check(
-  'each focus that has its own programme gets it',
-  templateIdFor('barbell', 3, false) === 'barbell' &&
-    templateIdFor('muscle', 3, false) === 'muscle' &&
-    templateIdFor('comeback', 3, false) === 'comeback' &&
-    templateIdFor('fitness', 3, false) === 'lean' &&
-    templateIdFor('joints', 3, false) === 'joints',
-  'the answer to the one question that chooses a programme has to choose it'
-);
-
-check(
-  // The reason both questions are asked. If general strength always produced the
-  // same thing, experience and frequency would be decorative on this path.
-  'general strength splits on experience and on frequency',
-  templateIdFor('strength', 4, true) === 'foundations' &&
-    templateIdFor('strength', 2, false) === 'foundations' &&
-    templateIdFor('strength', 4, false) === 'upper_lower',
-  'a beginner and a four day lifter should not be handed the same week'
-);
+// ─── 3. How often somebody trains changes what they get ─────────────────────
+//
+// THREE ASSERTIONS USED TO STAND HERE, all about templateIdFor, which mapped
+// the builder's "what should this be built around" answer onto a template.
+// Nothing asks that question any more: a programme is chosen by name from the
+// chooser, or assembled on the custom-programme screen, and templateIdFor went
+// with the builder. What survives is the half that is still true of every
+// programme, whichever way somebody arrived at it.
+console.log('\n[3] The days-a-week answer is not decorative');
 
 check(
   'frequency changes the cycle, not just the pace',
@@ -219,57 +182,24 @@ check(
 // ─── 4. Position is replayed, and off plan is free ──────────────────────────
 console.log('\n[4] Training something else never costs you your place');
 
-const enrol = selectProgramme(
-  outcomeFrom({ focus: 'barbell', days: '3', minutes: '45', length: '12', experience: 'advanced' }),
-  '2026-08-31T00:00:00.000Z',
-  0
-);
-
-check(
-  'enrolment carries the answers it was given',
-  enrol.templateId === 'barbell' &&
-    enrol.days === 3 &&
-    enrol.sessions === 12 &&
-    enrol.minutes === 45,
-  `got ${JSON.stringify(enrol)}; an answer that is not stored cannot have an effect`
-);
-
-check(
-  // Found by mutation: asserting one enrolment against one literal passes
-  // happily against a hardcoded value. Two enrolments that differ only in the
-  // answers cannot both be satisfied by a constant.
-  'and two people who answered differently are enrolled differently',
-  (() => {
-    const a = selectProgramme(
-      outcomeFrom({
-        focus: 'muscle',
-        days: '5',
-        minutes: '30',
-        length: '16',
-        experience: 'advanced',
-      }),
-      '2026-08-31T00:00:00.000Z',
-      0
-    );
-    return (
-      a.minutes === 30 &&
-      a.days === 5 &&
-      a.sessions === 16 &&
-      a.templateId === 'muscle' &&
-      a.minutes !== enrol.minutes &&
-      a.days !== enrol.days &&
-      a.sessions !== enrol.sessions
-    );
-  })(),
-  'every one of these is a question the builder asks; a constant here means the question was decorative'
-);
-
-check(
-  'and enrolling later starts a fresh block rather than inheriting a position',
-  selectProgramme(outcomeFrom({ focus: 'lean', days: '3' }), '2026-08-31T00:00:00.000Z', 240)
-    .startedAtSessionCount === 240,
-  'somebody with two years of history who picks a new programme must start at week one'
-);
+/**
+ * A BLOCK AS THE STORE WRITES ONE, spelled out rather than built by a helper.
+ *
+ * It used to be assembled by selectProgramme from a finished builder tree.
+ * Both are gone, and the live writers are enrolInProgramme, switchProgramme
+ * and enrolInCustomProgramme in lib/store.ts, which
+ * tests/programme-wiring.check.mjs drives for real. What this section is about
+ * is what the REPLAY does with an enrolment once it exists, so the enrolment
+ * is a fixture here and the three fields below are the ones it reads.
+ */
+const enrol = {
+  templateId: 'barbell',
+  days: 3,
+  sessions: 12,
+  minutes: 45,
+  startedAt: '2026-08-31T00:00:00.000Z',
+  startedAtSessionCount: 0,
+};
 
 check(
   'a fresh block starts on the first session of the cycle',
@@ -350,160 +280,16 @@ check(
   ''
 );
 
-// ─── 6. It says why, in their own answers ───────────────────────────────────
-console.log('\n[6] The programme explains itself');
-
-const sore = outcomeFrom({
-  focus: 'strength',
-  days: '3',
-  minutes: '30',
-  length: '12',
-  experience: 'beginner',
-  sore: 'yes',
-  soreArea: ['knee'],
-  soreAge: 'months',
-  equipment: ['dumbbells'],
-});
-const clean = outcomeFrom({
-  focus: 'barbell',
-  days: '4',
-  minutes: '60',
-  length: '12',
-  experience: 'advanced',
-  sore: 'no',
-  equipment: ['fullgym'],
-  testWeeks: '12',
-});
-
-check(
-  'there are reasons, and they are sentences',
-  programmeReasons(sore).length >= 3 && programmeReasons(sore).every((r) => r.length > 20),
-  ''
-);
-check(
-  'a sore area is named as a reason',
-  programmeReasons(sore).some((r) => /sore/i.test(r)),
-  'the app just made a decision on their behalf and has to say what caused it'
-);
-check(
-  'and somebody with nothing sore is not told about an injury they do not have',
-  !programmeReasons(clean).some((r) => /sore/i.test(r)),
-  'a reason that applies to everybody is not a reason'
-);
-check(
-  'the frequency and the session length both appear',
-  programmeReasons(clean).some((r) => /4 days/.test(r)) &&
-    programmeReasons(clean).some((r) => /60 minutes/.test(r)),
-  'these are two of the six new questions; if they are not in the reasons they had better be somewhere'
-);
-check(
-  'limited kit is named, and a full gym is not',
-  programmeReasons(sore).some((r) => /kit/i.test(r)) &&
-    !programmeReasons(clean).some((r) => /kit/i.test(r)),
-  ''
-);
-check(
-  'a strength test is only mentioned to somebody who has one',
-  programmeReasons(clean).some((r) => /strength test/i.test(r)) &&
-    !programmeReasons(sore).some((r) => /strength test/i.test(r)),
-  'the sore user is on general strength, where a test never comes due'
-);
-check(
-  // The list used to open with the cycle length, which is true and is not an
-  // answer to the question written directly above it.
-  'the first reason names the choice they actually made',
-  (() => {
-    const FOCI = [
-      ['barbell', /barbell lifts/i],
-      ['muscle', /building muscle/i],
-      ['comeback', /coming back from an injury/i],
-      ['fitness', /fitness and conditioning/i],
-      ['joints', /joint health/i],
-      ['strength', /whole body|general strength/i],
-    ];
-    return FOCI.every(([focus, rx]) => {
-      const first = programmeReasons(outcomeFrom({ focus, days: '3', minutes: '45', experience: 'beginner' }))[0];
-      return rx.test(first ?? '');
-    });
-  })(),
-  'somebody who told the app what to build around should see that read back before anything else'
-);
-
-check(
-  'and an experienced general-strength user gets their own line, not the beginner one',
-  (() => {
-    const first = programmeReasons(outcomeFrom({ focus: 'strength', days: '4', minutes: '45', experience: 'advanced' }))[0] ?? '';
-    return /general strength/i.test(first) && !/new to structured/i.test(first);
-  })(),
-  'the two general-strength programmes are different shapes and should not share a reason'
-);
-check(
-  'two different people get different reasons',
-  JSON.stringify(programmeReasons(sore)) !== JSON.stringify(programmeReasons(clean)),
-  ''
-);
-
-// ─── 7. The care note, and what it refuses to do ────────────────────────────
-console.log('\n[7] A recent injury is noticed but never overrules the choice');
-
-const freshInjury = { focus: 'barbell', days: '3', sore: 'yes', soreArea: ['knee'], soreAge: 'days' };
-check(
-  'somebody who chose the barbell with a three-day-old injury is warned',
-  (programmeCareNote(outcomeFrom(freshInjury)) ?? '').length > 40,
-  'a physiotherapist would not pretend not to have noticed'
-);
-check(
-  'and is still given the barbell programme they asked for',
-  templateIdFor(outcomeFrom(freshInjury).focus, 3, false) === 'barbell',
-  'noticing is not the same as overruling; they asked for it and they get it'
-);
-check(
-  'the note names the programme that would suit better',
-  /Return to Lifting/.test(programmeCareNote(outcomeFrom(freshInjury)) ?? ''),
-  'a warning with no action in it is just worry'
-);
-check(
-  'a long standing ache does not trigger it',
-  programmeCareNote(outcomeFrom({ ...freshInjury, soreAge: 'years' })) === null,
-  'somebody who has trained around a bad shoulder for a decade does not need a caution every block'
-);
-check(
-  'nor does somebody who already chose a rehab programme',
-  programmeCareNote(outcomeFrom({ ...freshInjury, focus: 'comeback' })) === null &&
-    programmeCareNote(outcomeFrom({ ...freshInjury, focus: 'joints' })) === null,
-  'they have already done the thing the note would ask them to do'
-);
-check(
-  'and nobody with nothing sore is warned about anything',
-  programmeCareNote(outcomeFrom({ focus: 'barbell', days: '3', sore: 'no' })) === null,
-  ''
-);
-
-// ─── 8. The three promises ──────────────────────────────────────────────────
-console.log('\n[8] The three things they have to understand');
-
-check(
-  'there are exactly three, because four is a wall of text',
-  PROGRAMME_PROMISES.length === 3,
-  ''
-);
-check(
-  'one of them says they can change it',
-  PROGRAMME_PROMISES.some((p) => /change/i.test(p.body)),
-  'the whole point is that it does not read as a cage'
-);
-check(
-  'one says off-plan training still counts',
-  PROGRAMME_PROMISES.some((p) => /counts/i.test(p.body) && /history|records/i.test(p.body)),
-  ''
-);
-check(
-  // The one that matters most. People who hear "programme" expect a fixed sheet,
-  // and without this the first adaptive session reads as a fault.
-  'and one warns them it will change by itself',
-  PROGRAMME_PROMISES.some((p) => /changes as you do/i.test(p.title)),
-  'this app rewrites the session around whatever hurts, which looks like a bug if nobody said so'
-);
+// ─── 6, 7, 8 and 10 have gone with the certificate ──────────────────────────
+//
+// Four sections used to stand here and between 9 and 11: the reasons list, the
+// care note, the three promises and the list of what the subscription buys.
+// All four were the text of components/ProgrammeCertificate.tsx, the screen the
+// builder ended on, and all four read a TreeOutcome that nothing produces now.
+// The clinical half of what they guarded did not live in the copy and has not
+// moved: a standing sore area really reaching the session, and a clinician-named
+// area being screened out of every session, are asserted against the generator
+// in tests/standing-injury.check.mjs sections 1, 2 and 5.
 
 // ─── 9. Recovery is never more than one tap away ────────────────────────────
 console.log('\n[9] Every programme can reach rehab and recovery work');
@@ -548,40 +334,6 @@ check(
   'a custom session is assembled in the builder, not generated'
 );
 
-check(
-  'choosing one programme leaves the other six reachable',
-  otherProgrammes('barbell').length === PROGRAMME_IDS.length - 1 &&
-    !otherProgrammes('barbell').some((p) => p.id === 'barbell'),
-  'somebody handed a programme has to understand they have not been locked out of the rest'
-);
-
-// ─── 10. What the subscription buys, said once and truthfully ───────────────
-console.log('\n[10] The list of what comes with it');
-
-const included = includedInGrow({ exercises: 707, painAreas: 19, sessionTypes: 10 });
-check(
-  'there is a list, and every line says something',
-  included.length >= 6 && included.every((i) => i.title.length > 5 && i.body.length > 40),
-  'this is the first place in the app that states what the subscription is for'
-);
-check(
-  'the counts it quotes are the ones it was given',
-  included.some((i) => /707/.test(i.title)) && included.some((i) => /19/.test(i.title)),
-  'hardcoding them here is how the paywall came to advertise 12 of the 19 pain zones'
-);
-check(
-  // The store listing makes the same refusal for the same reason: only 103 of
-  // the exercises have a recorded video and the rest fall back to a search.
-  'it does not claim a video for every exercise',
-  !included.some((i) => /video for every|every exercise has a video/i.test(i.body)),
-  'a demonstration a tap away is true; a video for each is not'
-);
-check(
-  'and it names no price',
-  !included.some((i) => /[£$€]\s?\d/.test(i.title + i.body)),
-  'the price comes from the store, and a hardcoded one is wrong in every country but one'
-);
-
 // ─── 11. Length in sessions, difficulty in work ─────────────────────────────
 console.log('\n[11] Length and difficulty are two different axes');
 
@@ -595,12 +347,15 @@ check(
   JSON.stringify(SESSION_COUNTS)
 );
 check(
-  'a length nobody was offered is snapped back to the default rather than honoured',
-  outcomeFrom({ length: '13' }).sessions === 12 &&
-    outcomeFrom({ length: '999' }).sessions === 12 &&
-    outcomeFrom({ length: 'garbage' }).sessions === 12 &&
-    outcomeFrom({ length: '4' }).sessions === 4,
-  'a block of 13 is a plan nobody designed'
+  // The assertion above is the whole gate now. A length nobody was offered used
+  // to be snapped back to 12 by outcomeFrom, because the builder let somebody
+  // type into the question; the two screens that set a block length both draw
+  // their buttons from SESSION_COUNTS, so there is no longer a way to ask for
+  // 13 and nothing to snap back.
+  'and both screens that set a block length read that one list',
+  /SESSION_COUNTS/.test(read('components/ProgrammeHub.tsx')) &&
+    /SESSION_COUNTS/.test(read('components/BuildProgramme.tsx')),
+  'a hand-written copy of the nine is how a block of 13 would get back in'
 );
 check(
   'weeks are derived from the pair and always round UP',
@@ -622,16 +377,8 @@ check(
       programmeDifficulty('barbell', 'advanced', 3).label
   ) &&
     (() => {
-      const short = selectProgramme(
-        outcomeFrom({ focus: 'barbell', days: '3', experience: 'advanced', length: '4' }),
-        '2026-08-31T00:00:00.000Z',
-        0
-      );
-      const long = selectProgramme(
-        outcomeFrom({ focus: 'barbell', days: '3', experience: 'advanced', length: '20' }),
-        '2026-08-31T00:00:00.000Z',
-        0
-      );
+      const short = { ...enrol, sessions: 4 };
+      const long = { ...enrol, sessions: 20 };
       return (
         short.sessions !== long.sessions &&
         programmeDifficulty(short.templateId, 'advanced', short.days).label ===
@@ -814,10 +561,14 @@ check(
   `${PROGRAMME_IDS.length}: ${PROGRAMME_IDS.join(', ')}`
 );
 check(
-  'nor among the ones offered as alternatives to whatever you are on',
-  otherProgrammes('barbell').every((p) => p.id !== 'custom') &&
-    otherProgrammes('custom').length === 7,
-  'a page that says "and 7 more, included" must not be counting the one they built'
+  // otherProgrammes filtered PROGRAMME_IDS for the certificate's "and the rest
+  // are still yours" list and went with it. PROGRAMME_IDS is what the chooser
+  // maps over, so the same promise now rests on the assertion above: custom is
+  // not in it, and a page offering "7 more" is not counting the one they built.
+  'nor among the seven the chooser offers',
+  !PROGRAMME_IDS.includes('custom') &&
+    PROGRAMME_IDS.filter((id) => id !== 'barbell').length === 6,
+  `${PROGRAMME_IDS.join(', ')}`
 );
 check(
   'the cycle comes off the enrolment, not the template table',
@@ -1456,95 +1207,6 @@ check(
 check(
   'a cycle somebody built themselves is never suggested to anybody',
   closestProgramme(Array(8).fill('full_body'), 'barbell') !== 'custom',
-  ''
-);
-
-// ─── The certificate says what the new answers did ──────────────────────────
-//
-// The reasons list exists because the app has just made a decision on somebody's
-// behalf, and naming the answer that caused it is what separates a considered
-// app from a black box. Three answers that change the prescription and say
-// nothing on the page explaining the prescription is the black box growing.
-console.log('\n[F] Every answer that changed something says so');
-
-const outcome = (over = {}) => ({
-  name: 'Archie',
-  focus: 'strength',
-  days: 3,
-  minutes: 45,
-  sessions: 12,
-  experience: 'intermediate',
-  ageYears: 34,
-  sex: 'male',
-  bodyweightKg: 82,
-  equipmentTiers: ['fullgym'],
-  soreRegions: [],
-  soreFor: null,
-  testWeekFrequency: 'never',
-  oneRepMaxes: { squat: null, bench: null, deadlift: null },
-  avoidRegions: [],
-  maxKitKg: 0,
-  ...over,
-});
-
-const said = (over) => programmeReasons(outcome(over)).join(' ');
-
-check(
-  /**
-   * NOTHING IS SAID ABOUT MOVEMENT CHECKS, BECAUSE NOTHING HAPPENS BECAUSE OF
-   * THEM.
-   *
-   * Three sentences used to live here, naming the patterns somebody had left
-   * unticked on the builder's zero-load screen and telling them those movements
-   * would start from the foundation version. The screen is gone and the ceiling
-   * comes from the experience answer alone, so any surviving sentence would be
-   * explaining a decision the app no longer makes - which is the exact failure
-   * this whole section exists to catch, pointing the other way.
-   *
-   * Asserted over the reasons produced for a FULL set of answers, including the
-   * stale fields an older draft could still carry, rather than for one fixture.
-   */
-  'the certificate never explains a movement check, whatever it is handed',
-  [
-    said({}),
-    said({ screenPassed: [] }),
-    said({ screenPassed: ['hinge'] }),
-    said({ experience: 'beginner' }),
-    said({ experience: 'advanced', maxKitKg: 20, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' }),
-  ].every((line) => !/foundation version|movement check|checks yet|pull-up/i.test(line)),
-  said({ screenPassed: [] })
-);
-check(
-  // The reasons list still has to do its job, or the check above would pass on
-  // an empty list saying nothing about anything.
-  'while every other answer that changed something still says so',
-  (() => {
-    const line = said({ maxKitKg: 24, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' });
-    return line.length > 80 && /24 kg/.test(line) && /clinician/.test(line);
-  })(),
-  said({ maxKitKg: 24, avoidRegions: ['knee'], soreRegions: ['knee'], soreFor: 'weeks' })
-);
-check(
-  'the kit ceiling is named with its number',
-  /above 24 kg/.test(said({ maxKitKg: 24 })) && !/above 0/.test(said({ maxKitKg: 0 })),
-  said({ maxKitKg: 24 })
-);
-check(
-  'and the clinical instruction is said in its own words, not as soreness',
-  (() => {
-    const line = said({ avoidRegions: ['front_shoulder'] });
-    return /clinician/.test(line) && /whether or not it hurts/.test(line);
-  })(),
-  said({ avoidRegions: ['front_shoulder'] })
-);
-check(
-  'no reason ever reads as an unfinished sentence',
-  [
-    said({}),
-    said({ experience: 'beginner' }),
-    said({ soreRegions: ['knee'], soreFor: 'days' }),
-    said({ maxKitKg: 20, avoidRegions: ['knee'] }),
-  ].every((line) => !/undefined|NaN|null|,\s*\./.test(line)),
   ''
 );
 

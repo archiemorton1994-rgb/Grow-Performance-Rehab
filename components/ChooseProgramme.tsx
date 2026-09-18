@@ -10,8 +10,8 @@
  * asked for either, and there was nowhere obvious to go and change it.
  *
  * So Home now points here whenever nobody is enrolled, and here offers the seven
- * programmes directly, plus the builder for anybody who would rather answer
- * questions than choose. Both land in the same hub.
+ * programmes directly, plus a way to put a cycle together yourself. Both land in
+ * the same hub.
  *
  * THE SENTENCE AT THE BOTTOM IS NOT A DISCLAIMER, IT IS THE POINT.
  * A programme is a convenience, not the app. Everything in Train stays open,
@@ -80,45 +80,25 @@ export function ChooseProgramme({ onKeepRotation }: ChooseProgrammeProps) {
       testID="choose-programme"
     >
       <Text style={styles.lede}>
-        A programme decides what you train and when, so you do not have to. Pick one, or answer a
-        few questions and we will pick.
+        A programme decides what you train and when, so you do not have to. Pick one of ours, or
+        put your own together.
       </Text>
 
-      {/* The builder first, because it is the better answer for most people:
-          it reads their injuries, their kit and their goal, and this list
-          cannot. Offered rather than forced, which is why the seven are still
-          right underneath it. */}
-      <Pressable
-        onPress={() => {
-          haptic(true);
-          router.push('/onboarding');
-        }}
-        testID="choose-build-mine"
-        style={({ pressed }) => [styles.builder, pressed && { opacity: 0.9 }]}
-      >
-        <View style={[styles.builderIcon, { backgroundColor: C.primaryMuted }]}>
-          <Ionicons name="git-branch-outline" size={20} color={C.primaryText} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.builderTitle}>Build mine from a few questions</Text>
-          <Text style={styles.builderSub}>
-            It reads your goal, your kit, your time and anything that is sore, then picks and
-            tunes one.
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={C.textTertiary} />
-      </Pressable>
-
+      {/* The only route in besides the seven below.
+          There used to be a second one above this, "Build mine from a few
+          questions", which sent people back through sign-up. Sign-up asks who
+          you are; it does not choose a programme and it never enrols anybody,
+          so the button promised something the screen behind it no longer did. */}
       <Pressable
         onPress={() => {
           haptic(true);
           router.push('/build-programme');
         }}
         testID="choose-build-own"
-        style={({ pressed }) => [styles.builder, styles.builderQuiet, pressed && { opacity: 0.9 }]}
+        style={({ pressed }) => [styles.builder, pressed && { opacity: 0.9 }]}
       >
-        <View style={[styles.builderIcon, { backgroundColor: C.surfaceSecondary }]}>
-          <Ionicons name="albums-outline" size={20} color={C.text} />
+        <View style={[styles.builderIcon, { backgroundColor: C.primaryMuted }]}>
+          <Ionicons name="albums-outline" size={20} color={C.primaryText} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.builderTitle}>Put one together myself</Text>
@@ -256,14 +236,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    // The second route in is the same row, quieter: the questions are the
-    // better answer for most people, and two equally loud options is a
-    // decision nobody asked to make.
-    builderQuiet: {
-      borderColor: C.border,
-      backgroundColor: C.surface,
-      marginTop: 8,
     },
     builderTitle: { fontSize: 15, fontFamily: 'Inter_700Bold', color: C.text },
     builderSub: {

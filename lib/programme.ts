@@ -38,45 +38,19 @@
  * NO REACT AND NO REACT NATIVE IMPORT, so tests/programme.check.mjs can run this
  * rather than read it.
  */
-import type {
-  EquipmentTier,
-  ExperienceLevel,
-  FitnessGoal,
-  PainRegion,
-  Sex,
-  SessionType,
-  TestWeekFrequency,
-} from './store';
+import type { ExperienceLevel, SessionType } from './store';
 import { levelBandFor, type ExerciseLevel, type LevelBand } from './exercise-levels';
 
 // ─── The vocabulary a programme is described in ─────────────────────────────
 
 /**
- * These seven used to live in lib/profile-tree.ts, because the profile builder
- * was the first thing to need words for them. They are not the builder's, they
- * are the programme's: a focus picks a template, days sets how fast the cycle
- * turns, minutes and sessions are written on the enrolment, and an injury age
- * decides the care note. Several screens that have nothing to do with the
- * builder read them, so they live beside the thing they describe.
+ * These used to live in lib/profile-tree.ts, because the profile builder was the
+ * first thing to need words for them. They are not the builder's, they are the
+ * programme's: days sets how fast the cycle turns, minutes and sessions are
+ * written on the enrolment, and an injury age says how long something has been
+ * sore. The builder is gone and every one of these is still read, by the
+ * programme hub, the custom-programme screen and the profile.
  */
-
-/**
- * What the programme is built around. THE branch point, and the single question
- * that does not exist today.
- *
- * Everyone who finishes the current builder is put on the same three-lift
- * rotation, because `SESSION_ORDER = ['squat', 'bench', 'deadlift']` in
- * lib/store.ts is the whole programme and no answer reaches it. The app then
- * works out over about a fortnight that somebody does not want to squat, by
- * watching them decline it. This asks instead.
- */
-export type ProgrammeFocus =
-  | 'barbell'
-  | 'strength'
-  | 'muscle'
-  | 'comeback'
-  | 'fitness'
-  | 'joints';
 
 /** Days a week. The first thing any coach asks, and never once asked here. */
 export type TrainingDays = 2 | 3 | 4 | 5;
@@ -118,44 +92,6 @@ export const SESSION_COUNTS: SessionCount[] = [4, 6, 8, 10, 12, 14, 16, 18, 20];
 /** How long something has been sore. Changes whether it is treated as acute. */
 export type InjuryAge = 'days' | 'weeks' | 'months' | 'years';
 
-/** What a finished tree says, in the types the rest of the app already uses. */
-export interface TreeOutcome {
-  name: string;
-  /**
-   * Whether they asked for a programme at all.
-   *
-   * False means "let me explore": no block is started, and the four questions
-   * that only shape a block were never asked, so `focus`, `days`, `minutes` and
-   * `sessions` below hold defaults rather than answers. They are still filled in
-   * because the rest of the app reads them for other things - session length
-   * seeds the readiness screen, and the focus decides the rep ranges - but
-   * nothing should read them as a statement about a programme.
-   */
-  guided: boolean;
-  focus: ProgrammeFocus;
-  days: TrainingDays;
-  minutes: SessionLength;
-  /** How many sessions the first block runs for. */
-  sessions: SessionCount;
-  experience: ExperienceLevel;
-  ageYears: number;
-  sex: Sex;
-  bodyweightKg: number;
-  equipmentTiers: EquipmentTier[];
-  /** Empty when nothing is sore. */
-  soreRegions: PainRegion[];
-  soreFor: InjuryAge | null;
-  testWeekFrequency: TestWeekFrequency;
-  oneRepMaxes: { squat: number | null; bench: number | null; deadlift: number | null };
-  /** Areas a clinician has told them to stay off. Empty when there are none. */
-  avoidRegions: PainRegion[];
-  /**
-   * The heaviest hand weight they can reach, in kg. Zero when they have a full
-   * gym, or did not say.
-   */
-  maxKitKg: number;
-}
-
 export type ProgrammeId =
   | 'barbell'
   | 'foundations'
@@ -177,7 +113,7 @@ export type ProgrammeId =
 
 export interface ProgrammeTemplate {
   id: ProgrammeId;
-  /** What it is called on the certificate and in the hub. */
+  /** What it is called in the chooser and in the hub. */
   name: string;
   /** One line, in the app's voice. */
   blurb: string;
@@ -211,8 +147,8 @@ export interface ProgrammeTemplate {
 /**
  * Every programme the app can put somebody on.
  *
- * Seven, which covers the six answers to "what should this be built around"
- * plus the split of general strength into a beginner and an experienced shape.
+ * Seven, which covers the six things people come to this app to train for plus
+ * the split of general strength into a beginner and an experienced shape.
  * Adding an eighth is a data change and nothing else, which is the entire point
  * of the template layer.
  */
@@ -559,71 +495,6 @@ export function extrasFor(id: ProgrammeId, days: TrainingDays): SessionType[] {
 export function cycleFor(id: ProgrammeId, days: TrainingDays): SessionType[] {
   const t = programmeFor(id);
   return t.cycle[days] ?? t.cycle[3];
-}
-
-// ─── Choosing one ───────────────────────────────────────────────────────────
-
-/**
- * The template their answers point at. Never null: everybody gets a programme.
- *
- * General strength splits on experience and frequency, because "get stronger
- * with whatever kit is around" means a different shape to a beginner training
- * twice a week than to somebody experienced training four times. That split is
- * the reason both of those questions are asked.
- */
-export function templateIdFor(focus: ProgrammeFocus, days: TrainingDays, isBeginner: boolean): ProgrammeId {
-  switch (focus) {
-    case 'barbell':
-      return 'barbell';
-    case 'muscle':
-      return 'muscle';
-    case 'comeback':
-      return 'comeback';
-    case 'fitness':
-      return 'lean';
-    case 'joints':
-      return 'joints';
-    case 'strength':
-    default:
-      return isBeginner || days <= 3 ? 'foundations' : 'upper_lower';
-  }
-}
-
-/**
- * Enrol somebody from a finished profile tree.
- *
- * `sessionCount` is their history length at this moment, so an existing user
- * who picks a new programme from the hub starts a fresh block rather than
- * inheriting a position from work they did on something else.
- */
-export function selectProgramme(
-  outcome: TreeOutcome,
-  nowIso: string,
-  sessionCount: number
-): EnrolledProgramme | null {
-  /**
-   * NOBODY IS PUT ON A BLOCK THEY DID NOT ASK FOR.
-   *
-   * The builder used to enrol everyone who finished it. That was defensible on
-   * paper - an off-plan session leaves the block where it was, so a programme
-   * costs you nothing to ignore - and wrong in practice: somebody who wanted to
-   * look around got a twelve session block and a progress bar quietly measuring
-   * how much of it they had not done.
-   *
-   * Choosing to explore is not choosing less. Every session they pick is still
-   * built from the same profile, the same movement screen and the same injuries;
-   * they simply choose which one. The programme chooser is one tap away in Train
-   * for the day they want one, and starting one then costs them nothing either.
-   */
-  if (!outcome.guided) return null;
-  return {
-    templateId: templateIdFor(outcome.focus, outcome.days, outcome.experience === 'beginner'),
-    days: outcome.days,
-    sessions: outcome.sessions,
-    minutes: outcome.minutes,
-    startedAt: nowIso,
-    startedAtSessionCount: Math.max(0, Math.trunc(sessionCount)),
-  };
 }
 
 // ─── Where they are in it ───────────────────────────────────────────────────
@@ -1101,7 +972,7 @@ export type Difficulty = (typeof DIFFICULTY_LABELS)[number];
  *   THE VOLUME    five days a week is more than two, of anything.
  *   THE CAPABILITY  the same template is prescribed differently by experience:
  *                 the rep schemes, the set counts and the exercises chosen all
- *                 move with it. See goalsForFocus and lib/rep-scheme.ts.
+ *                 move with it. See lib/rep-scheme.ts.
  *
  * AND A CEILING, which is what stops the label being nonsense. A beginner is
  * never handed an Advanced programme however they answer, because the app will
@@ -1274,313 +1145,4 @@ export function programmeDifficulty(
         ? `Because ${parts.join(', ')}.`
         : 'Based on the work it prescribes and how often you train.',
   };
-}
-
-// ─── Saying why ─────────────────────────────────────────────────────────────
-
-const AGE_WORDS: Record<InjuryAge, string> = {
-  days: 'for a few days',
-  weeks: 'for a few weeks',
-  months: 'for months',
-  years: 'for a year or more',
-};
-
-/**
- * Why this programme, in their own answers.
- *
- * Shown on the certificate at the end of the builder and again in the hub. This
- * is the market read's "show the reasoning" advice at the earliest possible
- * moment: the app has just made a decision on somebody's behalf, and saying
- * which of their answers caused it is what separates a considered app from a
- * black box.
- *
- * Every line names a REAL answer. Nothing generic, and nothing that would be
- * true of everybody, because a reason that applies to everybody is not a reason.
- */
-export function programmeReasons(outcome: TreeOutcome): string[] {
-  const out: string[] = [];
-  const t = programmeFor(templateIdFor(outcome.focus, outcome.days, outcome.experience === 'beginner'));
-
-  /**
-   * THE CHOICE ITSELF, FIRST.
-   *
-   * The list used to open with "3 days a week, so your cycle is 3 sessions
-   * long", which is true and is not an answer to the question written above it.
-   * Somebody who has just told the app in as many words what they want it to
-   * build around should see that sentence read back to them before anything
-   * else, or the reasoning on display is the reasoning about the small stuff.
-   */
-  switch (outcome.focus) {
-    case 'barbell':
-      out.push(
-        'You chose the three barbell lifts, so squat, bench and deadlift rotate and each one gets tested.'
-      );
-      break;
-    case 'muscle':
-      out.push(
-        'You chose building muscle, so there is more volume, more accessory work, and the rep ranges that build size.'
-      );
-      break;
-    case 'comeback':
-      out.push(
-        'You are coming back from an injury, so this starts with rehab and only adds load back as the area lets you.'
-      );
-      break;
-    case 'fitness':
-      out.push(
-        'You chose fitness and conditioning, so this is cardio led with enough lifting to keep the muscle you have.'
-      );
-      break;
-    case 'joints':
-      out.push(
-        'You chose joint health, so prehab and mobility are the main work rather than the warm-up.'
-      );
-      break;
-    case 'strength':
-    default:
-      out.push(
-        outcome.experience === 'beginner'
-          ? 'You are new to structured training, so every session covers the whole body.'
-          : `You want general strength on ${outcome.days} days a week, which is enough to split upper and lower.`
-      );
-      break;
-  }
-
-  out.push(`${outcome.days} days a week, so your cycle is ${cycleFor(t.id, outcome.days).length} sessions long.`);
-  out.push(
-    `${outcome.sessions} sessions in the block, about ${weeksFor(outcome.sessions, outcome.days)} weeks at that rate. It is counted in sessions, so it only moves when you train.`
-  );
-  /**
-   * The adaptive half of the time answer, said out loud.
-   *
-   * The generator has always built a shorter session for a shorter day. Nobody
-   * was ever told, so the first time somebody with 30 minutes saw fewer
-   * exercises than the plan showed, the reasonable reading was that the app had
-   * lost something.
-   */
-  out.push(
-    `Around ${outcome.minutes} minutes a session, and a day you only have 30 gives you the same session with less of it rather than a different one.`
-  );
-
-  /**
-   * THERE IS NO LINE HERE ABOUT MOVEMENT CHECKS ANY MORE.
-   *
-   * It used to name the patterns somebody had left unticked on the builder's
-   * zero-load screen and say those started from the foundation version. The
-   * screen is gone and the ceiling comes from the experience answer alone, so
-   * the sentence would be describing something that no longer happens.
-   */
-  if (outcome.maxKitKg > 0) {
-    out.push(
-      `Nothing is ever prescribed above ${outcome.maxKitKg} kg, because that is the heaviest you told us you can reach.`
-    );
-  }
-
-  if (outcome.avoidRegions.length > 0) {
-    out.push(
-      'A clinician has told you to stay off something, so it is worked around in every session whether or not it hurts that day.'
-    );
-  }
-
-  if (outcome.soreRegions.length > 0) {
-    const age = outcome.soreFor ? ` ${AGE_WORDS[outcome.soreFor]}` : '';
-    /**
-     * THIS SENTENCE WAS A LIE FOR AS LONG AS IT EXISTED, in both halves.
-     *
-     * It said every session was built around the area and that gentle work for
-     * it went in. Neither happened: the answer was written to the profile,
-     * synced, and read by nothing at all. Two sessions generated side by side,
-     * identical but for a standing knee, came back with the same exercises.
-     *
-     * The first half is now true - see the standing-areas merge in
-     * generateWorkout. The second is not, and rather than wire up something
-     * nobody designed, the claim has come out. What the app actually does is
-     * swap the loading away, so that is what it says.
-     *
-     * It also says where to change it, which is the other half of being honest
-     * about a standing fact: an answer given once at sign-up that suppresses
-     * work for ever needs a door out, and now has one.
-     */
-    out.push(
-      `Something has been sore${age}, so every session works around it: the movements that load that area are swapped for ones that do not. You can change this any time in your profile.`
-    );
-  }
-
-  /**
-   * Two sentences, because the kit answer has two halves and only one of them
-   * was ever said.
-   *
-   * The first is the promise the equipment fix made true: no equipment means no
-   * equipment, everywhere, including behind the swap button. The second is the
-   * one people needed and never got - what happens on the day the gym is shut.
-   * Everybody gets that half, full gym included, because a full gym is the
-   * answer most likely to be wrong on a Sunday.
-   */
-  if (outcome.equipmentTiers.length > 0 && !outcome.equipmentTiers.includes('fullgym')) {
-    out.push('Only exercises you have the kit for, so nothing is prescribed you cannot do.');
-  }
-  out.push(
-    'You are asked what you have got before every session, so turning up without some of it rebuilds the session rather than costing you it.'
-  );
-
-  if (outcome.focus === 'barbell' && outcome.testWeekFrequency !== 'never') {
-    out.push(`A strength test every ${outcome.testWeekFrequency} sessions, so the weights stay honest.`);
-  }
-
-  return out;
-}
-
-/**
- * A caution, when their answers deserve one and their choice does not carry it.
- *
- * Somebody whose knee started hurting three days ago and who chose Barbell
- * Strength has told us two things that pull against each other. The app does NOT
- * overrule them: they asked for the barbell and they get the barbell. It says
- * what it has done about it, and it names the programme that would suit better,
- * because pretending not to notice is the thing a physiotherapist would never do.
- */
-export function programmeCareNote(outcome: TreeOutcome): string | null {
-  if (outcome.soreRegions.length === 0) return null;
-  if (outcome.focus === 'comeback' || outcome.focus === 'joints') return null;
-  if (outcome.soreFor !== 'days') return null;
-  /**
-   * "The first two weeks go easy on it" was never implemented either, and it was
-   * the worse of the two promises because it was a dated commitment. There is no
-   * two-week window anywhere in the engine. What there is, now, is the standing
-   * area being worked around from the first session onwards - which is a
-   * stronger thing to be able to say, and true.
-   */
-  return 'Something has only been sore for a few days, so that area is worked around from your first session. If it is not settling, Return to Lifting is the better programme and you can switch any time.';
-}
-
-/**
- * The three things somebody has to understand at the end of the builder.
- *
- * Lives here rather than in the screen because the hub says the same three
- * things and two copies would drift. The third one matters most: people who
- * hear "programme" expect a fixed sheet, and without that sentence the first
- * time the app adapts a session they will read it as a fault.
- */
-export const PROGRAMME_PROMISES: { title: string; body: string }[] = [
-  {
-    title: 'This is a starting point',
-    body: 'It saves you deciding what to train and how heavy. It does not decide for you. Change the programme, the days or the length whenever you like.',
-  },
-  {
-    title: 'Train whatever you want in between',
-    body: 'Anything you do is logged, counts towards your records and shows in your history. It just leaves your programme where it was, so you never lose your place.',
-  },
-  {
-    title: 'It changes as you do',
-    body: 'The weights come from what you actually lift. The session is built around whatever is sore, whatever kit you have that day and how long you have got. If it looks different tomorrow, that is it working.',
-  },
-];
-
-/**
- * The focus, translated into the goals the engine already understands.
- *
- * WHY THIS MATTERS MORE THAN IT LOOKS. lib/rep-scheme.ts turns goals into an
- * intent, which sets the rep ranges for every exercise, and
- * getGoalVolumeDeltas in lib/workout-engine.ts turns them into set counts. Those
- * two are the only parts of the old profile that ever reached the training.
- *
- * If "what should this be built around" only chose a template, somebody who
- * asked for muscle would get an upper/lower split prescribed in strength rep
- * ranges. The template decides WHICH sessions; the goal decides what the sets
- * and reps inside them look like. Both have to come from the same answer or
- * they can disagree.
- *
- * Joint health maps to rehab rather than to fitness on purpose: prehab and
- * mobility work wants the gentle prescription, and lib/rep-scheme.ts already
- * softens everything under a rehab intent.
- */
-export function goalsForFocus(focus: ProgrammeFocus): FitnessGoal[] {
-  switch (focus) {
-    case 'barbell':
-      return ['strength'];
-    case 'strength':
-      return ['strength'];
-    case 'muscle':
-      return ['muscle'];
-    case 'comeback':
-      return ['rehab'];
-    case 'joints':
-      return ['rehab'];
-    case 'fitness':
-    default:
-      return ['fitness'];
-  }
-}
-
-/**
- * The other programmes, which choosing one does not take away.
- *
- * Worth saying out loud at the moment somebody is handed theirs. Every one of
- * these is available from the programme hub, switching starts a fresh block, and
- * nothing that has been logged is lost by moving.
- */
-export function otherProgrammes(current: ProgrammeId): ProgrammeTemplate[] {
-  return PROGRAMME_IDS.filter((id) => id !== current).map((id) => PROGRAMMES[id]);
-}
-
-/** Counts the app can state about itself, read from the code that owns them. */
-export interface AppCounts {
-  exercises: number;
-  painAreas: number;
-  sessionTypes: number;
-}
-
-/**
- * WHAT THE SUBSCRIPTION ACTUALLY BUYS, in one place, for the first time.
- *
- * Every one of these already exists and has existed for months. None of them
- * has ever been listed anywhere a user would see it except the paywall, which
- * they read once, before they had any idea what the words meant.
- *
- * The rule for this list is the rule for the store listing: nothing that is not
- * true today. No video for every exercise, because only some have one recorded
- * and the rest fall back to a search. No claim about a price either: the price
- * comes from the store and is stated where the store can be asked.
- */
-export function includedInGrow(c: AppCounts): { title: string; body: string }[] {
-  return [
-    {
-      title: 'The weight moves itself',
-      body: 'Every load is worked out from what you actually lifted last time. Clear your reps and it climbs, fall short and it holds.',
-    },
-    {
-      title: `${c.painAreas} areas you can flag as sore`,
-      body: 'Say something hurts and the session is rebuilt around it, with gentler work for that area put in and a limit to stay inside.',
-    },
-    {
-      title: 'Rehab and recovery whenever you want it',
-      body: 'Prehab, mobility and conditioning sessions sit alongside your programme. Doing one never costs you your place in it.',
-    },
-    {
-      title: 'An assistant that has been watching',
-      body: 'A lift that has stalled three sessions running, a personal best you did not clock, an ache you have flagged five times in ten weeks.',
-    },
-    {
-      title: 'Every number, kept',
-      body: '1RM trends, personal bests, muscle coverage and your full history, with the plate maths done for you in kilos or pounds.',
-    },
-    {
-      title: 'A summary for your own physio',
-      body: 'Every pain report and every session, in one thing you can hand to a clinician. Nothing else on the store produces it.',
-    },
-    {
-      title: `${c.exercises} exercises, ${c.sessionTypes} kinds of session`,
-      body: 'Each with written cues and a demonstration a tap away, filtered to the equipment you told us you have.',
-    },
-  ];
-}
-
-/** Everything a standing injury needs to reach the rest of the app. */
-export interface StandingCare {
-  regions: PainRegion[];
-  since: InjuryAge | null;
-}
-
-export function standingCareFrom(outcome: TreeOutcome): StandingCare {
-  return { regions: outcome.soreRegions, since: outcome.soreFor };
 }

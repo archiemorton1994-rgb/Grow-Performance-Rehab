@@ -20,6 +20,7 @@ import './_persist-shim.mjs';
 import { readFileSync } from 'fs';
 import { useAppStore, SESSION_ORDER } from '../lib/store.ts';
 import { cycleFor } from '../lib/programme.ts';
+import { MAX_EARNED_BONUS } from '../lib/programme-report.ts';
 
 let passed = 0;
 let failed = 0;
@@ -113,203 +114,65 @@ check(
   ''
 );
 
-// ─── 2. The builder writes every answer to its home ─────────────────────────
-console.log('\n[2] Every answer in the tree lands somewhere that uses it');
+// ─── 2. A strength test belongs to the barbell programmes ───────────────────
+//
+// FIFTEEN ASSERTIONS USED TO STAND HERE, all driving applyProfileTree: the one
+// store action the profile builder ended on. It wrote the whole profile AND
+// enrolled a block in the same breath, and it has gone with the builder.
+//
+// Signing up is completeOnboarding now, which writes the same fields and leaves
+// `programme` null. Every answer it writes is asserted against the real store in
+// tests/complete-onboarding.check.mjs and in tests/onboarding-pager.check.mjs
+// section 9, including the pounds fault that stored 176 lb as 176 kg.
+//
+// What is kept here is the half neither of those can see, because it is about a
+// programme rather than about a profile: a block with no barbell lift in it is
+// never interrupted by a strength test, and a block with three still is.
+console.log('\n[2] A strength test belongs to the programmes with a barbell in them');
 
-reset();
-S().applyProfileTree(
-  {
-    // Kilograms, because every number below is a kilogram number and this
-    // journey's assertions are about what reaches the profile rather than about
-    // units. The pounds case has its own check, at the end of this section.
-    units: 'kg',
-    name: 'Archie',
-    focus: 'muscle',
-    days: '4',
-    minutes: '30',
-    experience: 'advanced',
-    age: 34,
-    sex: 'male',
-    bodyweight: 82,
-    equipment: ['dumbbells', 'kettlebells'],
-    sore: 'yes',
-    soreArea: ['front_shoulder'],
-    soreAge: 'months',
-    length: '16',
-    liftsSquat: 140,
-    liftsBench: 100,
-    liftsDeadlift: 180,
-  },
-  '2026-08-31T09:00:00.000Z'
-);
+/**
+ * Twelve barbell sessions, which is exactly the history that makes a test due
+ * at a frequency of 12.
+ *
+ * Dated relative to now rather than to a fixed day. The test-week check
+ * withholds a max attempt from somebody just back off a layoff, so a fixture
+ * pinned to a date in the past reads as exactly that the moment enough real
+ * time passes, and the assertion would rot rather than fail.
+ */
+const twelveBarbellSessions = () =>
+  Array.from({ length: 12 }, (_, i) =>
+    session(SESSION_ORDER[i % 3], {
+      date: new Date(Date.now() - i * 2 * 86400000).toISOString(),
+    })
+  );
 
-const after = S();
-check(
-  'the name, sex, experience and bodyweight are on the profile',
-  after.userProfile.name === 'Archie' &&
-    after.userProfile.sex === 'male' &&
-    after.userProfile.experienceLevel === 'advanced' &&
-    after.userProfile.bodyweightKg === 82,
-  JSON.stringify(after.userProfile)
-);
-check(
-  // The one that would be easiest to get wrong. lib/rep-scheme.ts turns goals
-  // into rep ranges and lib/workout-engine.ts turns them into set counts, and
-  // they are the only part of the old profile that ever reached the training. If
-  // the focus stopped at the template, somebody asking for muscle would get an
-  // upper/lower split prescribed in strength rep ranges.
-  'the focus reaches the goals, so it reaches the rep schemes',
-  JSON.stringify(after.userProfile.goals) === JSON.stringify(['muscle']),
-  `goals are ${JSON.stringify(after.userProfile.goals)}`
-);
-check(
-  'age is stored',
-  after.userProfile.ageYears === 34,
-  'asked for the first time, and it was never on the profile before'
-);
-check(
-  'a standing injury is stored as a fact about the person',
-  JSON.stringify(after.userProfile.standingSoreRegions) === JSON.stringify(['front_shoulder']) &&
-    after.userProfile.standingSoreSince === 'months',
-  'until now this was re-learned before every session and forgotten after it'
-);
 check(
   /**
-   * FOUND WHILE WIRING THE KIT CEILING, AND IT WAS ALREADY THERE.
+   * Stronger than the assertion it replaces, which ran on somebody whose
+   * frequency was already 'never' and whose history was empty, so it could have
+   * passed on either of those alone. Written that way first and mutation-tested:
+   * putting a squat into Joint Health's cycle left it green.
    *
-   * lib/bodyweight.ts validates a typed bodyweight IN THE USER'S UNIT, and its
-   * own docblock records the last time these two halves disagreed. outcomeFrom
-   * then stored the raw typed number as `bodyweightKg` with no conversion, so
-   * somebody who picked pounds and typed 176 passed the check and had 176
-   * KILOGRAMS written to their profile.
-   *
-   * Not cosmetic: bodyweight scales every accessory load the app prescribes, and
-   * the three lifts go straight into oneRepMaxes, which every working weight is
-   * derived from. Both were more than doubled for every user in pounds.
-   *
-   * The fixture above USED to run in pounds and assert the number came back
-   * unchanged, which is the bug written down as an expectation.
+   * This one leaves the frequency at 12 and hands over the SAME twelve sessions
+   * that make a test due on the barbell block below, so the only thing standing
+   * between this person and a one-rep max attempt is their programme.
    */
-  'a weight typed in pounds is stored in kilograms',
+  'a named programme with no barbell in its cycle is never interrupted by one',
   (() => {
-    reset({ completedSessions: [] });
-    S().applyProfileTree(
-      {
-        units: 'lbs',
-        name: 'Archie',
-        focus: 'strength',
-        days: '3',
-        minutes: '45',
-        length: '12',
-        experience: 'intermediate',
-        age: 34,
-        sex: 'male',
-        bodyweight: 176,
-        equipment: ['fullgym'],
-        sore: 'no',
-        avoid: ['none'],
-        liftsSquat: 315,
-      },
-      '2026-08-31T09:00:00.000Z'
-    );
-    const kg = S().userProfile.bodyweightKg;
-    const squat = S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight ?? 0;
-    // 176 lb is 79.8 kg and 315 lb is 142.9 kg, both to within a rounding step.
-    return Math.abs(kg - 79.8) < 0.5 && Math.abs(squat - 142.9) < 0.5;
+    reset({ testWeekFrequency: 12, lastReadinessTime: '45' });
+    S().enrolInProgramme('joints', '2026-08-31T09:00:00.000Z');
+    useAppStore.setState({ completedSessions: twelveBarbellSessions() });
+    return S().getTestWeekProgress().active === false && S().isTestWeekDue() === false;
   })(),
-  `${S().userProfile.bodyweightKg} kg, squat ${S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight}`
-);
-check(
-  'and a weight typed in kilograms is stored exactly as typed',
-  (() => {
-    reset({ completedSessions: [] });
-    S().applyProfileTree(
-      {
-        units: 'kg',
-        name: 'Archie',
-        focus: 'strength',
-        days: '3',
-        minutes: '45',
-        length: '12',
-        experience: 'intermediate',
-        sex: 'male',
-        bodyweight: 82,
-        equipment: ['fullgym'],
-        sore: 'no',
-        liftsSquat: 140,
-      },
-      '2026-08-31T09:00:00.000Z'
-    );
-    return (
-      S().userProfile.bodyweightKg === 82 &&
-      S().oneRepMaxes.find((m) => m.lift === 'squat')?.weight === 140
-    );
-  })(),
-  ''
-);
-
-check(
-  'equipment is set',
-  JSON.stringify(after.equipmentTiers) === JSON.stringify(['dumbbells', 'kettlebells']),
-  ''
-);
-// The journey above answers kilograms; the pounds case below asserts the
-// other half, and both halves of the unit answer now have a check.
-check('the weight unit follows the answer', after.weightUnit === 'kg', '');
-check(
-  'and how long they usually have becomes the readiness default',
-  after.lastReadinessTime === '30',
-  'otherwise the session-length question is collected and never used'
-);
-check(
-  'the three lifts are recorded in the shape the app already uses',
-  after.oneRepMaxes.length === 3 &&
-    after.oneRepMaxes.every((m) => m.unit === 'kg' && m.reps === 1 && m.weight > 0) &&
-    after.oneRepMaxes.some((m) => m.lift === 'squat' && m.weight === 140),
-  JSON.stringify(after.oneRepMaxes)
-);
-check(
-  'and they are enrolled in a real programme',
-  after.programme?.templateId === 'muscle' &&
-    after.programme?.days === 4 &&
-    after.programme?.sessions === 16 &&
-    after.programme?.minutes === 30,
-  JSON.stringify(after.programme)
-);
-
-// The test-week answer is only asked of the barbell path. It must never come
-// back undefined, which would break isTestWeekDue for everybody else - and it
-// must not come back as 12 either, which is how somebody building muscle was
-// shown "Test Week 1 of 3" over a squat session they never asked for.
-check(
-  'somebody never asked about strength tests is not signed up for them',
-  after.testWeekFrequency === 'never',
-  `got ${JSON.stringify(after.testWeekFrequency)}`
-);
-check(
-  'and a strength test cannot interrupt a programme that has no barbell lift in it',
-  S().getTestWeekProgress().active === false && S().isTestWeekDue() === false,
   JSON.stringify(S().getTestWeekProgress())
 );
 check(
-  // The other half, or the fix above would read as "test weeks are broken".
+  // The other half, or the check above would read as "test weeks are broken".
   'while a barbell programme still gets tested exactly as it always has',
   (() => {
-    reset();
-    S().applyProfileTree(
-      { focus: 'barbell', days: '3', experience: 'advanced', sore: 'no', testWeeks: '12' },
-      '2026-08-31T09:00:00.000Z'
-    );
-    // Dated relative to now rather than to a fixed day. The test-week check
-    // withholds a max attempt from somebody just back off a layoff, so a
-    // fixture pinned to a date in the past reads as exactly that the moment
-    // enough real time passes, and the assertion would rot rather than fail.
-    const twelve = Array.from({ length: 12 }, (_, i) =>
-      session(SESSION_ORDER[i % 3], {
-        date: new Date(Date.now() - i * 2 * 86400000).toISOString(),
-      })
-    );
-    useAppStore.setState({ completedSessions: twelve });
+    reset({ testWeekFrequency: 12 });
+    S().enrolInProgramme('barbell', '2026-08-31T09:00:00.000Z');
+    useAppStore.setState({ completedSessions: twelveBarbellSessions() });
     return S().testWeekFrequency === 12 && S().getTestWeekProgress().active === true;
   })(),
   JSON.stringify(S().getTestWeekProgress())
@@ -318,11 +181,8 @@ check(
 // ─── 3. The programme decides the session ───────────────────────────────────
 console.log('\n[3] The block, not the rotation, decides what comes next');
 
-reset();
-S().applyProfileTree(
-  { focus: 'joints', days: '3', minutes: '45', length: '12', experience: 'beginner', sore: 'no' },
-  '2026-08-31T09:00:00.000Z'
-);
+reset({ lastReadinessTime: '45' });
+S().enrolInProgramme('joints', '2026-08-31T09:00:00.000Z');
 const jointsCycle = cycleFor('joints', 3);
 check(
   'a joint health programme opens on its own first session, not on a squat',
@@ -516,11 +376,8 @@ check(
 // ─── 5. A due strength test still outranks the block ────────────────────────
 console.log('\n[5] A strength test still comes first');
 
-reset({ testWeekFrequency: 12 });
-S().applyProfileTree(
-  { focus: 'barbell', days: '3', minutes: '45', length: '12', experience: 'advanced', sore: 'no', testWeeks: '12' },
-  '2026-08-31T09:00:00.000Z'
-);
+reset({ testWeekFrequency: 12, lastReadinessTime: '45' });
+S().enrolInProgramme('barbell', '2026-08-31T09:00:00.000Z');
 useAppStore.setState({
   completedSessions: [session(SESSION_ORDER[0], { isTestWeek: true })],
   programme: { ...S().programme, startedAtSessionCount: 0 },
@@ -619,9 +476,19 @@ console.log('\n[5] One thing in the suggested box, and somewhere to go without o
 
   const chooser = read('components/ChooseProgramme.tsx');
   check(
-    'the chooser offers every programme by name, and the builder as well',
-    /PROGRAMME_IDS\.map/.test(chooser) && /choose-build-mine/.test(chooser),
+    'the chooser offers every programme by name, and a cycle of your own',
+    /PROGRAMME_IDS\.map/.test(chooser) && /choose-build-own/.test(chooser),
     ''
+  );
+  check(
+    // It pushed to /onboarding, which is now the sign-up and nothing else: it
+    // asks who somebody is, writes a profile and deliberately enrols nobody. A
+    // button called "Build mine from a few questions" on the page whose whole
+    // job is choosing a programme would have walked a person through ten
+    // questions and handed them back the same page, still unenrolled.
+    'and no longer sends anybody back through sign-up to get one',
+    !/choose-build-mine/.test(chooser) && !/'\/onboarding'/.test(chooser),
+    'sign-up produces a profile, not a programme'
   );
   check(
     // The sentence that stops the app reading as "pick one or you cannot use
@@ -964,17 +831,33 @@ check(
   ''
 );
 check(
-  // Never automatic. Making somebody's next eight weeks harder because the app
-  // decided they looked comfortable is the app changing underneath them.
-  'a step up moves the level only when it is taken',
+  /**
+   * Never automatic. Making somebody's next eight weeks harder because the app
+   * decided they looked comfortable is the app changing underneath them.
+   *
+   * REWRITTEN, AND IT WAS GUARDING NOTHING. It used to call
+   * acceptLevelStep('advanced') and then read `experienceLevel`. That action
+   * takes a NUMBER, the earned rung, and never touches experienceLevel at all,
+   * so the call did nothing in either direction. It stayed green only because
+   * the builder journey deleted from section 2 had already written 'advanced'
+   * onto the profile, which made both halves true of a call that did nothing.
+   * Removing that journey is what showed it up.
+   */
+  'a step up moves the earned rung only when it is taken, and is clamped',
   (() => {
-    const was = S().userProfile.experienceLevel;
-    S().acceptLevelStep('advanced');
-    const now = S().userProfile.experienceLevel;
+    const was = S().userProfile.earnedLevelBonus ?? 0;
+    S().acceptLevelStep(was + 1);
+    const taken = S().userProfile.earnedLevelBonus;
+    S().acceptLevelStep(999);
+    const clamped = S().userProfile.earnedLevelBonus;
     S().acceptLevelStep(was);
-    return now === 'advanced' && S().userProfile.experienceLevel === was;
+    return (
+      taken === was + 1 &&
+      clamped === MAX_EARNED_BONUS &&
+      (S().userProfile.earnedLevelBonus ?? 0) === was
+    );
   })(),
-  ''
+  `rung ${JSON.stringify(S().userProfile.earnedLevelBonus)}, ceiling ${MAX_EARNED_BONUS}`
 );
 check(
   'a finished block travels to the server, and comes back unioned rather than replaced',

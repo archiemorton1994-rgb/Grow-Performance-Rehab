@@ -52,7 +52,6 @@ import {
   DEFAULT_THEME_PREFERENCE,
   normaliseThemePreference,
 } from '../lib/theme-options.ts';
-import { PROFILE_TREE } from '../lib/profile-tree.ts';
 
 let passed = 0;
 let failed = 0;
@@ -234,22 +233,17 @@ check(
   'a button with no words on it'
 );
 
-const lookNode = PROFILE_TREE.find((n) => n.id === 'look');
+// THREE ASSERTIONS USED TO STAND HERE, holding the builder's "Choose your look"
+// question in step with the Profile setting: same two values, same order, both
+// storable without conversion. Two lists that could drift is exactly what they
+// were for, and there is only one list now. Sign-up does not ask about the look
+// at all, a new install opens on DEFAULT_THEME_PREFERENCE, and the Profile
+// setting is the only control that writes one, which the section above asserts
+// is drawn from THEME_OPTIONS rather than hand-written.
 check(
-  'the builder still asks for a look',
-  !!lookNode && Array.isArray(lookNode.options),
-  'the "Choose your look" question has gone missing entirely'
-);
-const builderValues = (lookNode?.options ?? []).map((o) => o.value);
-check(
-  'the builder offers the same two, in the same order',
-  builderValues.join(',') === settingsValues.join(','),
-  `builder offers ${builderValues.join(', ')} and settings offers ${settingsValues.join(', ')}; two lists drift`
-);
-check(
-  'so the builder cannot write a look the store would have to convert',
-  builderValues.every((v) => normaliseThemePreference(v) === v),
-  'an answer the builder can give that does not survive being stored'
+  'and every value that list offers survives being stored',
+  settingsValues.every((v) => normaliseThemePreference(v) === v),
+  `settings offers ${settingsValues.join(', ')}; a value the store would have to convert is a setting that does not stick`
 );
 
 console.log(`\n${passed}/${passed + failed} passed`);

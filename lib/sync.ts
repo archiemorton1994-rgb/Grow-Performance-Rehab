@@ -8,8 +8,8 @@ export interface SyncPayload {
     goals: string[];
     bodyweightKg: number;
     /**
-     * Collected by the profile tree, and optional for the same reason every
-     * other optional field here is: a payload written by an older build will not
+     * Collected at sign-up, and optional for the same reason every other
+     * optional field here is: a payload written by an older build will not
      * carry them, and an absent field must leave what is on the device alone.
      *
      * A standing injury in particular has to survive a new phone. It is the one
@@ -19,12 +19,13 @@ export interface SyncPayload {
     standingSoreRegions?: string[];
     standingSoreSince?: string | null;
     /**
-     * The three the builder learned to ask, plus the rung earned by finishing
-     * blocks. All optional for the reason every field here is: a payload from
-     * an older build does not carry them, and an absent field must leave what
-     * is on the device alone rather than clearing it.
+     * What a clinician said to avoid, the heaviest hand weight somebody can
+     * reach, and the rung earned by finishing blocks. All optional for the
+     * reason every field here is: a payload from an older build does not carry
+     * them, and an absent field must leave what is on the device alone rather
+     * than clearing it.
      *
-     * The clinical one matters most of the four. Sign-out wipes the device, so
+     * The clinical one matters most of the three. Sign-out wipes the device, so
      * a field missing from this payload is not un-synced, it is destroyed - and
      * an instruction from somebody's surgeon is not a thing to lose on a phone
      * upgrade.

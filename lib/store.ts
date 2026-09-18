@@ -28,7 +28,6 @@ import {
   type ReturnWindow,
 } from '@/lib/workout-engine';
 
-import { outcomeFrom } from './profile-tree';
 import type { ThemePreference } from './theme-options';
 import { DEFAULT_THEME_PREFERENCE, normaliseThemePreference } from './theme-options';
 import type {
@@ -41,10 +40,8 @@ import type {
 } from './programme';
 import {
   cycleOf,
-  goalsForFocus,
   programmePosition,
   programmeDrift,
-  selectProgramme,
   sessionsCountingToward,
   tagSessions,
 } from './programme';
@@ -628,14 +625,12 @@ export type Answers = Record<string, AnswerValue>;
  */
 export interface OnboardingDraft {
   /**
-   * EVERY ANSWER, keyed by question id, exactly as lib/profile-tree.ts stores
-   * them. This is the whole draft now.
+   * EVERY ANSWER THE RETIRED BRANCHING BUILDER COLLECTED, keyed by question id.
    *
-   * The tree recomputes which questions apply from the answers themselves, so
-   * there is no step to save. That is the point: the old draft stored a step
-   * INDEX, which means something different the moment a question moves, and it
-   * could disagree with the answers beside it. A number that can contradict the
-   * data it indexes into is a bug waiting for a release.
+   * Kept only so that a draft written by that build still parses. The builder
+   * and its question tree are gone; nothing writes this any more, and the only
+   * code that still reads it is the v34 migration, which converts a half
+   * finished theme answer rather than leaving it to crash.
    */
   treeAnswers?: Answers;
 
@@ -1091,36 +1086,35 @@ interface AppState {
    *  Shared by the home card and the Your Program screen so they cannot
    *  disagree about which programme someone is on. */
   /**
-   * The block they are enrolled in, or null for everybody who has never been
-   * through the profile tree.
+   * The block they are enrolled in, or null for everybody who has not chosen
+   * one. Signing up never enrols anybody, so a new account starts here.
    *
    * Null is not a degraded state. getCurrentSessionType falls through to the
-   * behaviour the app has always had, so an existing user who never opens the
-   * builder again notices nothing at all.
+   * behaviour the app has always had, so somebody who never picks a programme
+   * notices nothing at all.
    */
   programme: EnrolledProgramme | null;
-  /** Enrol from a finished profile tree, writing every answer to its home. */
-  applyProfileTree: (answers: Answers, nowIso: string) => void;
   /** Change days, block length or session time from the programme hub. */
   updateProgramme: (
     patch: Partial<Pick<EnrolledProgramme, 'days' | 'sessions' | 'minutes'>>
   ) => void;
   /**
-   * Start a programme without going back through the profile builder.
+   * Start a programme by name, from the chooser.
    *
-   * For the two people the builder does not cover: somebody who was using Grow
-   * before programmes existed, and somebody who left theirs and wants another.
-   * Neither has a fresh set of tree answers and neither should be made to
-   * re-answer twelve questions to pick a different block, so this fills the
-   * shape from what the app already knows and lets the hub change the rest.
+   * THE ONLY WAY ONTO A NAMED BLOCK NOW. Signing up writes a profile and enrols
+   * nobody, so everybody arrives here: somebody who was using Grow before
+   * programmes existed, somebody who has just finished sign-up, and somebody who
+   * left theirs and wants another. Nobody should have to answer a dozen
+   * questions to pick a block, so this fills the shape from what the app already
+   * knows and lets the hub change the rest.
    */
   enrolInProgramme: (templateId: EnrolledProgramme['templateId'], nowIso: string) => void;
   /**
    * Start a programme somebody assembled themselves.
    *
    * Separate from enrolInProgramme rather than an argument to it, because this
-   * one carries the three things the builder collects and that one deliberately
-   * guesses: the cycle, how often, and how long.
+   * one carries the three things the custom-programme screen collects and that
+   * one deliberately guesses: the cycle, how often, and how long.
    */
   enrolInCustomProgramme: (
     custom: CustomProgramme,
@@ -2216,72 +2210,6 @@ export const useAppStore = create<AppState>()(
        * restores it exactly where it left off.
        */
       /**
-       * ONE ACTION FOR THE WHOLE BUILDER, rather than the seven separate setters
-       * the swipe pager called on its final screen.
-       *
-       * Those seven could half-succeed. A crash between setUserProfile and
-       * setEquipmentTiers left somebody with a profile and no equipment, which
-       * generates a bodyweight-only session for a person standing in a gym. One
-       * set() cannot land halfway.
-       */
-      applyProfileTree: (answers, nowIso) => {
-        const outcome = outcomeFrom(answers);
-        const s = get();
-
-        /**
-         * Written exactly the way the old onboarding screen wrote them:
-         * keyed by lift, one rep, no source field.
-         *
-         * `source` is deliberately left off. Absent means "treated as a test",
-         * which is what the swipe pager did with these same three numbers, and
-         * the test-week summary reads the difference between the last two entries
-         * to say "up N kg on your last test". Marking a builder-typed number as
-         * 'manual' here would change that sentence for everybody, which is a
-         * separate decision from wiring the tree in.
-         */
-        const maxes: OneRepMax[] = [];
-        const push = (lift: SessionType, kg: number | null) => {
-          if (kg && kg > 0) {
-            maxes.push({ lift, weight: kg, reps: 1, date: nowIso, unit: 'kg' });
-          }
-        };
-        push('squat', outcome.oneRepMaxes.squat);
-        push('bench', outcome.oneRepMaxes.bench);
-        push('deadlift', outcome.oneRepMaxes.deadlift);
-
-        set({
-          userProfile: {
-            ...s.userProfile,
-            name: outcome.name || s.userProfile.name,
-            sex: outcome.sex,
-            experienceLevel: outcome.experience,
-            // The focus reaches the rep schemes and the set counts through here.
-            // See goalsForFocus in lib/programme.ts for why that matters.
-            goals: goalsForFocus(outcome.focus),
-            bodyweightKg:
-              outcome.bodyweightKg > 0 ? outcome.bodyweightKg : s.userProfile.bodyweightKg,
-            ageYears: outcome.ageYears > 0 ? outcome.ageYears : undefined,
-            standingSoreRegions: outcome.soreRegions,
-            standingSoreSince: outcome.soreFor,
-            clinicalAvoid: outcome.avoidRegions,
-            maxKitKg: outcome.maxKitKg > 0 ? outcome.maxKitKg : undefined,
-          },
-          equipmentTiers: outcome.equipmentTiers.length ? outcome.equipmentTiers : s.equipmentTiers,
-          testWeekFrequency: outcome.testWeekFrequency,
-          weightUnit: answers.units === 'lbs' ? 'lbs' : 'kg',
-          // How long they said they usually have becomes the default on the
-          // readiness screen. After that the screen goes on remembering what
-          // they actually pick, which is the more honest number.
-          lastReadinessTime: String(outcome.minutes) as TimeAvailable,
-          oneRepMaxes: maxes.length ? [...maxes, ...s.oneRepMaxes] : s.oneRepMaxes,
-          programme: selectProgramme(outcome, nowIso, s.completedSessions.length),
-        });
-        // Finishing the builder enrols them in a block, and that is a badge.
-        // This path never told the engine anything had happened either.
-        get().awardNewBadges();
-      },
-
-      /**
        * CHANGING THE DAYS A WEEK DOES NOT REWRITE WHAT IS ALREADY DONE.
        *
        * Most templates prescribe a different cycle at four days a week than at
@@ -2328,10 +2256,10 @@ export const useAppStore = create<AppState>()(
              * Three days and twelve sessions, and both are changeable on the
              * very next screen.
              *
-             * They are the two questions the builder asks that this route
-             * skips, and a wrong guess here costs nothing because the hub they
-             * land on puts both controls in front of them. Guessing from their
-             * history was the alternative and it is worse: somebody's last
+             * They are the two questions nobody is asked before picking a
+             * programme, and a wrong guess here costs nothing because the hub
+             * they land on puts both controls in front of them. Guessing from
+             * their history was the alternative and it is worse: somebody's last
              * fortnight is a description of the fortnight they had, not of the
              * week they are trying to have.
              */
@@ -3329,10 +3257,10 @@ export const useAppStore = create<AppState>()(
         /**
          * Null, and never a guessed enrolment.
          *
-         * Everybody upgrading has answered none of the six new questions, so a
-         * programme invented for them here would be built on nothing. Null means
-         * getCurrentSessionType falls through to the behaviour they already have,
-         * and they get offered the builder rather than moved without being asked.
+         * Everybody upgrading has chosen no programme, so one invented for them
+         * here would be built on nothing. Null means getCurrentSessionType falls
+         * through to the behaviour they already have, and they get offered the
+         * chooser rather than moved without being asked.
          */
         if (!('programme' in persistedState)) {
           persistedState.programme = null;

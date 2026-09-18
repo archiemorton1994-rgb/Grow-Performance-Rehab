@@ -71,9 +71,7 @@ import {
   levelBandForExperience,
   levelCeilingFor,
   programmeDifficulty,
-  selectProgramme,
 } from '../lib/programme.ts';
-import { outcomeFrom } from '../lib/profile-tree.ts';
 import { getGoalConditioningBlock } from '../lib/exercise-db.ts';
 import { restrictedTagsFor, RESTRICTED_BY_REGION } from '../lib/exercise-safety.ts';
 
@@ -375,32 +373,17 @@ check(
   'the beginner impact rule has gone, which is a clinical change and not this one'
 );
 
-const outcomeAt = (level, focus, days) =>
-  outcomeFrom({ focus, days: String(days), minutes: '45', length: '12', experience: level });
-const templateAt = (level, focus, days) =>
-  selectProgramme(outcomeAt(level, focus, days), '2026-01-15T00:00:00.000Z', 0)?.templateId ?? 'none';
-
-const FOCUSES = ['barbell', 'strength', 'muscle', 'comeback', 'fitness', 'joints'];
-const templateMismatch = [];
-let templateBeginnerDiffers = false;
-for (const focus of FOCUSES) {
-  for (const days of DAYS) {
-    const top = templateAt(TOP, focus, days);
-    const below = templateAt(BELOW_TOP, focus, days);
-    if (top !== below) templateMismatch.push(`${focus}/${days}: ${top} vs ${below}`);
-    if (templateAt('beginner', focus, days) !== below) templateBeginnerDiffers = true;
-  }
-}
-check(
-  `the programme picked for ${TOP} is the one picked for ${BELOW_TOP}, for every answer`,
-  templateMismatch.length === 0,
-  templateMismatch.slice(0, 3).join(' | ')
-);
-check(
-  'and the beginner branch is still there to be told apart from',
-  templateBeginnerDiffers,
-  'nothing routes beginners differently any more, so this section proves nothing'
-);
+// TWO ASSERTIONS USED TO CLOSE THIS SECTION, walking selectProgramme over every
+// focus and day count to prove that an athlete was handed the same template as
+// an advanced lifter and a beginner a different one. Both read templateIdFor
+// through a finished builder tree, and all three went when the builder did:
+// a programme is chosen by name now, so there is no answer left to route.
+//
+// What they were guarding is still guarded, by the difficulty ceiling rather
+// than by the routing. programmeDifficulty is keyed on the same four levels and
+// tests/programme.check.mjs section 11 asserts that a beginner is never handed
+// anything past Novice on any of the seven, at any frequency, while the label
+// climbs with the level and every level has a row to climb from.
 
 console.log(`\n${passed}/${passed + failed} passed`);
 process.exitCode = failed === 0 ? 0 : 1;

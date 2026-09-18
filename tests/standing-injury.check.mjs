@@ -25,9 +25,10 @@
  *   cannot be re-entered, that suppresses a chunk of the catalogue for ever, is
  *   worse than one that does nothing. The card in Profile is load-bearing.
  *
- *   AND THE COPY ONLY PROMISES WHAT HAPPENS. The claim that gentle work for the
- *   area "goes in" was removed rather than faked, and so was the two-week
- *   easing that no code implemented.
+ *   THE COPY THAT USED TO OVERPROMISE HAS GONE ENTIRELY. Section 4 held the
+ *   programme certificate to what the engine really does. The certificate, the
+ *   builder that ended on it and both functions that wrote its sentences were
+ *   deleted; see the note where that section stood.
  *
  *   AND AN INSTRUCTION FROM A CLINICIAN IS SCREENED EVERY SESSION. Section 5,
  *   moved in from tests/exercise-levels.check.mjs when the movement self-checks
@@ -40,7 +41,6 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { generateWorkout } from '../lib/workout-engine.ts';
-import { programmeReasons, programmeCareNote } from '../lib/programme.ts';
 
 let passed = 0;
 let failed = 0;
@@ -210,62 +210,26 @@ check(
   'a clinician\'s instruction is not the same statement as "this ached when I signed up"'
 );
 
-console.log('\n[4] The certificate only promises what happens');
-
-const outcome = (over = {}) => ({
-  name: 'A',
-  focus: 'barbell',
-  days: 3,
-  minutes: 45,
-  sessions: 12,
-  experience: 'intermediate',
-  ageYears: 30,
-  sex: 'male',
-  bodyweightKg: 82,
-  equipmentTiers: ['fullgym'],
-  soreRegions: [],
-  soreFor: null,
-  testWeekFrequency: 12,
-  avoidRegions: [],
-  maxKitKg: 0,
-  oneRepMaxes: { squat: null, bench: null, deadlift: null },
-  ...over,
-});
-
-const soreReasons = programmeReasons(outcome({ soreRegions: ['knee'], soreFor: 'weeks' })).join(' ');
-
-check(
-  'it still says the area is worked around, because now it is',
-  /works around it/.test(soreReasons),
-  soreReasons
-);
-check(
-  // Nothing injects rehab work for the region. The swap machinery moves the
-  // loading away, which is a different and smaller claim.
-  'it no longer claims gentle work for the area goes in',
-  !/gentle work for that area goes in/.test(soreReasons),
-  soreReasons
-);
-check(
-  'and it says where the answer can be changed',
-  /in your profile/.test(soreReasons),
-  soreReasons
-);
-check(
-  // A dated commitment nothing implemented. There is no two-week window
-  // anywhere in the engine.
-  'the days-old caution no longer promises a two-week easing',
-  (() => {
-    const note = programmeCareNote(outcome({ soreRegions: ['knee'], soreFor: 'days' }));
-    return !!note && !/two weeks go easy/.test(note);
-  })(),
-  programmeCareNote(outcome({ soreRegions: ['knee'], soreFor: 'days' })) ?? '(no note)'
-);
-check(
-  'somebody with nothing sore is told nothing about it',
-  !/works around it/.test(programmeReasons(outcome()).join(' ')),
-  ''
-);
+// ─── [4] has gone with the certificate ──────────────────────────────────────
+//
+// FIVE ASSERTIONS USED TO STAND HERE, reading programmeReasons and
+// programmeCareNote: that the reasons list still said the sore area was worked
+// around, that it no longer claimed gentle work for the area went in, that it
+// said where the answer could be changed, that the days-old caution no longer
+// promised a two-week easing, and that somebody with nothing sore was told
+// nothing about it.
+//
+// Every one of them was about the WORDS on components/ProgrammeCertificate.tsx,
+// the screen the profile builder ended on. The screen is deleted, both functions
+// with it, and copy that no longer exists cannot be held to a promise.
+//
+// THE CLINICAL RULE THEY SAT BESIDE HAS NOT MOVED. It was never in the copy:
+// sections 1, 2 and 5 of this file run the real generator and assert that a
+// standing sore area changes what is prescribed, that it never invents a
+// severity or an acute flag, and that an area a clinician named is screened out
+// of every session. Section 3 asserts the door out, on the profile screen where
+// somebody can actually reach it, which is the sentence the deleted copy was
+// pointing at.
 
 // ─── The clinician's instruction, in the generator ──────────────────────────
 //

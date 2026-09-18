@@ -181,11 +181,12 @@ useAppStore.setState({
   cycleStartOffset: 0,
   testWeekFrequency: 12,
   oneRepMaxes: [],
+  // enrolInProgramme takes the session length from here rather than guessing.
+  lastReadinessTime: '45',
 });
-useAppStore.getState().applyProfileTree(
-  { focus: 'joints', days: '3', minutes: '45', length: '12', experience: 'beginner', sore: 'no' },
-  '2026-08-31T09:00:00.000Z'
-);
+// Enrolled the way somebody actually enrols now, from the chooser. This used to
+// go through applyProfileTree, the action the retired profile builder ended on.
+useAppStore.getState().enrolInProgramme('joints', '2026-08-31T09:00:00.000Z');
 
 const cycle = cycleFor('joints', 3);
 useAppStore.setState({
