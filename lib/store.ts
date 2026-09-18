@@ -24,6 +24,7 @@ import {
   estimateOrmFromAmrap,
   getReturnWindow as computeReturnWindow,
   setLastTrainedDate,
+  type Exercise,
   type ReturnWindow,
 } from '@/lib/workout-engine';
 
@@ -334,6 +335,31 @@ export interface ActiveSession {
   sessionName: string;
   elapsedSeconds: number;
   exerciseIds: string[];
+  /**
+   * The cards themselves, exactly as they were generated.
+   *
+   * `exerciseIds` above records only WHICH exercises were on screen, and
+   * everything else about them (the sets, the rep target, the cue, the weight
+   * the app worked out, the swaps, the safety note) was thrown away and
+   * rebuilt by re-running the generator on resume. That is fine while the
+   * generator is standing still and wrong the moment it moves: a person who is
+   * ten sets into a session when the app updates has the workout regenerated
+   * underneath them, the ids no longer line up, and every set they logged is
+   * discarded while the Home card still reads "10/24 sets".
+   *
+   * So the list is stored whole. A resume prefers it over anything the
+   * generator would produce today, which means a session in progress is
+   * finished as it was started, on the numbers it was started on.
+   *
+   * Optional, because a session paused by an older build has no snapshot. Those
+   * resume exactly as they did before: the generator runs and the ids have to
+   * match. See lib/resume-snapshot.ts.
+   *
+   * Held only on the device. `activeSession` is deliberately absent from
+   * SyncPayload (lib/sync.ts), because half a workout is not history and does
+   * not belong on another phone, so this adds nothing to the sync body.
+   */
+  exerciseSnapshot?: Exercise[];
   customExercises?: CustomExercise[];
   /** Whether the user has already dismissed the pain-adaptation banner. Persisted so it stays gone on session resume. */
   painBannerDismissed?: boolean;

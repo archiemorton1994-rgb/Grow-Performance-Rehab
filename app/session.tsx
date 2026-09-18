@@ -36,6 +36,7 @@ import {
   type PlanRowResult,
 } from '@/components/SessionPlanList';
 import { isBarbellExercise } from '@/lib/plate-math';
+import { snapshotToResume, storedMatchesLaunch, type SessionLaunch } from '@/lib/resume-snapshot';
 import {
   cardioFocusForSession,
   focusHeading,
@@ -3119,7 +3120,7 @@ export default function SessionScreen() {
     userProfile,
   ]);
 
-  const exercises = useMemo(() => {
+  const generatedExercises = useMemo(() => {
     if (isDemo) return DEMO_EXERCISES;
     if (sessionType === 'custom') {
       return customExercisesSnapshot.current.map((ce: CustomExercise): Exercise => ({
@@ -3199,6 +3200,44 @@ export default function SessionScreen() {
     exerciseRepTarget,
     lastSessionPerformance,
   ]);
+
+  /** The seven facts that say WHICH session this is. See lib/resume-snapshot.ts. */
+  const launch: SessionLaunch = {
+    sessionType,
+    equipmentTier,
+    hasAches,
+    painRegion,
+    energy,
+    timeAvailable,
+    isTestWeek,
+  };
+
+  /**
+   * The cards this session is running on: the ones that were SAVED if this is a
+   * resume, and today's freshly generated ones otherwise. See
+   * lib/resume-snapshot.ts for why a resume must not take the generator's word
+   * for it.
+   *
+   * Held in state, and held the moment a saved list appears, because both
+   * halves of that matter.
+   *
+   * It has to catch a late arrival. `activeSession` can hydrate after the first
+   * render, and the swap has to happen in the same render it arrives in, before
+   * the restore effects below run. Setting state from an effect would be one
+   * commit too late: the restore would already have matched the logged sets
+   * against the generated list. Setting it during render is the supported way
+   * to adjust state when the input changes, and React re-runs this render
+   * before committing anything.
+   *
+   * And once it holds a list it keeps it. Completing the session clears
+   * `activeSession`, and a list derived live from it would flip back to the
+   * generated one at that moment, with every card on screen changing underneath
+   * a session that has just been logged.
+   */
+  const savedCards = isDemo ? null : snapshotToResume(activeSession, launch);
+  const [resumedCards, setResumedCards] = useState<Exercise[] | null>(savedCards);
+  if (resumedCards === null && savedCards !== null) setResumedCards(savedCards);
+  const exercises = resumedCards ?? savedCards ?? generatedExercises;
 
   const [exerciseData, setExerciseData] = useState<ExerciseSetData[]>([]);
 
@@ -3500,6 +3539,15 @@ export default function SessionScreen() {
   const exerciseNotesRef = useRef<string[]>([]);
   const activeIndexRef = useRef<number>(0);
   const exerciseIdsRef = useRef<string[]>([]);
+  /**
+   * The cards themselves, for the snapshot every save writes.
+   *
+   * A ref rather than the `exercises` value, because the background save runs
+   * from an AppState listener registered once, with no re-render behind it, and
+   * anything read directly there is whatever it was at mount. `exerciseIds` is
+   * already read this way for the same reason.
+   */
+  const exercisesRef = useRef<Exercise[]>([]);
   const painBannerDismissedRef = useRef(false);
   const painFreeBannerDismissedRef = useRef(false);
   const inSessionFeedbackRef = useRef<Record<string, FeedbackRating | null>>({});
@@ -3525,6 +3573,7 @@ export default function SessionScreen() {
   }, [exerciseNotes]);
   useEffect(() => {
     exerciseIdsRef.current = exercises.map((ex) => ex.id);
+    exercisesRef.current = exercises;
   }, [exercises]);
   useEffect(() => {
     painBannerDismissedRef.current = painBannerDismissed;
@@ -3639,6 +3688,7 @@ export default function SessionScreen() {
         totalSets,
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: ids,
+        exerciseSnapshot: exercisesRef.current,
         painBannerDismissed: painBannerDismissedRef.current,
         painFreeBannerDismissed: painFreeBannerDismissedRef.current,
       });
@@ -3667,14 +3717,11 @@ export default function SessionScreen() {
       Array.isArray(stored.exerciseIds) &&
       stored.exerciseIds.length === currentIds.length &&
       stored.exerciseIds.every((id, i) => id === currentIds[i]);
+    // The same seven facts that decide whether the saved cards can be preferred
+    // over today's generated ones, compared in one place so the two halves of
+    // the resume cannot drift apart. See lib/resume-snapshot.ts.
     const canRestore =
-      stored.sessionType === sessionType &&
-      stored.equipmentTier === equipmentTier &&
-      stored.hasAches === hasAches &&
-      (stored.painRegion ?? '') === (painRegion ?? '') &&
-      stored.energy === energy &&
-      stored.timeAvailable === timeAvailable &&
-      stored.isTestWeek === isTestWeek &&
+      storedMatchesLaunch(stored, launch) &&
       stored.exerciseData.length === exs.length &&
       idsMatch;
     if (!canRestore) return false;
@@ -3947,6 +3994,7 @@ export default function SessionScreen() {
         totalSets,
         elapsedSeconds: elapsedSecondsRef.current,
         exerciseIds: exerciseIdsRef.current,
+        exerciseSnapshot: exercisesRef.current,
         painBannerDismissed: painBannerDismissedRef.current,
         painFreeBannerDismissed: painFreeBannerDismissedRef.current,
       });
@@ -4595,6 +4643,7 @@ export default function SessionScreen() {
       totalSets,
       elapsedSeconds,
       exerciseIds: exercises.map((ex) => ex.id),
+      exerciseSnapshot: exercisesRef.current,
       painBannerDismissed,
       painFreeBannerDismissed,
     });
