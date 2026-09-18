@@ -656,6 +656,56 @@ export interface OnboardingDraft {
   ormBench?: string;
   ormDeadlift?: string;
   testWeekFrequency?: TestWeekFrequency;
+
+  /**
+   * The three answers the sign-up collects that the old pager never stored.
+   *
+   * Age and the two standing-area lists are the questions whose answers cost the
+   * most to give again: an age is a number somebody has to think about, and the
+   * areas to work around are a list a person assembles about their own body,
+   * sometimes with a clinician's words in mind. A draft that carried the easy
+   * answers and dropped those three would restore a form that still felt like
+   * starting over.
+   *
+   * Optional like the rest, so a draft written before they existed still parses.
+   * Everything `completeOnboarding` needs can now be held here, which is what
+   * makes resuming a half-finished sign-up the same act as finishing a fresh one.
+   */
+  ageYears?: number;
+  soreRegions?: PainRegion[];
+  clinicalAvoid?: PainRegion[];
+}
+
+/**
+ * A FINISHED SIGN-UP, in the units the person gave their answers in.
+ *
+ * One shape, handed to one action, so that finishing cannot land halfway. The
+ * old pager called seven setters on its last screen and a crash between two of
+ * them left somebody with a profile and no equipment, which generates a
+ * bodyweight-only session for a person standing in a gym.
+ *
+ * The bodyweight arrives AS TYPED, with the unit beside it, and is converted in
+ * exactly one place. That is the whole of the pounds fault: the builder
+ * validated the number in the chosen unit and then stored it raw as kilograms,
+ * so somebody who typed 176 pounds was recorded at 176 kilograms and had every
+ * prescribed weight in the app more than doubled. See lib/unit-correction.ts.
+ */
+export interface SignUpAnswers {
+  name: string;
+  sex: Sex;
+  /** Their age in years. Zero or absent means they did not say. */
+  ageYears: number;
+  /** The number they typed, read in `weightUnit`. Never assumed to be kilograms. */
+  bodyweight: number;
+  weightUnit: WeightUnit;
+  experienceLevel: ExperienceLevel;
+  /** Multi-select. Whatever they picked, with nothing added for them. */
+  goals: FitnessGoal[];
+  equipmentTiers: EquipmentTier[];
+  /** Areas they said are sore, as a standing fact rather than today's check-in. */
+  soreRegions: PainRegion[];
+  /** Areas a clinician has told them to stay off, which is a different list. */
+  clinicalAvoid: PainRegion[];
 }
 
 export const TIER_ORDER: EquipmentTier[] = [
@@ -922,6 +972,13 @@ interface AppState {
    *  There is no matching clear(): the draft is thrown away by
    *  setOnboardingComplete(true), and by the full storage wipe on sign-out. */
   saveOnboardingDraft: (draft: OnboardingDraft) => void;
+  /**
+   * Write a finished sign-up, all of it, in one go.
+   *
+   * It enrols nobody in a programme and awards nothing. See the implementation
+   * for why both of those are the point rather than an omission.
+   */
+  completeOnboarding: (answers: SignUpAnswers, nowIso: string) => void;
   setEquipmentTiers: (tiers: EquipmentTier[]) => void;
   setTestWeekFrequency: (freq: TestWeekFrequency) => void;
   /** Postpone today's due test week — isTestWeekDue() stays true until a
@@ -1315,6 +1372,115 @@ export const useAppStore = create<AppState>()(
         );
       },
       saveOnboardingDraft: (draft) => set({ onboardingDraft: draft }),
+
+      /**
+       * THE WHOLE SIGN-UP, IN ONE set(), AND NOTHING ELSE.
+       *
+       * ONE WRITE, because the alternative has already gone wrong twice. The
+       * swipe pager called seven setters on its final screen and a crash
+       * between two of them left a person with a profile and no equipment. One
+       * set() cannot land halfway, so either every answer is on file or none of
+       * them is and the draft below is still there to resume from.
+       *
+       * IT NEVER TOUCHES `programme`. Signing up is not enrolling. A programme
+       * is something somebody chooses later, from the programmes screen, and a
+       * new account leaves here with `programme` still null, which is the state
+       * the rest of the app already treats as normal rather than as degraded.
+       * The key is absent from the set() rather than written as null on
+       * purpose: an existing account taken back through sign-up keeps the block
+       * it is part way through instead of being quietly thrown off it.
+       *
+       * IT AWARDS NOTHING. No XP and no badge, so nobody is congratulated for
+       * filling in a form. Anything genuinely earned is picked up by the silent
+       * reconcile on the next launch, which is what that reconcile is for.
+       *
+       * THE BODYWEIGHT IS CONVERTED HERE, ONCE. The number arrives as it was
+       * typed with the unit beside it, and `displayUnitToKg` is the only thing
+       * that turns it into kilograms. The builder's version of this line
+       * stored the raw number, so 176 typed in pounds became 176 kilograms and
+       * more than doubled every weight the app went on to prescribe.
+       */
+      completeOnboarding: (answers, nowIso) => {
+        const s = get();
+
+        const typedKg = displayUnitToKg(answers.bodyweight, answers.weightUnit);
+        /**
+         * The same last line of defence setUserProfile keeps, for the same
+         * reason: bodyweight multiplies the entire starting-load heuristic, and
+         * an absurd one produces sessions the session bar then refuses to log.
+         * An implausible figure is dropped rather than stored, which leaves the
+         * standing default in place and leaves no weigh-in behind saying the
+         * app believed it.
+         */
+        const weighed = isPlausibleBodyweightKg(typedKg);
+        const bodyweightKg = weighed ? typedKg : s.userProfile.bodyweightKg;
+
+        /**
+         * A level nobody recognises becomes the narrowest one, not the middle.
+         *
+         * Experience is a hard ceiling on which movements a person is offered,
+         * and the tables that read it are full of `?? intermediate` fallbacks,
+         * so a value that survived to them would silently hand somebody
+         * exercises above their ceiling with nothing on screen to show for it.
+         * Beginner is the only answer that cannot hurt anybody: it widens
+         * downward, the hub's level control is one tap away, and a person who
+         * really is advanced notices and says so.
+         */
+        const experienceLevel = isExperienceLevel(answers.experienceLevel)
+          ? answers.experienceLevel
+          : 'beginner';
+
+        set({
+          userProfile: {
+            ...s.userProfile,
+            name: answers.name.trim(),
+            sex: answers.sex,
+            ageYears:
+              Number.isFinite(answers.ageYears) && answers.ageYears > 0
+                ? answers.ageYears
+                : undefined,
+            bodyweightKg,
+            experienceLevel,
+            /**
+             * EXACTLY WHAT THEY PICKED. The pager used to fall back to
+             * ['fitness'], so an app that had been told nothing about what
+             * somebody wanted went on to prescribe as though they had asked for
+             * general fitness. Goals reach the rep schemes and the set counts;
+             * inventing one is putting words in somebody's mouth and then
+             * training them on it.
+             */
+            goals: answers.goals,
+            standingSoreRegions: answers.soreRegions,
+            clinicalAvoid: answers.clinicalAvoid,
+          },
+          weightUnit: answers.weightUnit,
+          // Mirrors setEquipmentTiers: an empty list would tell the engine there
+          // is no kit at all, including the body they are standing in.
+          equipmentTiers: answers.equipmentTiers.length ? answers.equipmentTiers : ['bodyweight'],
+          // Strength test weeks are retired, so nobody signs up into one.
+          testWeekFrequency: 'never',
+          /**
+           * The stamp and the first weigh-in, together with the figure itself.
+           *
+           * The stamp is what tells the pounds detector in lib/unit-correction.ts
+           * that this bodyweight came from a path that converts. Without it a new
+           * account that trains in pounds would be met by a card asking whether
+           * it had meant pounds all along, about a number that was already right.
+           */
+          ...(weighed
+            ? {
+                bodyweightUpdatedAt: nowIso,
+                bodyweightLog: [...s.bodyweightLog, { date: nowIso, kg: bodyweightKg }],
+              }
+            : {}),
+          onboardingComplete: true,
+          // Every answer in it has just been written to the profile, so the draft
+          // is worthless from this instant. Cleared in the same set() as the flag
+          // it belongs to, so no half-state can leave a stale answer sheet behind.
+          onboardingDraft: null,
+        });
+      },
+
       setEquipmentTiers: (tiers) =>
         set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
       /**
