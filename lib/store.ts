@@ -28,13 +28,13 @@ import {
   type ReturnWindow,
 } from '@/lib/workout-engine';
 
-import type { Answers, InjuryAge } from './profile-tree';
 import { outcomeFrom } from './profile-tree';
 import type { ThemePreference } from './theme-options';
 import { DEFAULT_THEME_PREFERENCE, normaliseThemePreference } from './theme-options';
 import type {
   CustomProgramme,
   EnrolledProgramme,
+  InjuryAge,
   ProgrammePosition,
   ProgrammeDrift,
   SessionPlanTag,
@@ -598,6 +598,21 @@ export function isPlausibleBodyweightKg(kg: number): boolean {
 export function isPlausibleOneRepMaxKg(kg: number): boolean {
   return Number.isFinite(kg) && kg >= MIN_ONE_REP_MAX_KG && kg <= MAX_ONE_REP_MAX_KG;
 }
+
+/**
+ * Every answer, keyed by question id.
+ *
+ * Deliberately loose. The questions own their own value types and the screen
+ * writes whatever the question's kind produces; narrowing happens once, in the
+ * function that turns a finished set of answers into a UserProfile. A union that
+ * tried to be exact here would have to be edited every time a question moved.
+ *
+ * It lives here rather than with the questions because `OnboardingDraft` below
+ * is the thing that PERSISTS a set of answers, and the store is what has to keep
+ * parsing one written by an older build.
+ */
+export type AnswerValue = string | number | boolean | string[] | null;
+export type Answers = Record<string, AnswerValue>;
 
 /**
  * Every answer given in onboarding so far, and the step it was given on.

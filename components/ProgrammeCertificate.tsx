@@ -68,8 +68,8 @@ import {
   programmeReasons,
   weeksFor,
   type EnrolledProgramme,
+  type TreeOutcome,
 } from '@/lib/programme';
-import type { TreeOutcome } from '@/lib/profile-tree';
 import { bandLabel } from '@/lib/exercise-levels';
 
 export interface ProgrammeCertificateProps {

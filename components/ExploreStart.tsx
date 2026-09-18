@@ -23,8 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PAGE } from '@/lib/session-identity';
 import { GO } from '@/lib/go-colors';
 import { bandLabel } from '@/lib/exercise-levels';
-import { levelBandForExperience } from '@/lib/programme';
-import type { TreeOutcome } from '@/lib/profile-tree';
+import { levelBandForExperience, type TreeOutcome } from '@/lib/programme';
 
 /** The certificate's own green, which is the light half of GO: this document is
  *  printed on parchment in both themes, so it does not follow the app theme. */

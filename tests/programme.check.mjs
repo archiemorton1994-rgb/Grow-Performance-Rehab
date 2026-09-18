@@ -59,8 +59,9 @@ import {
   DIFFICULTY_LABELS,
   programmeDifficulty,
   weeksFor,
+  SESSION_COUNTS,
 } from '../lib/programme.ts';
-import { outcomeFrom, SESSION_COUNTS } from '../lib/profile-tree.ts';
+import { outcomeFrom } from '../lib/profile-tree.ts';
 import './_persist-shim.mjs';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
 

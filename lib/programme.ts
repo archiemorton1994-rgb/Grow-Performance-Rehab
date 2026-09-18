@@ -38,16 +38,123 @@
  * NO REACT AND NO REACT NATIVE IMPORT, so tests/programme.check.mjs can run this
  * rather than read it.
  */
-import type { ExperienceLevel, FitnessGoal, PainRegion, SessionType } from './store';
 import type {
-  InjuryAge,
-  ProgrammeFocus,
-  SessionCount,
-  SessionLength,
-  TrainingDays,
-  TreeOutcome,
-} from './profile-tree';
+  EquipmentTier,
+  ExperienceLevel,
+  FitnessGoal,
+  PainRegion,
+  Sex,
+  SessionType,
+  TestWeekFrequency,
+} from './store';
 import { levelBandFor, type ExerciseLevel, type LevelBand } from './exercise-levels';
+
+// ─── The vocabulary a programme is described in ─────────────────────────────
+
+/**
+ * These seven used to live in lib/profile-tree.ts, because the profile builder
+ * was the first thing to need words for them. They are not the builder's, they
+ * are the programme's: a focus picks a template, days sets how fast the cycle
+ * turns, minutes and sessions are written on the enrolment, and an injury age
+ * decides the care note. Several screens that have nothing to do with the
+ * builder read them, so they live beside the thing they describe.
+ */
+
+/**
+ * What the programme is built around. THE branch point, and the single question
+ * that does not exist today.
+ *
+ * Everyone who finishes the current builder is put on the same three-lift
+ * rotation, because `SESSION_ORDER = ['squat', 'bench', 'deadlift']` in
+ * lib/store.ts is the whole programme and no answer reaches it. The app then
+ * works out over about a fortnight that somebody does not want to squat, by
+ * watching them decline it. This asks instead.
+ */
+export type ProgrammeFocus =
+  | 'barbell'
+  | 'strength'
+  | 'muscle'
+  | 'comeback'
+  | 'fitness'
+  | 'joints';
+
+/** Days a week. The first thing any coach asks, and never once asked here. */
+export type TrainingDays = 2 | 3 | 4 | 5;
+
+/**
+ * Usual session length in minutes.
+ *
+ * Exactly the three the generator understands. TimeAvailable in ./store is
+ * '30' | '45' | '60' and lib/workout-engine.ts branches on those three strings
+ * throughout, so a fourth option here would be a question the app collects an
+ * answer to and then cannot honour. Asking it would break the one rule the
+ * profile tree is built on.
+ */
+export type SessionLength = 30 | 45 | 60;
+
+/**
+ * How long the first block runs, counted in SESSIONS.
+ *
+ * WHY NOT WEEKS. A block measured in weeks is a promise about the calendar, and
+ * this app has no control over anybody's calendar. Somebody who said three days
+ * a week and then trained twice for a fortnight has not fallen behind a
+ * twelve-week block, but a week counter says they have, and the app that keeps
+ * telling you that you are behind is the app you delete.
+ *
+ * Counted in sessions, the block only moves when they train, so it is a promise
+ * the app can keep. It also lets somebody choose something genuinely short: four
+ * sessions is a fortnight of trying it out, and no number of weeks expresses
+ * that without assuming a frequency.
+ *
+ * Nine choices rather than three, because "how much am I committing to" is the
+ * question people actually hesitate over, and three answers made two of them
+ * wrong for most people.
+ */
+export type SessionCount = 4 | 6 | 8 | 10 | 12 | 14 | 16 | 18 | 20;
+
+/** Every count offered, in the order the question lists them. */
+export const SESSION_COUNTS: SessionCount[] = [4, 6, 8, 10, 12, 14, 16, 18, 20];
+
+/** How long something has been sore. Changes whether it is treated as acute. */
+export type InjuryAge = 'days' | 'weeks' | 'months' | 'years';
+
+/** What a finished tree says, in the types the rest of the app already uses. */
+export interface TreeOutcome {
+  name: string;
+  /**
+   * Whether they asked for a programme at all.
+   *
+   * False means "let me explore": no block is started, and the four questions
+   * that only shape a block were never asked, so `focus`, `days`, `minutes` and
+   * `sessions` below hold defaults rather than answers. They are still filled in
+   * because the rest of the app reads them for other things - session length
+   * seeds the readiness screen, and the focus decides the rep ranges - but
+   * nothing should read them as a statement about a programme.
+   */
+  guided: boolean;
+  focus: ProgrammeFocus;
+  days: TrainingDays;
+  minutes: SessionLength;
+  /** How many sessions the first block runs for. */
+  sessions: SessionCount;
+  experience: ExperienceLevel;
+  ageYears: number;
+  sex: Sex;
+  bodyweightKg: number;
+  equipmentTiers: EquipmentTier[];
+  /** Empty when nothing is sore. */
+  soreRegions: PainRegion[];
+  soreFor: InjuryAge | null;
+  testWeekFrequency: TestWeekFrequency;
+  oneRepMaxes: { squat: number | null; bench: number | null; deadlift: number | null };
+  /** Areas a clinician has told them to stay off. Empty when there are none. */
+  avoidRegions: PainRegion[];
+  /**
+   * The heaviest hand weight they can reach, in kg. Zero when they have a full
+   * gym, or did not say.
+   */
+  maxKitKg: number;
+}
 
 export type ProgrammeId =
   | 'barbell'
@@ -241,7 +348,7 @@ export interface EnrolledProgramme {
    * How many sessions the block runs for. Changeable from the hub.
    *
    * Sessions rather than weeks, so the block only advances when somebody trains.
-   * See SessionCount in ./profile-tree for why that is the honest unit.
+   * See SessionCount above for why that is the honest unit.
    */
   sessions: SessionCount;
   /** Their usual session length, used as the readiness default. */

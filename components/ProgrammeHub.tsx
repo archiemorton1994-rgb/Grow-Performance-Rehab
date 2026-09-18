@@ -48,8 +48,9 @@ import {
   nameOf,
   programmeFor,
   type ProgrammeId,
+  SESSION_COUNTS,
+  type TrainingDays,
 } from '@/lib/programme';
-import { SESSION_COUNTS, type TrainingDays } from '@/lib/profile-tree';
 import { bandLabel, LEVEL_NAMES } from '@/lib/exercise-levels';
 import { levelBandForExperience } from '@/lib/programme';
 

@@ -44,8 +44,8 @@ import { ProfileTree } from '@/components/ProfileTree';
 import { ProgrammeCertificate } from '@/components/ProgrammeCertificate';
 import { ExploreStart } from '@/components/ExploreStart';
 import { ProgrammeBuildMark } from '@/components/ProgrammeBuildMark';
-import { PAIN_CATEGORIES, useAppStore, type WeightUnit } from '@/lib/store';
-import { outcomeFrom, type Answers, type TreeOption } from '@/lib/profile-tree';
+import { PAIN_CATEGORIES, useAppStore, type Answers, type WeightUnit } from '@/lib/store';
+import { outcomeFrom, type TreeOption } from '@/lib/profile-tree';
 import { normaliseThemePreference } from '@/lib/theme-options';
 import { selectProgramme, type EnrolledProgramme } from '@/lib/programme';
 

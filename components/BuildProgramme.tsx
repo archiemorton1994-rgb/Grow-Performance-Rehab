@@ -48,8 +48,10 @@ import {
   MAX_CUSTOM_CYCLE,
   demandOfCycle,
   programmeDifficulty,
+  SESSION_COUNTS,
+  type SessionCount,
+  type TrainingDays,
 } from '@/lib/programme';
-import { SESSION_COUNTS, type SessionCount, type TrainingDays } from '@/lib/profile-tree';
 import { bandLabel } from '@/lib/exercise-levels';
 
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];

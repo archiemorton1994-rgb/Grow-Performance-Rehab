@@ -70,11 +70,10 @@ import {
   REGION_OPTION_NODES,
   treeProgress,
   visibleNodes,
-  type Answers,
   type TreeNode,
   type TreeOption,
 } from '@/lib/profile-tree';
-import type { WeightUnit } from '@/lib/store';
+import type { Answers, WeightUnit } from '@/lib/store';
 import { displayUnitToKg, kgToDisplayUnit } from '@/lib/utils';
 
 /** Artwork for the equipment question. The only node with pictures. */
