@@ -90,23 +90,44 @@ function arraysIn(value, out = []) {
 }
 
 /**
- * ORM_TEST IS NOT ONE OF THE POOLS ANY MORE, and that is the point.
+ * FIVE OF THE TABLES ARE NOT POOLS ANY MORE, and that is the point.
  *
- * It holds the 1RM testing protocols. Strength test weeks are retired, the
- * generator that read them is deleted, and no session anywhere is built from
- * this table, so emptying it changes nothing and the "the pool really was
- * emptied" half below would correctly fail. It is still in SESSION_POOLS
- * because the exercises a past test week logged have to keep resolving to a
- * name on the history screens.
+ * Nothing in the app builds a session out of any of them, so emptying one
+ * changes nothing and the "the pool really was emptied" half of section 2 would
+ * correctly fail on it. They are still in SESSION_POOLS because the exercises
+ * somebody logged out of them years ago have to keep resolving to a name on the
+ * history screens.
  *
- * Kept in ORM_TEST_POOL rather than simply dropped, so section 5 can assert the
- * unreachability instead of leaving it as a thing this file quietly stopped
- * looking at.
+ *   ORM_TEST - the 1RM testing protocols. Strength test weeks are retired and
+ *     the generator that read them is deleted.
+ *
+ *   MECHANICAL, POWER_MECHANICAL, NEURO and GOAL_CONDITIONING_BLOCKS - the
+ *     priming, explosive and goal-conditioning blocks of the old lift-day
+ *     generator. That generator was only ever reached through the session ids
+ *     'squat', 'bench' and 'deadlift', and those now build a lower, upper or
+ *     full body session instead (lib/session-type.ts), so the branch that reads
+ *     these four is unreachable. The weekly generator draws its warm-up, its
+ *     accessories, its rehab slot, its finisher and its cool-down from PREP,
+ *     ACCESSORIES, PREHAB, FINISHERS and COOLDOWN, which are all still live and
+ *     still tested in section 2.
+ *
+ * Listed here rather than quietly dropped, so section 5 can ASSERT the
+ * unreachability instead of leaving it as a thing this file stopped looking at.
  */
-const ORM_TEST_POOL = { name: 'ORM_TEST', arrays: arraysIn(SESSION_POOLS.ORM_TEST) };
+const UNREACHED_NAMES = [
+  'ORM_TEST',
+  'MECHANICAL',
+  'POWER_MECHANICAL',
+  'NEURO',
+  'GOAL_CONDITIONING_BLOCKS',
+];
+const UNREACHED_POOLS = UNREACHED_NAMES.map((name) => ({
+  name,
+  arrays: arraysIn(SESSION_POOLS[name]),
+}));
 const POOLS = [
   ...Object.entries(SESSION_POOLS)
-    .filter(([name]) => name !== 'ORM_TEST')
+    .filter(([name]) => !UNREACHED_NAMES.includes(name))
     .map(([name, value]) => ({ name, arrays: arraysIn(value) })),
   // The gym warm-up machines live in their own file.
   { name: 'CARDIO_MACHINES', arrays: arraysIn(CARDIO_MACHINES) },
@@ -136,8 +157,7 @@ const TYPES = [
   'flexibility',
   'custom',
 ];
-const LIFT_TYPES = ['squat', 'bench', 'deadlift'];
-const TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const TIERS =['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 const TIMES = ['30', '45', '60'];
 const ENERGIES = ['low', 'normal', 'high'];
 
@@ -342,43 +362,46 @@ check(
   firstFew(drifted)
 );
 
-// ─── 5. The 1RM test protocols are unreachable ───────────────────────────────
-console.log('\n[5] Nothing builds a session out of the retired test protocols');
+// ─── 5. The retired tables are unreachable ───────────────────────────────────
+console.log('\n[5] Nothing builds a session out of the retired tables');
 
-check(
-  'ORM_TEST still holds the protocols it always did',
-  ORM_TEST_POOL.arrays.length > 0 &&
-    ORM_TEST_POOL.arrays.some((a) => a.length > 0),
-  'emptying an already-empty table would prove nothing about reachability'
-);
+for (const pool of UNREACHED_POOLS) {
+  check(
+    `${pool.name} still holds the exercises it always did`,
+    pool.arrays.length > 0 && pool.arrays.some((a) => a.length > 0),
+    'emptying an already-empty table would prove nothing about reachability'
+  );
 
-const ormTestReach = emptied([ORM_TEST_POOL], () => {
-  const built = buildAll();
-  const problems = [];
-  let differs = 0;
-  for (const [key, r] of built) {
-    for (const p of problemsWith(r)) problems.push(`${key}: ${p}`);
-    if (signature(r) !== signature(intact.get(key))) differs++;
-  }
-  return { problems, differs };
-});
-check(
-  'emptying ORM_TEST changes no session at all',
-  ormTestReach.differs === 0,
-  `${ormTestReach.differs} session(s) changed, so some code path is still building out of the retired 1RM protocols`
-);
-check(
-  'and every session still builds with no blank card while it is empty',
-  ormTestReach.problems.length === 0,
-  firstFew(ormTestReach.problems)
-);
+  const reach = emptied([pool], () => {
+    const built = buildAll();
+    const problems = [];
+    let differs = 0;
+    for (const [key, r] of built) {
+      for (const p of problemsWith(r)) problems.push(`${key}: ${p}`);
+      if (signature(r) !== signature(intact.get(key))) differs++;
+    }
+    return { problems, differs };
+  });
+  check(
+    `emptying ${pool.name} changes no session at all`,
+    reach.differs === 0,
+    `${reach.differs} session(s) changed, so some code path is still building out of ${pool.name}`
+  );
+  check(
+    `and every session still builds with no blank card while ${pool.name} is empty`,
+    reach.problems.length === 0,
+    firstFew(reach.problems)
+  );
 
-const afterOrm = buildAll();
-check(
-  'ORM_TEST is put back exactly as it was',
-  [...intact.keys()].every((key) => signature(afterOrm.get(key)) === signature(intact.get(key))),
-  'the table is history, so the check must not leave it damaged'
-);
+  const afterRetired = buildAll();
+  check(
+    `${pool.name} is put back exactly as it was`,
+    [...intact.keys()].every(
+      (key) => signature(afterRetired.get(key)) === signature(intact.get(key))
+    ),
+    'the table is history, so the check must not leave it damaged'
+  );
+}
 
 console.log(`\n${total - failures}/${total} passed`);
 process.exitCode = failures === 0 ? 0 : 1;

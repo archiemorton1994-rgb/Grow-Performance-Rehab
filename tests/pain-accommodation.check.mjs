@@ -41,7 +41,7 @@ import { readFileSync } from 'fs';
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { ACUTE_PROTOCOL_NOTES } = await import('../lib/acute-rehab.ts');
 const S = await import('../lib/exercise-safety.ts');
-const { getAllPickableExercises } = await import('../lib/exercise-db.ts');
+const { getAllPickableExercises, SESSION_POOLS } = await import('../lib/exercise-db.ts');
 
 let failures = 0;
 let total = 0;
@@ -65,7 +65,11 @@ const profile = {
 /** Every card the app would show, across the shapes a sore user can be in. */
 function sweep() {
   const cards = [];
-  for (const sessionType of ['lower_body', 'full_body', 'deadlift', 'squat', 'bench']) {
+  // The three sessions the app builds. 'squat', 'bench' and 'deadlift' used to
+  // be here as well; they now build these same three, card for card, which
+  // tests/legacy-session-ids.check.mjs proves, so sweeping them again would
+  // only be the same sessions counted twice.
+  for (const sessionType of ['lower_body', 'upper_body', 'full_body']) {
     for (const tier of ['bodyweight', 'bands', 'dumbbells', 'fullgym']) {
       for (const region of ['quads', 'knee', 'hip_groin', 'hamstrings', 'front_shoulder', 'glutes']) {
         for (const severity of ['mild', 'severe']) {
@@ -299,26 +303,81 @@ for (const c of cards) {
     comfortByCategory[c.category ?? '?'] = (comfortByCategory[c.category ?? '?'] ?? 0) + 1;
   }
 }
-for (const category of ['prep', 'mechanical', 'neuro', 'main', 'accessory']) {
+
+/**
+ * WHICH BLOCKS ARE ASKED, DERIVED RATHER THAN TYPED OUT.
+ *
+ * This used to name five categories - prep, mechanical, neuro, main and
+ * accessory - which was a list of the blocks the old lift-day generator had.
+ * Two of those blocks do not exist in the session anybody is given now, and a
+ * hardcoded list of them would either fail for ever or have to be quietly
+ * shortened, which is how a clinical promise turns into a comment.
+ *
+ * So the question is asked the other way round, off the catalogue and off the
+ * sessions actually built: if the app can put an exercise in a slot, and
+ * SOMEBODY HAS WRITTEN A GENTLER VERSION OF THAT EXERCISE, then a user in pain
+ * has to be able to receive it. A category with no accommodation authored for
+ * it is not asked for one; a category nothing builds is not asked either.
+ *
+ * It answers the same question the five names did, and it answers it for
+ * whatever the app looks like next: author a comfort variant on a finisher
+ * tomorrow, and the finisher block has to start applying it.
+ */
+function templatesIn(value, out = []) {
+  if (Array.isArray(value)) {
+    for (const v of value) templatesIn(v, out);
+    return out;
+  }
+  if (value && typeof value === 'object') {
+    if (typeof value.name === 'string' && typeof value.category === 'string') {
+      out.push(value);
+      return out;
+    }
+    for (const v of Object.values(value)) templatesIn(v, out);
+  }
+  return out;
+}
+
+const authoredByCategory = {};
+for (const t of templatesIn(SESSION_POOLS)) {
+  if (!t.comfortVariant) continue;
+  authoredByCategory[t.category] = (authoredByCategory[t.category] ?? 0) + 1;
+}
+const builtCategories = new Set(cards.map((c) => c.category));
+const accommodating = Object.keys(authoredByCategory)
+  .filter((c) => builtCategories.has(c))
+  .sort();
+
+check(
+  `${accommodating.length} kinds of block both get built and have accommodations written for them`,
+  accommodating.length >= 2,
+  `only ${accommodating.join(', ') || 'none'}, so everything below would be measuring almost nothing`
+);
+for (const category of accommodating) {
   check(
-    `${category}: ${comfortByCategory[category] ?? 0} comfort variants applied`,
+    `${category}: ${comfortByCategory[category] ?? 0} of its ${authoredByCategory[category]} authored accommodations fired`,
     (comfortByCategory[category] ?? 0) > 0,
-    'prep and mechanical called templateToExercise directly, so 48 hand-authored accommodations could never fire'
+    'this block calls templateToExercise directly, so every accommodation written for it is unreachable'
   );
 }
 
 
 /**
- * PER SESSION LENGTH, because these blocks branch on it.
+ * PER SESSION LENGTH, because how many cards a block pushes branches on it.
  *
- * The mechanical block pushes TWO drills at 60 minutes and ONE at 30 or 45,
- * in two separate statements. An aggregate count is satisfied by either
- * branch on its own: a mutation run proved exactly that, by breaking the
- * short-session push and watching the checks above stay green on the
- * 60-minute numbers alone.
+ * An aggregate count is satisfied by one branch on its own: a mutation run
+ * proved exactly that, by breaking the short-session push and watching the
+ * checks above stay green on the 60-minute numbers alone. So each length is
+ * counted separately, over the same derived list of blocks.
+ *
+ * There was a source-text assertion here as well, pinning the exact spelling of
+ * the prep loop's call to applyComfortOrBadge. It is gone: the loop it pinned
+ * belonged to the lift-day generator nothing reaches any more, so it had become
+ * a test that reads a line nobody runs, and the counts above and below say the
+ * same thing about the code that does run.
  */
 for (const t of ['60', '45']) {
-  for (const category of ['prep', 'mechanical']) {
+  for (const category of accommodating) {
     const applied = cards.filter(
       (c) =>
         c.timeAvailable === t &&
@@ -332,14 +391,6 @@ for (const t of ['60', '45']) {
     );
   }
 }
-const engine = readFileSync(new URL('../lib/workout-engine.ts', import.meta.url), 'utf8');
-check(
-  'and the prep loop goes through applyComfortOrBadge',
-  /for \(const p of prep\.slice\(0, prepCount\)\)\s*\n?\s*exercises\.push\(applyComfortOrBadge\(/.test(
-    engine
-  ),
-  ''
-);
 
 // ─── 5. The rehab slot survives a collision with the warm-up ─────────────────
 console.log('\n[5] The acute rehab card is never the one deleted');
@@ -351,10 +402,18 @@ console.log('\n[5] The acute rehab card is never the one deleted');
  * deleted the rehab card rather than the warm-up. The movement survived; the
  * card saying what it was for did not.
  */
+/** Every name the warm-up block could put on a card, gentler versions included. */
+const prepNames = new Set();
+for (const t of templatesIn(SESSION_POOLS.PREP)) {
+  prepNames.add(t.name.toLowerCase().trim());
+  if (t.comfortVariant?.name) prepNames.add(t.comfortVariant.name.toLowerCase().trim());
+}
+
 let slots = 0;
 const missing = [];
+const collided = [];
 for (const region of Object.keys(ACUTE_PROTOCOL_NOTES)) {
-  for (const type of ['squat', 'bench', 'deadlift']) {
+  for (const type of ['lower_body', 'upper_body', 'full_body']) {
     const w = generateWorkout(
       type,
       'fullgym',
@@ -373,6 +432,10 @@ for (const region of Object.keys(ACUTE_PROTOCOL_NOTES)) {
     const rehab = w.filter((e) => e.category === 'prehab');
     slots += rehab.length;
     if (rehab.length === 0) missing.push(`${type}/${region}`);
+    // The card that survived a clash is the rehab one, not the warm-up one.
+    for (const r of rehab) {
+      if (prepNames.has(r.name.toLowerCase().trim())) collided.push(`${type}/${region}: ${r.name}`);
+    }
   }
 }
 check(
@@ -381,9 +444,15 @@ check(
   `missing: ${missing.join(', ')}`
 );
 check(
-  'because dedup resolves a name clash in the rehab slot favour',
-  /if \(ex\.category !== 'prehab' && rehabNames\.has\(key\)\) return false;/.test(engine),
-  'plain first-wins dedup drops whichever card came later, and the rehab slot is assembled after the warm-up'
+  // Without this the assertion above is satisfied by a session where nothing
+  // ever clashes, and the rule it is guarding would never be exercised. There
+  // has to be at least one pair where the acute protocol's exercise is also
+  // something the warm-up could have offered, and on those the surviving card
+  // has to be the rehab one. A plain first-wins dedup drops whichever card was
+  // assembled later, and the rehab slot is always assembled after the warm-up.
+  `and the clash this rule exists for really does happen (${collided.length} pair(s))`,
+  collided.length > 0,
+  'no rehab exercise shares a name with anything the warm-up can offer, so the tie-break is untested'
 );
 
 // ─── 6. A swap does not hand somebody a different prescription ───────────────

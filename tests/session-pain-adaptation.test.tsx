@@ -47,6 +47,14 @@ const { generateWorkout } = require('../lib/workout-engine') as {
   generateWorkout: typeof import('../lib/workout-engine').generateWorkout;
 };
 
+// The safety screen's own rules, by the same relative-path route, so section 6
+// can ask what a given complaint actually restricts rather than assuming it.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { RESTRICTED_BY_REGION, restrictedTagsOn } = require('../lib/exercise-safety') as {
+  RESTRICTED_BY_REGION: typeof import('../lib/exercise-safety').RESTRICTED_BY_REGION;
+  restrictedTagsOn: typeof import('../lib/exercise-safety').restrictedTagsOn;
+};
+
 // ─── Tree helpers ─────────────────────────────────────────────────────────────
 
 type TreeNode = {
@@ -1108,6 +1116,48 @@ const routerMockForSection6 = require('../__mocks__/expo-router') as {
   __clearParams: () => void;
 };
 
+/**
+ * THE PROMISE THE END-TO-END TESTS BELOW HOLD, AND HOW IT IS NOW WORDED.
+ *
+ * It used to be "a reported area always produces at least one exercise carrying
+ * the comfort badge". That was true while a bench day was built by the lift-day
+ * generator, whose priming block carried a hand-authored gentler version of
+ * every drill in it. Those three ids build an upper body session now, that block
+ * does not exist in it, and for a sore bicep on dumbbells there is nothing left
+ * in the session tagged as loading a bicep at all.
+ *
+ * Insisting on a badge anyway would be asking the app to change an exercise
+ * that was never a problem, which is theatre rather than care. So the rule is
+ * asked the way a physiotherapist would ask it: NOTHING THAT STRESSES THE AREA
+ * THEY REPORTED MAY PASS WITHOUT BEING CHANGED OR FLAGGED. A session that
+ * threatens the sore area and does nothing is the real failure, and that is what
+ * fails here; a session that never threatens it needs no badge.
+ *
+ * Both halves are asserted, so the check cannot pass by the session being empty.
+ */
+function assertPainHandled(
+  exercises: ReturnType<typeof generateWorkout>,
+  region: PainRegion
+): { restricted: number; changed: number } {
+  expect(exercises.length).toBeGreaterThan(0);
+  const banned = new Set(RESTRICTED_BY_REGION[region] ?? []);
+  expect(banned.size).toBeGreaterThan(0);
+
+  // What is left in the session that still carries a tag this area restricts.
+  // A card that was successfully swapped for its gentler version is NOT in
+  // here: the swap renames it, and the new name carries no restricted tag. So
+  // this is the list of things that got through, and every one of them has to
+  // be flagged on the card at the very least.
+  const restricted = exercises.filter(
+    (e) => restrictedTagsOn(e.name, banned, undefined, e.cue).length > 0
+  );
+  const unhandled = restricted.filter((e) => e.badge !== 'comfort' && !e.safetyNote);
+  expect(unhandled.map((e) => e.name)).toEqual([]);
+
+  const changed = exercises.filter((e) => e.badge === 'comfort' || !!e.safetyNote).length;
+  return { restricted: restricted.length, changed };
+}
+
 describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted session', () => {
   beforeEach(() => {
     // sessionType=bench: best session to exercise bicep/tricep comfort variants.
@@ -1204,7 +1254,7 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
 
   // ── d) End-to-end (bicep): ReadinessScreen params → generateWorkout → comfort exercises
 
-  test('full flow (bicep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
+  test('full flow (bicep): nothing that loads a sore bicep reaches the session unchanged', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(React.createElement(ReadinessScreen));
@@ -1232,13 +1282,12 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
       >[2]['timeAvailable'],
     });
 
-    const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
-    expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
+    assertPainHandled(exercises, 'bicep');
   });
 
   // ── e) End-to-end (tricep): ReadinessScreen params → generateWorkout → comfort exercises
 
-  test('full flow (tricep): router.push params from ReadinessScreen produce ≥1 badge="comfort" exercise', () => {
+  test('full flow (tricep): a sore tricep is actually accommodated, not merely left alone', () => {
     let root!: renderer.ReactTestRenderer;
     act(() => {
       root = renderer.create(React.createElement(ReadinessScreen));
@@ -1265,8 +1314,11 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
       >[2]['timeAvailable'],
     });
 
-    const comfortExercises = exercises.filter((e) => e.badge === 'comfort');
-    expect(comfortExercises.length).toBeGreaterThanOrEqual(1);
+    // The upper body session DOES load a tricep, so here the original,
+    // stronger promise still holds and is still asserted: something in the
+    // session is visibly changed for the person who reported it.
+    const { changed } = assertPainHandled(exercises, 'tricep');
+    expect(changed).toBeGreaterThanOrEqual(1);
   });
 
   // ── f) Negative control: no aches → router.push has hasAches='false' → no comfort

@@ -88,43 +88,49 @@ const READINESS_TUTORIAL = [
     /**
      * THE WEIGHT DOES NOT MOVE WITH THIS, AND THE CARD USED TO SAY IT DID.
      *
-     * Generate the same squat session at low, normal and high and the main
-     * lift comes out at the same load every time. What energy actually changes
-     * is the SET COUNT on the main lift (4 / 5 / 6) and which finisher you get
-     * (Light Sled Drag / Sled Push Intervals / Sled Push/Pull Complex).
+     * Generate the same session at low, normal and high and the main lift comes
+     * out at the same load every time. The load comes from personalizeLoad -
+     * last logged weight, your rating of it, your 1RM, time off - and energy is
+     * not one of its inputs. Telling somebody who has just said "low" that the
+     * weight will drop, and then showing them last week's number, reads as the
+     * app ignoring them. So the card says the true thing AND says the weight is
+     * not part of it, because that is the sentence that stops the confusion.
      *
-     * The load comes from personalizeLoad - last logged weight, your rating of
-     * it, your 1RM, time off - and energy is not one of its inputs. Telling
-     * somebody who has just said "low" that the weight will drop, and then
-     * showing them last week's number, reads as the app ignoring them. So the
-     * card now says the true thing AND says the weight is not part of it,
-     * because that is the sentence that stops the confusion.
+     * REWRITTEN AGAIN when the lift-named session ids stopped being generated.
+     * It used to promise "low takes a set off your main lift", which was true of
+     * the old squat, bench and deadlift days and has never been true of a lower
+     * or upper body one: those give four sets whatever you answer. What the
+     * answer really moves now is which finisher you get, and on a Full Body
+     * session, how many sets everything in it carries.
      *
-     * tests/guided-tour.check.mjs generates all three and fails if the loads
-     * ever stop matching, which is the signal to re-read this.
+     * tests/guided-tour.check.mjs generates all three at each answer and fails
+     * if any of that stops matching, which is the signal to re-read this.
      */
-    body: 'Low takes a set off your main lift and gives you an easier finisher, high adds a set and a harder one. It does not change the weight on the bar, which comes from what you lifted last time.',
+    body: 'Low gives you an easier finisher, high a harder one, and on a Full Body session low takes sets off as well. It does not change the weight on the bar, which comes from what you lifted last time.',
   },
   {
     iconName: 'time-outline',
     iconLabel: 'Time',
     title: 'How long have you got?',
     /**
-     * Counted, not guessed. Generating a squat session at each duration gives
-     * 7, 10 and 13 exercises:
+     * Counted, not guessed. Generating a LOWER BODY session at each duration
+     * gives 8, 9 and 11 cards:
      *
-     *   30  Warm-Up x4, Activation, KPI Lift (a set lighter), Accessory
-     *   45  + Power Primer, + 2nd Accessory, + Prehab, + FINISHER
-     *   60  + 2nd Activation, + Cool Down
+     *   30  Warm-Up x4, main lift, Accessory x2, Cool Down
+     *   45  one warm-up fewer, a third Accessory, + PREHAB
+     *   60  the fourth warm-up back, a fourth Accessory, + FINISHER
      *
-     * The old copy promised the finisher at 60. It is already there at 45, and
-     * what 60 actually adds is priming at the front and breathing at the back.
+     * So the two blocks that appear as the session gets longer are Prehab at 45
+     * and the Finisher at 60. Rewritten here when the lift-named session ids
+     * stopped being generated: the old copy described the squat day's shape,
+     * which put a Power Primer and an Activation drill in and reached its
+     * finisher at 45. No session the app builds has any of that.
      *
      * The block names are capitalised because they are the badges printed on
-     * the cards themselves - see categoryColors in app/session.tsx - so the
-     * words here are the words the user is about to read.
+     * the cards themselves - see components/SessionPlanList.tsx - so the words
+     * here are the words the user is about to read.
      */
-    body: '30 is your Warm-Up, KPI Lift and one Accessory. 45 adds a Power Primer, a second Accessory, Prehab and a Finisher. 60 adds a second Activation drill and a Cool Down.',
+    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and ends with Prehab, gentle work for the joints you have just loaded. 60 ends with a Finisher instead.',
   },
 ] as const;
 

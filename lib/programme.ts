@@ -402,11 +402,16 @@ export const MAX_CUSTOM_CYCLE = 8;
  * 'custom': generateWorkout returns an empty list for that, because a custom
  * SESSION is assembled in the session builder rather than generated, so a slot
  * holding one would hand somebody an empty workout.
+ *
+ * AND NOT 'squat', 'bench' OR 'deadlift'. Those three now build, and are named
+ * as, a lower body, an upper body and a full body session - see
+ * lib/session-type.ts. Offering them here put six rows in the palette where
+ * three of them were exact duplicates of the other three, same name and all,
+ * and picking either copy gave the same session. A cycle somebody already built
+ * that holds one is untouched: it still resolves, still shows a name, and still
+ * generates. There is just no way to add another.
  */
 export const BUILDABLE_SESSION_TYPES: SessionType[] = [
-  'squat',
-  'bench',
-  'deadlift',
   'upper_body',
   'lower_body',
   'full_body',

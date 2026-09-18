@@ -18,6 +18,9 @@ import type {
 // the grid a gym can actually load. `lib/utils.ts` imports nothing at runtime,
 // so the contract tests that import this file directly stay free of the store.
 import { cardioWarmupPoolForSession } from './cardio-warmup';
+// Also import-only-what-it-needs: lib/session-type.ts has no runtime imports of
+// its own, so this adds no edge back to the store.
+import { trainTypeOf } from './session-type';
 import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 import {
   ExerciseCategory,
@@ -1730,6 +1733,15 @@ export function easeForDeloadWeek(
  * filter applied at any one of them is a filter three others quietly skip.
  * Screening the output is the only place where "nothing unsafe reaches the
  * user" is a statement about the whole app rather than about one code path.
+ *
+ * IT IS ALSO WHERE THE THREE LIFT-NAMED SESSION IDS STOP BEING BUILT.
+ *
+ * 'squat', 'bench' and 'deadlift' come in from three places nobody can rewrite:
+ * a history going back years, whatever the server last synced, and a Barbell
+ * Strength or custom cycle somebody is part way through. Every one of them
+ * arrives here, because the session screen is the only caller in the app, so
+ * mapping them once at this door is the only way to be sure that nobody is ever
+ * served a session named after a competition lift again. See lib/session-type.
  */
 export function generateWorkout(
   sessionType: SessionType,
@@ -1778,6 +1790,16 @@ export function generateWorkout(
    */
   exerciseRepTarget?: Record<string, string>
 ): Exercise[] {
+  /**
+   * A squat day is a lower body day, a bench day an upper body day and a
+   * deadlift day a full body day. Everything else is already what it says.
+   *
+   * Done once, here, and used everywhere below instead of the id that came in,
+   * so the session built for a stored 'squat' is the SAME session as the one
+   * built for 'lower_body' - the same exercises, in the same order, off the same
+   * seed - rather than a near miss that drifts apart later.
+   */
+  const buildType = trainTypeOf(sessionType);
   const layoff = getLayoff(daysSinceLastSession);
 
   /**
@@ -1831,7 +1853,7 @@ export function generateWorkout(
   // exercise gets its own stand-ins rather than inheriting the removed one's.
   const screened = applyInjurySafety(
     generateWorkoutUnscreened(
-      sessionType,
+      buildType,
       equipmentTier,
       screenedReadiness,
       profile,
@@ -1850,7 +1872,7 @@ export function generateWorkout(
     equipmentTier,
     profile,
     strengthSessionCount,
-    sessionType
+    buildType
   );
   const withSwaps = fillSwapAlternatives(
     screened,
@@ -2991,6 +3013,22 @@ function generateWorkoutUnscreened(
     );
   }
 
+  /**
+   * BELOW HERE IS THE OLD LIFT-DAY GENERATOR, AND NOTHING REACHES IT ANY MORE.
+   *
+   * The only way in is 'squat', 'bench' or 'deadlift', and generateWorkout now
+   * maps all three to a weekly session before it calls this function, so the
+   * branch above catches them. It is left standing rather than deleted because
+   * the pools it reads (MAIN_LIFTS, ACCESSORIES, PREP, MECHANICAL, NEURO and
+   * the rest) are the same pools the weekly generator is still being moved off,
+   * and pulling this out while they are half migrated would mean two large
+   * changes tangled into one diff. It goes when they do.
+   *
+   * The guard that this stays unreachable is behavioural, not a comment:
+   * tests/legacy-session-ids.check.mjs asserts a stored squat day generates the
+   * SAME session as a lower body day, card for card, which can only be true
+   * while the map above is doing its job.
+   */
   const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
   const { hasAches, painRegion, energy, timeAvailable } = readiness;
@@ -3322,7 +3360,25 @@ function generateWeeklyWorkout(
     sessionSeed
   );
   const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
-  for (const p of prep.slice(0, prepCount)) exercises.push(templateToExercise(p));
+  /**
+   * THROUGH applyComfortOrBadge, NOT templateToExercise, AND IT USED NOT TO BE.
+   *
+   * This is the same defect the KPI prep block was fixed for, sitting in the
+   * other generator: eighteen hand-authored warm-up comfort variants, each with
+   * triggerRegions naming the area they are the gentler option for, and not one
+   * of them could ever fire in a weekly session.
+   *
+   * It was hidden for as long as squat, bench and deadlift days existed,
+   * because those went through the fixed path and tests/pain-accommodation
+   * counted warm-up accommodations across both. The moment those three ids
+   * started building a weekly session instead, the count went to zero and the
+   * gap showed: somebody with an acutely sore shoulder was being given
+   * "Shoulder CARs, full shoulder range" in their warm-up while this entry's
+   * own unreachable comfort variant was the pendulum swing lib/acute-rehab.ts
+   * prescribes first.
+   */
+  for (const p of prep.slice(0, prepCount))
+    exercises.push(applyComfortOrBadge(p, hasAches, painRegion, equipmentTier));
 
   // ── 3. Main exercises — pattern-first, never drop required movements ───────
   // Pool is ordered by pattern priority so first N exercises always cover all
@@ -3579,10 +3635,29 @@ function generateWeeklyWorkout(
   const kettlebelled =
     equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
-  // Deduplicate
+  /**
+   * Deduplicate by name, with the rehab slot's exception first.
+   *
+   * The same rule the lift-day generator above carries, and for the same reason
+   * it was written there: plain first-wins dedup drops whichever card was
+   * assembled later, and the rehab slot is assembled after the warm-up. The
+   * moment the prep block started applying its comfort variants, an upper body
+   * session for a sore shoulder opened with a Pendulum Shoulder Swing - exactly
+   * what the acute protocol prescribes for that region - and the two collided,
+   * so the acute card was the one deleted. The movement survived; the card
+   * explaining what it was for, carrying the acute prescription, did not.
+   *
+   * Measured: two of the fifty-seven region-and-session pairs lost their rehab
+   * slot outright. The rehab slot is the point of the whole pain-adaptation
+   * path, so it wins.
+   */
+  const rehabNames = new Set(
+    kettlebelled.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
+  );
   const seenNames = new Set<string>();
   const deduped = kettlebelled.filter((ex) => {
     const key = ex.name.toLowerCase().trim();
+    if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
     if (seenNames.has(key)) return false;
     seenNames.add(key);
     return true;
@@ -3909,14 +3984,22 @@ export function applyFeedbackMultiplier(load: string, multiplier: number): strin
   });
 }
 
+/**
+ * THE NAME ON THE CARD, INCLUDING FOR SESSIONS DONE YEARS AGO.
+ *
+ * This and the two below take the stored session type through `trainTypeOf`
+ * first, so the three lift-named ids have no case of their own and CANNOT get
+ * one back: a day stored as 'squat' reads "Lower Body" on the history list, on
+ * the summary and at the top of the session screen, because a lower body
+ * session is what the app now builds for it.
+ *
+ * It is the same name the person would get today rather than the name they saw
+ * at the time, which is the deliberate trade. The alternative is a list where
+ * half the entries are named after a session the app no longer offers, and no
+ * way to tell from the list that the two are the same thing.
+ */
 export function getSessionLabel(type: SessionType): string {
-  switch (type) {
-    case 'squat':
-      return 'Squat Session';
-    case 'bench':
-      return 'Bench Session';
-    case 'deadlift':
-      return 'Deadlift Session';
+  switch (trainTypeOf(type)) {
     case 'upper_body':
       return 'Upper Body';
     case 'lower_body':
@@ -3935,13 +4018,7 @@ export function getSessionLabel(type: SessionType): string {
 }
 
 export function getSessionSubtitle(type: SessionType): string {
-  switch (type) {
-    case 'squat':
-      return 'KPI lift - quads, glutes, hamstrings';
-    case 'bench':
-      return 'KPI lift - chest, shoulders, triceps';
-    case 'deadlift':
-      return 'KPI lift - hinge, posterior chain, back';
+  switch (trainTypeOf(type)) {
     case 'upper_body':
       return 'Push & pull - full upper coverage';
     case 'lower_body':
@@ -3960,13 +4037,7 @@ export function getSessionSubtitle(type: SessionType): string {
 }
 
 export function getSessionIcon(type: SessionType): string {
-  switch (type) {
-    case 'squat':
-      return 'fitness';
-    case 'bench':
-      return 'body';
-    case 'deadlift':
-      return 'barbell';
+  switch (trainTypeOf(type)) {
     case 'upper_body':
       return 'barbell';
     case 'lower_body':

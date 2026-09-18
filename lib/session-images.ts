@@ -8,16 +8,30 @@
  * `require` calls must stay static literals — Metro resolves them at bundle
  * time, so these cannot be built from a template string.
  *
- * The female set covers the ten session artworks. Anything without a female
+ * The female set covers the seven session artworks. Anything without a female
  * variant (currently `custom`) falls back to the shared asset rather than
  * rendering nothing.
  */
+import { trainTypeOf, type TrainSessionType } from './session-type';
 import type { SessionType, Sex } from './store';
 
-const MALE: Record<SessionType, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
+/**
+ * KEYED BY THE SESSION THE APP BUILDS, NOT BY THE ID THAT WAS STORED.
+ *
+ * There is no 'squat', 'bench' or 'deadlift' row any more. A day stored under
+ * one of those ids builds, and is named as, a lower body, upper body or full
+ * body session, so putting a barbell back squat photograph beside the words
+ * "Lower Body" would be the app disagreeing with itself on the one card a
+ * person is most likely to look at.
+ *
+ * Typing the tables `Record<TrainSessionType, ...>` is what holds it: a stored
+ * id has to go through `trainTypeOf` to be looked up at all, so a later change
+ * that reaches straight into the table with whatever came off a completed
+ * session fails the typecheck rather than quietly showing the old artwork
+ * again. The three lift images stay on disk, unreferenced; deleting an asset is
+ * a separate decision from deciding not to show it.
+ */
+const MALE: Record<TrainSessionType, any> = {
   conditioning: require('@/assets/images/sessions/conditioning.png'),
   prehab: require('@/assets/images/sessions/targeted-prehab.png'),
   flexibility: require('@/assets/images/sessions/mobility.png'),
@@ -27,10 +41,7 @@ const MALE: Record<SessionType, any> = {
   full_body: require('@/assets/images/sessions/full-body.png'),
 };
 
-const FEMALE: Partial<Record<SessionType, any>> = {
-  squat: require('@/assets/images/sessions/female/squat.png'),
-  bench: require('@/assets/images/sessions/female/bench.png'),
-  deadlift: require('@/assets/images/sessions/female/deadlift.png'),
+const FEMALE: Partial<Record<TrainSessionType, any>> = {
   conditioning: require('@/assets/images/sessions/female/conditioning.png'),
   prehab: require('@/assets/images/sessions/female/targeted-prehab.png'),
   flexibility: require('@/assets/images/sessions/female/mobility.png'),
@@ -65,9 +76,11 @@ function prefersFemaleArt(sex: Sex | undefined): boolean {
   return sex === 'female';
 }
 
+/** The picture follows the name on the card. See the tables above. */
 export function getSessionImage(type: SessionType, sex: Sex | undefined): any {
-  if (prefersFemaleArt(sex)) return FEMALE[type] ?? MALE[type];
-  return MALE[type];
+  const art = trainTypeOf(type);
+  if (prefersFemaleArt(sex)) return FEMALE[art] ?? MALE[art];
+  return MALE[art];
 }
 
 export function getRecoverImage(key: string, sex: Sex | undefined): any {

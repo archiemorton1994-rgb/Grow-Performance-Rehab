@@ -54,6 +54,8 @@ import {
   weeksFor,
   SESSION_COUNTS,
 } from '../lib/programme.ts';
+import { trainTypeOf } from '../lib/session-type.ts';
+import { SESSION_DISPLAY_NAMES } from '../lib/session-meta.ts';
 import './_persist-shim.mjs';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
 
@@ -643,8 +645,23 @@ check(
   // generateWorkout returns an empty list for 'custom', so a slot holding one
   // would hand somebody a workout with nothing in it.
   'the sessions you can put in a cycle are all sessions the app can build',
-  BUILDABLE_SESSION_TYPES.length === 9 && !BUILDABLE_SESSION_TYPES.includes('custom'),
+  BUILDABLE_SESSION_TYPES.length > 0 && !BUILDABLE_SESSION_TYPES.includes('custom'),
   BUILDABLE_SESSION_TYPES.join(', ')
+);
+check(
+  // Was a count of nine, which went stale the moment the palette changed and
+  // said nothing about WHY nine. What actually matters: a type that is only
+  // kept so old data resolves must never be offered as a new choice, or the
+  // palette shows two rows with the same name that do the same thing.
+  'and none of them is a stored id that now builds as something else',
+  BUILDABLE_SESSION_TYPES.every((t) => trainTypeOf(t) === t),
+  BUILDABLE_SESSION_TYPES.filter((t) => trainTypeOf(t) !== t).join(', ')
+);
+check(
+  'so no two rows of the palette can carry the same name',
+  new Set(BUILDABLE_SESSION_TYPES.map((t) => SESSION_DISPLAY_NAMES[t])).size ===
+    BUILDABLE_SESSION_TYPES.length,
+  BUILDABLE_SESSION_TYPES.map((t) => SESSION_DISPLAY_NAMES[t]).join(', ')
 );
 check(
   'and there is a ceiling on how long a cycle can get',

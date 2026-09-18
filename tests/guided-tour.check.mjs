@@ -329,9 +329,13 @@ const PROBE_PROFILE = {
   goals: ['muscle'],
   bodyweightKg: 80,
 };
-const buildSession = (over) =>
+// Built as a LOWER BODY session, which is what a squat day now is. This probe
+// said 'squat' until the three lift-named ids stopped being generated, and a
+// probe pointed at a session the app does not build cannot tell you whether the
+// card describes the session somebody gets.
+const buildSession = (over, type = 'lower_body') =>
   generateWorkout(
-    'squat',
+    type,
     'fullgym',
     { hasAches: false, painRegion: null, energy: 'normal', timeAvailable: '60', ...over },
     PROBE_PROFILE,
@@ -370,15 +374,38 @@ const eLow = mainLiftOf(buildSession({ energy: 'low' }));
 const eNormal = mainLiftOf(buildSession({ energy: 'normal' }));
 const eHigh = mainLiftOf(buildSession({ energy: 'high' }));
 
+/**
+ * WHAT THE ANSWER ACTUALLY CHANGES, MEASURED ON THE SESSION PEOPLE GET.
+ *
+ * This used to assert that energy moved the main lift's set count, 4 / 5 / 6,
+ * which was true of the old lift-day session and has never been true of a lower
+ * or upper body one: those come out 4 / 4 / 4. It only passed because the probe
+ * above was building a squat day, and squat days are not built any more.
+ *
+ * So the card is held to what a weekly session really does with the answer: it
+ * picks an easier or harder finisher, and on a Full Body session, saying low
+ * takes sets off every exercise in it.
+ */
+const finisherOf = (w) =>
+  w
+    .filter((e) => e.category === 'finisher')
+    .map((e) => e.name)
+    .join('/');
 check(
-  `energy moves the set count (${eLow?.sets} / ${eNormal?.sets} / ${eHigh?.sets})`,
-  eLow != null && eLow.sets < eNormal.sets && eNormal.sets < eHigh.sets,
+  `energy changes the finisher (${['low', 'normal', 'high'].map((e) => finisherOf(buildSession({ energy: e }))).join(' / ')})`,
+  new Set(['low', 'normal', 'high'].map((e) => finisherOf(buildSession({ energy: e })))).size === 3,
   'if this stops being true the card describing it has to change with it'
 );
+const fullMain = (energy) => mainLiftOf(buildSession({ energy }, 'full_body'));
 check(
-  'and the card is about sets',
-  /\bset\b/i.test(energyCopy),
-  'the only two things this answer changes are sets and the finisher, so those are what it can honestly promise'
+  `and on a Full Body session it moves the sets (${fullMain('low')?.sets} / ${fullMain('normal')?.sets} / ${fullMain('high')?.sets})`,
+  fullMain('low') != null && fullMain('low').sets < fullMain('normal').sets,
+  'saying you are flat has to take work off somewhere, or the question is decoration'
+);
+check(
+  'and the card names both, the finisher and the sets',
+  /\bfinisher\b/i.test(energyCopy) && /\bsets?\b/i.test(energyCopy),
+  'those are the two things this answer changes, so those are what it can honestly promise'
 );
 check(
   'energy does NOT move the weight on the bar',
@@ -422,10 +449,19 @@ const addedBy = (before, after) => [...after].filter((c) => !before.has(c));
 const durationClause = (mins) =>
   timeCopy.split(/(?=\b(?:30|45|60)\b)/).find((p) => p.trimStart().startsWith(mins)) ?? '';
 
+/**
+ * The finisher has to be named in the clause for the shortest session that
+ * actually ends with one. That used to be 45, which is where the lift-day
+ * session put it; a weekly session puts it at 60. Working it out from the
+ * generated sessions rather than writing the number in means the card is held
+ * to wherever the block really appears, now and after the next change.
+ */
+const firstFinisherAt = ['30', '45', '60'].find((t) => categoriesAt(t).has('finisher')) ?? null;
 check(
-  'the finisher is promised at 45, which is where it first appears',
-  cat45.has('finisher') && durationClause('45').includes(BLOCK_LABELS.finisher ?? 'Finisher'),
-  'it used to be promised at 60, one step too late, so a 45-minute session ended with a block the card had not mentioned'
+  `the finisher is promised at ${firstFinisherAt}, which is where it first appears`,
+  firstFinisherAt !== null &&
+    durationClause(firstFinisherAt).includes(BLOCK_LABELS.finisher ?? 'Finisher'),
+  'a session that ends with a block the card never mentioned is a session that surprises somebody who is already tired'
 );
 for (const [mins, plus] of [
   ['45', addedBy(cat30, cat45)],

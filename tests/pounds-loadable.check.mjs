@@ -122,6 +122,32 @@ const build = (type, tier, unit, opts = {}) =>
     unit
   );
 
+/**
+ * THE MAIN LIFT, WITH THE HISTORY RECORDED AGAINST WHICHEVER EXERCISE IT IS.
+ *
+ * Every progression section below used to build a 'squat' session and key the
+ * user's history off the literal id 'sq-main-fg' - the one main lift a squat day
+ * could ever have. Squat days are not built any more: 'squat', 'bench' and
+ * 'deadlift' all build a lower, upper or full body session now, and those rotate
+ * their main lift on the session count and on the calendar, so there is no
+ * single id to write down.
+ *
+ * A hardcoded id that stops matching fails silently rather than loudly. The
+ * engine simply sees no history, prescribes a first-time estimate, and every
+ * progression assertion below goes on running against a lifter who apparently
+ * never lifted anything. So the id is read off the session that was actually
+ * built, the history is recorded against THAT exercise, and the second build has
+ * to come back with the same one or this returns nothing and the caller fails.
+ */
+function mainLift(type, tier, unit, opts = {}, history = () => ({})) {
+  const first = build(type, tier, unit, opts).find((e) => e.category === 'main');
+  if (!first) return undefined;
+  const again = build(type, tier, unit, { ...opts, ...history(first.id) }).find(
+    (e) => e.category === 'main'
+  );
+  return again && again.id === first.id ? again : undefined;
+}
+
 /** The per-set numbers the logging bar prefills, exactly as session.tsx derives them. */
 const boxTargetsKg = (ex, unit) =>
   ex.loadKg
@@ -165,10 +191,10 @@ console.log('\n[1] The progression the audit read off the screen');
     let lastKg = displayUnitToKg(145, 'lbs');
     const seq = [];
     for (let i = 0; i < 5; i++) {
-      const ex = build('squat', 'fullgym', 'lbs', {
-        lastLoggedWeights: { 'sq-main-fg': lastKg },
-        performance: performance ? { 'sq-main-fg': performance } : {},
-      }).find((e) => e.category === 'main');
+      const ex = mainLift('lower_body', 'fullgym', 'lbs', {}, (id) => ({
+        lastLoggedWeights: { [id]: lastKg },
+        performance: performance ? { [id]: performance } : {},
+      }));
       const working = boxTargetsKg(ex, 'lbs').at(-1);
       seq.push(kgToDisplayUnit(working, 'lbs'));
       lastKg = working;
@@ -221,11 +247,11 @@ console.log('\n[2] A bigger answer never moves you less');
     let lastKg = displayUnitToKg(145, 'lbs');
     const seq = [];
     for (let i = 0; i < 4; i++) {
-      const ex = build('squat', 'fullgym', 'lbs', {
-        lastLoggedWeights: { 'sq-main-fg': lastKg },
-        performance: performance ? { 'sq-main-fg': performance } : {},
-        normalStreak: normalStreak ? { 'sq-main-fg': normalStreak } : {},
-      }).find((e) => e.category === 'main');
+      const ex = mainLift('lower_body', 'fullgym', 'lbs', {}, (id) => ({
+        lastLoggedWeights: { [id]: lastKg },
+        performance: performance ? { [id]: performance } : {},
+        normalStreak: normalStreak ? { [id]: normalStreak } : {},
+      }));
       const working = boxTargetsKg(ex, 'lbs').at(-1);
       seq.push(kgToDisplayUnit(working, 'lbs'));
       lastKg = working;
@@ -353,7 +379,11 @@ console.log('\n[4] The kilogram user sees exactly what they saw before');
   let seen = 0;
   for (const type of SESSION_TYPES) {
     for (const tier of TIERS) {
-      for (const ex of build(type, tier, 'kg', { lastLoggedWeights: { 'sq-main-fg': 65 } })) {
+      // A 65 kg history against every exercise the session actually holds, so
+      // the progression path is what gets swept rather than the first-time
+      // estimate. Keyed off the real ids for the reason mainLift explains.
+      const lastLoggedWeights = Object.fromEntries(build(type, tier, 'kg').map((e) => [e.id, 65]));
+      for (const ex of build(type, tier, 'kg', { lastLoggedWeights })) {
         for (const kg of boxTargetsKg(ex, 'kg').filter((k) => k > 0)) {
           seen++;
           if (!loadableInKilos(kg)) offGrid.push(`${type}/${tier} "${ex.name}" → ${kg} kg`);
@@ -383,7 +413,7 @@ console.log('\n[4] The kilogram user sees exactly what they saw before');
   // record rather than quietly excluded. If this ever passes, the exclusion in
   // section 3 should go with it.
   const kbMismatch = (unit) => {
-    for (const ex of build('squat', 'kettlebells', unit)) {
+    for (const ex of build('lower_body', 'kettlebells', unit)) {
       const box = boxTargetsKg(ex, unit).filter((k) => k > 0);
       const card = cardNumbers(ex, unit);
       if (card.length > 0 && box.length > 0 && !card.includes(kgToDisplayUnit(box[0], unit))) {
@@ -458,9 +488,9 @@ console.log('\n[6] Switching units mid-programme');
   );
 
   const nextIn = (unit) => {
-    const ex = build('squat', 'fullgym', unit, {
-      lastLoggedWeights: { 'sq-main-fg': kgOnFile },
-    }).find((e) => e.category === 'main');
+    const ex = mainLift('lower_body', 'fullgym', unit, {}, (id) => ({
+      lastLoggedWeights: { [id]: kgOnFile },
+    }));
     return boxTargetsKg(ex, unit).at(-1);
   };
   const stayed = nextIn('lbs');
@@ -484,9 +514,9 @@ console.log('\n[6] Switching units mid-programme');
 
   // The other direction: a kilogram user's 100 kg read by someone who has just
   // switched to pounds.
-  const toPounds = build('squat', 'fullgym', 'lbs', {
-    lastLoggedWeights: { 'sq-main-fg': 100 },
-  }).find((e) => e.category === 'main');
+  const toPounds = mainLift('lower_body', 'fullgym', 'lbs', {}, (id) => ({
+    lastLoggedWeights: { [id]: 100 },
+  }));
   const nextLbs = kgToDisplayUnit(boxTargetsKg(toPounds, 'lbs').at(-1), 'lbs');
   const wouldHaveBeen = kgToDisplayUnit(oldKgGrid(100 + 2.5), 'lbs');
   check(
@@ -499,9 +529,9 @@ console.log('\n[6] Switching units mid-programme');
 // ─── 7. Within-session auto-regulation ───────────────────────────────────────
 console.log('\n[7] The weight offered after every possible answer');
 {
-  const ex = build('squat', 'fullgym', 'lbs', {
-    lastLoggedWeights: { 'sq-main-fg': displayUnitToKg(145, 'lbs') },
-  }).find((e) => e.category === 'main');
+  const ex = mainLift('lower_body', 'fullgym', 'lbs', {}, (id) => ({
+    lastLoggedWeights: { [id]: displayUnitToKg(145, 'lbs') },
+  }));
   const plannedKg = boxTargetsKg(ex, 'lbs');
   const SETS = plannedKg.length;
   console.log('     planned ramp: ' + plannedKg.map((k) => kgToDisplayUnit(k, 'lbs')).join(' / ') + ' lbs');
@@ -550,7 +580,21 @@ console.log('\n[7] The weight offered after every possible answer');
   };
   walk(0);
 
-  check(`the walk ran (${combos} answer sequences, ${offersSeen} weights offered)`, combos > 500 && offersSeen > 2000, `${combos}/${offersSeen}`);
+  /**
+   * The non-vacuity guard, stated exactly rather than as a floor.
+   *
+   * It used to be "more than 500 sequences and more than 2,000 weights", which
+   * were the numbers a five-set ramp produces. The main lift of a lower body
+   * session ramps over four sets, so those floors started failing on a walk that
+   * had covered every single combination there is. A floor sized to one session
+   * shape is a number that goes stale silently in both directions; the count is
+   * arithmetic, so it can simply be asserted.
+   */
+  check(
+    `the walk ran (${combos} answer sequences over a ${SETS}-set ramp, ${offersSeen} weights offered)`,
+    SETS >= 3 && combos === ANSWERS.length ** SETS && offersSeen === combos * SETS,
+    `${combos}/${offersSeen}, expected ${ANSWERS.length ** SETS}/${ANSWERS.length ** SETS * SETS}`
+  );
   check(
     'every weight the app offers mid-session is loadable',
     offGrid.length === 0,

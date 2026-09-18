@@ -57,10 +57,9 @@ import { bandLabel } from '@/lib/exercise-levels';
 const DAY_OPTIONS: TrainingDays[] = [2, 3, 4, 5];
 
 /** One line each, so the list is a decision rather than nine words. */
+// One line per row of the palette. The three lift-named ids are no longer in
+// BUILDABLE_SESSION_TYPES, so they have no row and need no line.
 const WHAT_IT_IS: Record<string, string> = {
-  squat: 'Squat as the main lift, with accessories around it',
-  bench: 'Bench as the main lift, with accessories around it',
-  deadlift: 'Deadlift as the main lift, with accessories around it',
   upper_body: 'Chest, back, shoulders and arms',
   lower_body: 'Quads, hamstrings, glutes and calves',
   full_body: 'A bit of everything, in one session',

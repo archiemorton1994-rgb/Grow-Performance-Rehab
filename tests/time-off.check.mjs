@@ -72,27 +72,54 @@ const PROFILE = {
   bodyweightKg: 85,
 };
 const READINESS = { hasAches: false, energy: 'normal', timeAvailable: '60' };
-/** The squat KPI lift at full-gym tier — the id progression is keyed on. */
-const SQUAT_ID = 'sq-main-fg';
-const LAST_LOGGED = { [SQUAT_ID]: 80 };
-const NORMAL = { [SQUAT_ID]: 'normal' };
 
-/** The main lift of a squat session generated `days` after the last one. */
-function squatMain(days, { ormKg, lastLogged = LAST_LOGGED, strengthCount = 8 } = {}) {
-  const session = generateWorkout(
-    'squat',
+/** One lower body session at full-gym tier, built the way the screen builds it. */
+function lowerSession(days, { ormKg, count = 8, lastLogged = {}, normal = {} } = {}) {
+  return generateWorkout(
+    'lower_body',
     'fullgym',
     READINESS,
     PROFILE,
     {},
     ormKg,
-    strengthCount,
+    count,
     lastLogged,
     {},
-    NORMAL,
+    normal,
     days
   );
-  return session.find((e) => e.category === 'main');
+}
+
+/**
+ * THE MAIN LIFT, AND THE WEIGHT THEY LAST PUT ON IT, LOOKED UP NOT TYPED IN.
+ *
+ * This used to build a 'squat' session and key the history off the literal id
+ * 'sq-main-fg', which was the one main lift a squat day could ever have. Squat
+ * days are not built any more: the three lift-named ids all build a lower,
+ * upper or full body session now, and those rotate their main lift on the
+ * session count and on the calendar, so there is no single id to write down.
+ *
+ * A hardcoded id that stops matching does not fail loudly. It silently stops
+ * being "the weight they last lifted", the layoff has nothing to reduce, and
+ * every check below goes on passing while measuring nothing. So the id is read
+ * off the session that was actually built, the history is recorded against THAT
+ * exercise, and the second build is required to come back with the same one.
+ *
+ * `days` of null means "no date on file"; leaving it out entirely means "use
+ * whatever the store last published", which is the path the session screen
+ * takes, since it passes no date at all.
+ */
+function main(days, { ormKg, count = 8, lastKg = 80 } = {}) {
+  const bare = lowerSession(days, { ormKg, count }).find((e) => e.category === 'main');
+  if (!bare) return undefined;
+  const id = bare.id;
+  const found = lowerSession(days, {
+    ormKg,
+    count,
+    lastLogged: { [id]: lastKg },
+    normal: { [id]: 'normal' },
+  }).find((e) => e.category === 'main');
+  return found && found.id === id ? found : undefined;
 }
 
 // ─── 1. The curve ────────────────────────────────────────────────────────────
@@ -144,9 +171,9 @@ check(
 // ─── 2. It reaches the weight ────────────────────────────────────────────────
 console.log('\n[2] The curve actually reaches the prescription');
 
-const sameDay = squatMain(0).loadKg[0];
-const after38 = squatMain(38).loadKg[0];
-const after368 = squatMain(368).loadKg[0];
+const sameDay = main(0).loadKg[0];
+const after38 = main(38).loadKg[0];
+const after368 = main(368).loadKg[0];
 check(
   'a month away prescribes less than the next day would',
   after38 < sameDay,
@@ -159,7 +186,7 @@ check(
 );
 check(
   'the weight moves gradually, not in one jump',
-  new Set([11, 21, 35, 60].map((d) => squatMain(d).loadKg[0])).size >= 3,
+  new Set([11, 21, 35, 60].map((d) => main(d).loadKg[0])).size >= 3,
   'four points on the curve should not collapse to one or two weights'
 );
 check(
@@ -193,14 +220,16 @@ check(
   (() => {
     const acc = (days, type, tier, count) =>
       new Map(
-        generateWorkout(type, tier, READINESS, PROFILE, {}, undefined, count, LAST_LOGGED, {}, {}, days)
+        // No logged history passed: accessories are not keyed to the main
+        // lift's id, and every weight here is the engine's own estimate.
+        generateWorkout(type, tier, READINESS, PROFILE, {}, undefined, count, {}, {}, {}, days)
           .filter((e) => e.category === 'accessory' && e.loadKg?.length)
           .map((e) => [e.name, e.loadKg[0]])
       );
     let compared = 0;
     let eased = 0;
     let heavier = 0;
-    for (const type of ['squat', 'bench', 'deadlift']) {
+    for (const type of ['lower_body', 'upper_body', 'full_body']) {
       for (const tier of ['fullgym', 'dumbbells']) {
         // From 8, so auto-progression is already running in every one of them.
         for (let count = 8; count < 14; count++) {
@@ -223,8 +252,8 @@ check(
 // ─── 3. It stops as soon as they are back ────────────────────────────────────
 console.log('\n[3] It does not fight the normal progression once training resumes');
 
-const comeback = squatMain(40).loadKg[0];
-const dayAfter = squatMain(1, { lastLogged: { [SQUAT_ID]: comeback }, strengthCount: 9 });
+const comeback = main(40).loadKg[0];
+const dayAfter = main(1, { lastKg: comeback, count: 9 });
 check(
   'the session after the comeback progresses normally again',
   dayAfter.loadKg[0] > comeback,
@@ -241,7 +270,7 @@ console.log('\n[4] Falling back to a fresh estimate never raises the weight');
 
 // A 1RM tested before the break is still the best one on file. 85% of 180 kg is
 // 153 kg — far more than the 80 kg this person actually last squatted.
-const stale = squatMain(200, { ormKg: 180 });
+const stale = main(200, { ormKg: 180 });
 check(
   'a stale 1RM cannot outrank the weight they walked away from',
   stale.loadKg[0] <= 80,
@@ -254,8 +283,8 @@ check(
 );
 check(
   'crossing the reset boundary does not bounce the weight upward',
-  squatMain(LAYOFF_RESET_DAYS, { ormKg: 180 }).loadKg[0] <=
-    squatMain(LAYOFF_RESET_DAYS - 1, { ormKg: 180 }).loadKg[0],
+  main(LAYOFF_RESET_DAYS, { ormKg: 180 }).loadKg[0] <=
+    main(LAYOFF_RESET_DAYS - 1, { ormKg: 180 }).loadKg[0],
   'one more day off must not be rewarded with more weight'
 );
 
@@ -263,16 +292,16 @@ check(
 console.log('\n[5] Nothing is adjusted silently');
 
 for (const days of [11, 21, 40, 200]) {
-  const main = squatMain(days);
+  const card = main(days);
   check(
     `${days} days: the card says why the weight moved`,
-    !!main.progressionNote && /eased back|starting fresh/i.test(main.progressionNote),
-    `got "${main.progressionNote}"`
+    !!card.progressionNote && /eased back|starting fresh/i.test(card.progressionNote),
+    `got "${card.progressionNote}"`
   );
   check(
     `${days} days: it never claims to have raised the weight`,
-    !/up\b/i.test(main.progressionNote ?? ''),
-    `got "${main.progressionNote}" beside a REDUCED weight`
+    !/up\b/i.test(card.progressionNote ?? ''),
+    `got "${card.progressionNote}" beside a REDUCED weight`
   );
 }
 check(
@@ -425,20 +454,10 @@ check(
 console.log('\n[7] The engine is told when the user last trained');
 
 setLastTrainedDate(null);
-const unpublished = squatMain(null).loadKg[0];
+const unpublished = main(null).loadKg[0];
 setLastTrainedDate(new Date(Date.now() - 40 * 86400000).toISOString());
-const published = generateWorkout(
-  'squat',
-  'fullgym',
-  READINESS,
-  PROFILE,
-  {},
-  undefined,
-  8,
-  LAST_LOGGED,
-  {},
-  NORMAL
-).find((e) => e.category === 'main').loadKg[0];
+// No date argument at all, which is the path the session screen takes.
+const published = main(undefined).loadKg[0];
 check(
   'a published date is used when the caller supplies none',
   published < unpublished,
@@ -459,19 +478,7 @@ check(
   (() => {
     seedStore(3, 45);
     // The subscription fires on setState, so the engine now sees a 45-day gap.
-    const rusty = generateWorkout(
-      'squat',
-      'fullgym',
-      READINESS,
-      PROFILE,
-      {},
-      undefined,
-      3,
-      LAST_LOGGED,
-      {},
-      NORMAL
-    ).find((e) => e.category === 'main').loadKg[0];
-    return rusty < 80;
+    return main(undefined, { count: 3 }).loadKg[0] < 80;
   })(),
   'the subscription is what makes any of this reach a real user'
 );

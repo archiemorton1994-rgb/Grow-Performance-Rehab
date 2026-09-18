@@ -93,14 +93,14 @@ const TYPES = [
 ];
 const TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
 
-function build(painRegion = undefined, prof = profile, seed = 0) {
+function build(painRegion = undefined, prof = profile, seed = 0, timeAvailable = '60') {
   const out = [];
   for (const type of TYPES) {
     for (const tier of TIERS) {
       const ex = generateWorkout(
         type,
         tier,
-        { hasAches: !!painRegion, painRegion, energy: 'normal', timeAvailable: '60' },
+        { hasAches: !!painRegion, painRegion, energy: 'normal', timeAvailable },
         prof,
         undefined,
         undefined,
@@ -126,6 +126,24 @@ const LIFTING = (e) => e.category !== 'cooldown' && e.category !== 'prehab';
 console.log('\n[1] Every exercise has something to swap to');
 
 const sessions = build();
+
+/**
+ * A SECOND SAMPLE, THREE QUARTERS OF AN HOUR LONG, FOR THE REHAB SLOT.
+ *
+ * Every session above is a full hour, and an hour-long strength session closes
+ * with a finisher where the 45 minute shape closes with a rehab drill. The old
+ * lift-day generator put one in at an hour as well, so this file saw rehab
+ * cards without asking for them; now that the three lift-named ids build a
+ * weekly session instead, an hour-long sample holds none at all and the
+ * "no longer exempt" promise below would have gone quietly vacuous.
+ *
+ * So it is asked for explicitly, and the sample is proved to contain what the
+ * assertion is about before the assertion is made.
+ */
+const shortSessions = build(undefined, profile, 0, '45');
+const rehabCards = shortSessions.flatMap(({ type, tier, ex }) =>
+  ex.filter((e) => e.category === 'prehab').map((e) => ({ type, tier, e }))
+);
 
 /**
  * EVERYTHING, not just the lifting.
@@ -161,12 +179,27 @@ check(
   single.slice(0, 6).join(' | ')
 );
 check(
+  'the 45 minute sample really does contain rehab drills to look at',
+  rehabCards.length > 0,
+  'no rehab slot was generated at all, so the promise below would prove nothing'
+);
+check(
   // The guarantee, stated as the two categories that used to be exempt, so
   // reinstating the exemption fails here rather than only in the count above.
   'a cooldown and a rehab drill are no longer exempt',
   sessions.some(({ ex }) => ex.some((e) => e.category === 'cooldown' && !!e.swapName)) &&
-    sessions.some(({ ex }) => ex.some((e) => e.category === 'prehab' && !!e.swapName)),
+    rehabCards.some(({ e }) => !!e.swapName),
   'these two were 810 of the 3,152 exercises with no swap button at all'
+);
+check(
+  `and nothing in the 45 minute sample is left with nothing either (${shortSessions.flatMap(({ ex }) => ex.filter((e) => !e.safetyNote)).length} checked)`,
+  shortSessions.every(({ ex }) => ex.every((e) => e.safetyNote || !!e.swapName)),
+  shortSessions
+    .flatMap(({ type, tier, ex }) =>
+      ex.filter((e) => !e.safetyNote && !e.swapName).map((e) => `${type}/${tier}: ${e.name}`)
+    )
+    .slice(0, 6)
+    .join(' | ')
 );
 check(
   'hasSwap agrees with actually having a swap',
