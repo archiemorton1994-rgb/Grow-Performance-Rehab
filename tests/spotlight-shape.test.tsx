@@ -5,11 +5,11 @@
  * ───────────────────────
  * The highlight radius was `min(width, height) / 2` unconditionally — a true
  * pill, always. On an icon that is a circle and correct. On a region of content
- * it is a circle and wrong: spotlighting the 2x2 grid of session cards on the
- * Train tab drew a 330px circle over a 330px square, so the corners of all four
- * cards sat outside the highlight while empty page sat inside it. It happened
- * at almost every step of every tab's tour, because almost everything a tour
- * points at is a block of content rather than an icon.
+ * it is a circle and wrong: spotlighting the grid of session cards on the Train
+ * tab drew a 330px circle over a 330px square, so the corners of all four cards
+ * sat outside the highlight while empty page sat inside it. It happened at
+ * almost every step of every tab's tour, because almost everything a tour points
+ * at is a block of content rather than an icon.
  *
  * This renders the real CoachMark and reads the radius actually applied to the
  * highlight, rather than asserting that a line of source exists.
@@ -32,8 +32,8 @@ function renderWith(rect: Rect) {
     root = renderer.create(
       <CoachMark
         visible
-        title="Your strength foundation"
-        body="Squat, Bench, and Deadlift drive your 1RM."
+        title="Pick any of these, any time"
+        body="Every session in Grow is here whether you are on a programme or not."
         step={1}
         total={3}
         onNext={() => {}}
@@ -77,7 +77,7 @@ function highlightRadius(root: renderer.ReactTestRenderer, rect: Rect): number |
 
 describe('the spotlight takes its shape from the target', () => {
   test('a block of content is a rounded rectangle, not a circle', () => {
-    // The reported case: the KPI Sessions grid, a 2x2 block of cards.
+    // The reported case: the Train tab's sessions grid, a block of cards.
     const rect = { top: 90, left: 16, width: 330, height: 330 };
     const root = renderWith(rect);
     const r = highlightRadius(root, rect);

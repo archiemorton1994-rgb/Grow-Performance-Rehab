@@ -143,7 +143,17 @@ export default function ReadinessScreen() {
     equipmentOverride?: string;
     displayLabel?: string;
   }>();
-  const sessionType = (params.sessionType || 'squat') as SessionType;
+  /**
+   * Every route into this screen passes a session type. The fallback is for the
+   * one that cannot: a cold deep link, or a param lost on a reload.
+   *
+   * It used to be 'squat', which after the lift-named ids were retired quietly
+   * meant a lower body session, chosen years ago for reasons that no longer
+   * exist. Full Body is the honest default: it is the session Archie gives a
+   * beginner, it trains every pattern, and it is the one answer that is never
+   * the wrong half of a split.
+   */
+  const sessionType = (params.sessionType || 'full_body') as SessionType;
   const C = useColors();
 
   const {

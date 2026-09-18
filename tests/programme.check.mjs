@@ -151,17 +151,38 @@ check(
   SESSION_ORDER.length === 3,
   'the comparison below proves nothing otherwise'
 );
+/**
+ * THE TWO LISTS ARE NO LONGER THE SAME WORDS, AND MUST STILL BE THE SAME PLAN.
+ *
+ * SESSION_ORDER is Lower, Upper, Full Body now. Barbell Strength still holds the
+ * three lift-named ids, deliberately: anyone part way through that block is
+ * entitled to finish it, and lib/session-type.ts is what says a squat day IS a
+ * lower body day. So the promise this section was written to make - "every
+ * existing user is on this rotation and must not be moved off it" - is now the
+ * promise that the two lists agree position for position once the lift ids are
+ * resolved. That is also what makes the stored `cycleStartOffset`, a bare index
+ * into SESSION_ORDER, mean the same thing it meant yesterday.
+ */
+const BARBELL_LIFT_IDS = ['squat', 'bench', 'deadlift'];
 check(
-  'and Barbell Strength at 2 and 3 days a week is exactly it',
-  JSON.stringify(cycleFor('barbell', 3)) === JSON.stringify(SESSION_ORDER) &&
-    JSON.stringify(cycleFor('barbell', 2)) === JSON.stringify(SESSION_ORDER),
-  `${JSON.stringify(cycleFor('barbell', 3))} vs ${JSON.stringify(SESSION_ORDER)}; every existing user is on this rotation and must not be moved off it`
+  'Barbell Strength at 2 and 3 days a week is still the three lift ids',
+  JSON.stringify(cycleFor('barbell', 3)) === JSON.stringify(BARBELL_LIFT_IDS) &&
+    JSON.stringify(cycleFor('barbell', 2)) === JSON.stringify(BARBELL_LIFT_IDS),
+  `${JSON.stringify(cycleFor('barbell', 3))}; somebody part way through that block finishes it as it was sold to them`
+);
+check(
+  'and each one lands on the rotation slot it now means',
+  cycleFor('barbell', 3).length === SESSION_ORDER.length &&
+    cycleFor('barbell', 3).every((t, i) => trainTypeOf(t) === SESSION_ORDER[i]),
+  cycleFor('barbell', 3)
+    .map((t, i) => `${t} -> ${trainTypeOf(t)} vs ${SESSION_ORDER[i]}`)
+    .join(', ')
 );
 check(
   'a four day barbell week keeps all three lifts and adds to them',
-  SESSION_ORDER.every((t) => cycleFor('barbell', 4).includes(t)) &&
+  BARBELL_LIFT_IDS.every((t) => cycleFor('barbell', 4).includes(t)) &&
     cycleFor('barbell', 4).length > 3,
-  'dropping a lift to make room for an accessory day would break the strength test'
+  'dropping a lift to make room for an accessory day would change the block under somebody already on it'
 );
 
 // ─── 3. How often somebody trains changes what they get ─────────────────────

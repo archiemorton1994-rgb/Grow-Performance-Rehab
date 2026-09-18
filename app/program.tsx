@@ -14,13 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
-import {
-  SessionType,
-  useAppStore,
-  STRENGTH_SESSION_TYPES,
-  CompletedSession,
-  SESSION_ORDER,
-} from '@/lib/store';
+import { SessionType, useAppStore, CompletedSession, SESSION_ORDER } from '@/lib/store';
+import { countLiftingSessions } from '@/lib/session-type';
+import { getSessionImage } from '@/lib/session-images';
 import {
   SESSION_META,
   getSessionColors,
@@ -35,16 +31,24 @@ import { ChooseProgramme } from '@/components/ChooseProgramme';
 import { daysSince } from '@/lib/utils';
 import { resumeParams } from '@/lib/resume-params';
 
-/** How many completed sessions the non-barbell timeline looks back over. Enough
- *  to show a rhythm, short enough to still fit on a phone above the next one. */
-const NON_KPI_TIMELINE = 4;
+/** How many completed sessions the history timeline looks back over. Enough to
+ *  show a rhythm, short enough to still fit on a phone above the next one. */
+const RECENT_TIMELINE = 4;
 
-// ─── Session PNG images ───────────────────────────────────────────────────────
-const SESSION_IMAGES: Partial<Record<string, any>> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-};
+/*
+ * THE TIMELINE ARTWORK COMES FROM lib/session-images.ts NOW.
+ *
+ * This screen kept its own three-entry map of squat, bench and deadlift
+ * photographs, keyed by the STORED id. Two things were wrong with that the
+ * moment the rotation became Lower, Upper and Full Body: every row on the
+ * timeline fell through to a plain outline icon, because the map had no entry
+ * for the ids the rotation now uses; and a completed session stored under
+ * 'squat' drew a barbell back squat beside the words "Lower Body", which is the
+ * app disagreeing with itself.
+ *
+ * getSessionImage is keyed by the session the app BUILDS, so the picture always
+ * matches the name printed under it, and the female artwork arrives here too.
+ */
 
 /*
  * THE LINE UNDER THE HEADER LIVES IN lib/program-copy.ts, not here.
@@ -93,15 +97,22 @@ export default function ProgramScreen() {
     activeSession,
     clearActiveSession,
     programme,
+    userProfile,
   } = useAppStore();
 
   const onStrengthProgramme = isOnStrengthProgramme();
   const suggestedNext = getCurrentSessionType();
 
-  const strengthCount = useMemo(
-    () => completedSessions.filter((s) => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
-    [completedSessions]
-  );
+  /**
+   * Every session that put a weight through the body, counted through
+   * trainTypeOf rather than against the three lift-named ids.
+   *
+   * That list stopped naming a session the app builds, so somebody training
+   * Lower, Upper and Full Body counted zero: this screen told them they were on
+   * cycle 1, drew them at position 0 of the arc, and handed the line under the
+   * header a session count of nought however long they had been training.
+   */
+  const strengthCount = useMemo(() => countLiftingSessions(completedSessions), [completedSessions]);
 
   const profileEquipment =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
@@ -114,9 +125,9 @@ export default function ProgramScreen() {
    *
    * It used to be the user's test-week frequency, with 'never' aliased to 12.
    * Test weeks are retired and there is no frequency left to read, so the alias
-   * is all that survives. (The whole of this screen is still the three-lift
-   * rotation by construction; making it speak a non-KPI plan is a later piece
-   * of work, not this one.)
+   * is all that survives. (This screen still draws the plain rotation by
+   * construction; giving the rotation view its own shape, with Browse
+   * programmes beside it, is a later piece of work, not this one.)
    */
   const progCycleLength = 12;
   const progCyclePos = strengthCount % progCycleLength;
@@ -165,7 +176,7 @@ export default function ProgramScreen() {
     // suggesting next. Same decision function as the home card, so the two can
     // never disagree about which programme someone is on.
     if (!onStrengthProgramme) {
-      const recent = completedSessions.slice(0, NON_KPI_TIMELINE).reverse();
+      const recent = completedSessions.slice(0, RECENT_TIMELINE).reverse();
       for (const s of recent) {
         items.push({ sessionType: s.sessionType, status: 'completed' });
       }
@@ -427,15 +438,11 @@ export default function ProgramScreen() {
                 ]}
               >
                 <View style={[styles.cardIcon, { backgroundColor: C.surface }]}>
-                  {SESSION_IMAGES[item.sessionType] ? (
-                    <Image
-                      source={SESSION_IMAGES[item.sessionType]}
-                      style={{ width: 28, height: 28 }}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <Ionicons name={itemMeta.icon as any} size={18} color={itemMeta.color} />
-                  )}
+                  <Image
+                    source={getSessionImage(item.sessionType, userProfile?.sex)}
+                    style={{ width: 28, height: 28 }}
+                    resizeMode="contain"
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.cardTitle, isCompleted && styles.cardTitleDone]}>

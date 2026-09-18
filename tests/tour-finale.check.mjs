@@ -44,6 +44,7 @@
 globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
+import { TRAIN_TUTORIAL } from '../lib/train-screen.ts';
 
 const { evaluateBadges } = await import('../lib/badge-engine.ts');
 const { BADGE_CATALOG, BADGE_MAP, TOUR_WELCOME_BADGE_ID } = await import('../lib/badges.ts');
@@ -224,10 +225,13 @@ check(
   // something else costs you nothing.
   'the tour still teaches that nobody is stuck with the session the app picked',
   (() => {
-    const train = read('app/(tabs)/train.tsx');
+    // Run the cards, do not read them. Train's tour is data in
+    // lib/train-screen.ts, so this is the sentence the user gets rather than a
+    // line of source that could as easily be the comment explaining it.
+    const trainCopy = TRAIN_TUTORIAL.map((s) => `${s.title} ${s.body}`).join(' \n ');
     return (
-      /whether you are on a programme or not/.test(train) &&
-      /moves your programme along or sets it back/.test(train)
+      /whether you are on a programme or not/.test(trainCopy) &&
+      /moves your programme along or sets it back/.test(trainCopy)
     );
   })(),
   'a way out nobody is told about is a way out nobody takes'

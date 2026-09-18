@@ -16,7 +16,6 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
-import { GlossaryTerm } from '@/components/GlossaryTerm';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
@@ -25,60 +24,16 @@ import { resumeParams } from '@/lib/resume-params';
 import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
 import { SESSION_META } from '@/lib/session-meta';
+import {
+  PROGRAMMES_ENTRY,
+  TRAIN_SESSION_TYPES,
+  TRAIN_TUTORIAL,
+  trainTileLabel,
+  trainTileSubtitle,
+} from '@/lib/train-screen';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
-
-interface TrainTutorialStep {
-  spotlightRef: 'equipment' | 'kpi' | 'custom';
-  iconName: string;
-  iconLabel: string;
-  title: string;
-  body: string;
-}
-
-const TRAIN_TUTORIAL: readonly TrainTutorialStep[] = [
-  {
-    spotlightRef: 'equipment',
-    iconName: 'barbell-outline',
-    iconLabel: 'Equipment',
-    title: 'Your equipment for today',
-    body: "Tap here to change what's available just for this session, it won't touch your saved profile equipment.",
-  },
-  {
-    spotlightRef: 'kpi',
-    iconName: 'flash-outline',
-    iconLabel: 'KPI',
-    title: 'Pick any of these, any time',
-    // Absorbed the old "Every other way to train" step. That one spotlighted a
-    // section headed ADDITIONAL SESSIONS containing four cards named Lower
-    // Body, Upper Body, Full Body and Conditioning, to say they were four ways
-    // to train — a card spent telling the user what they were already reading.
-    // The sentence Archie asked for, on the screen it is about: choosing a
-    // session here is free, and the programme is not the whole app.
-    body: 'Every session in Grow is here whether you are on a programme or not. Nothing you pick here moves your programme along or sets it back: it is logged, it counts towards your records, and your block waits where it was.',
-  },
-  {
-    // Same region as the step above — Custom sits in that grid — but it is a
-    // different idea and was going unexplained. The builder is the only place
-    // in the app that asks how long you have got, and a user who never opens it
-    // never finds that out.
-    spotlightRef: 'custom',
-    iconName: 'construct-outline',
-    iconLabel: 'Custom',
-    title: 'Or build your own',
-    body: 'Custom asks what you are training for and how long you have (30, 45 or 60 minutes), then builds to fit. Your warm-up, mobility, activation and main lift are always kept.',
-  },
-] as const;
-
-const KPI_SESSION_TYPES: SessionType[] = ['squat', 'bench', 'deadlift', 'custom'];
-
-const WEEKLY_SESSION_TYPES_UI: SessionType[] = [
-  'lower_body',
-  'upper_body',
-  'full_body',
-  'conditioning',
-];
 
 const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   bodyweight: 'No equipment needed',
@@ -130,21 +85,19 @@ export default function TrainScreen() {
   // Restore on its last step; skip abandons the whole tour, not just Train.
   const [tutStep, setTutStep] = useState<number | null>(null);
   const equipmentRef = useRef<View>(null);
-  const kpiRef = useRef<View>(null);
-  const additionalRef = useRef<View>(null);
+  const sessionsRef = useRef<View>(null);
   const [tutSpotlight, setTutSpotlight] = useState<SpotlightRect | null>(null);
   // Each section's distance from the top of the ScrollView's content, captured
   // via onLayout as they render. Lets the tutorial scroll a section into view
-  // before measuring it — "Additional Sessions" sits below the fold on most
+  // before measuring it: the bottom of the grid sits below the fold on most
   // screens, so without this the tutorial would spotlight whatever happened
   // to already be on screen instead of actually scrolling to it.
-  // Custom is a card INSIDE the kpi section, not a section of its own, so it
-  // scrolls to the same place and only differs in what gets measured.
+  // Build your own is a card INSIDE the sessions grid, not a section of its
+  // own, so it scrolls to the same place and only differs in what gets measured.
   const customRef = useRef<View>(null);
-  const sectionScrollY = useRef<{ equipment: number; kpi: number; additional: number }>({
+  const sectionScrollY = useRef<{ equipment: number; sessions: number }>({
     equipment: 0,
-    kpi: 0,
-    additional: 0,
+    sessions: 0,
   });
   const SCROLL_TOP_PADDING = 90;
   const scrollHint = useScrollIndicator();
@@ -170,16 +123,15 @@ export default function TrainScreen() {
     if (tutStep === null) return;
     const refLookup = {
       equipment: equipmentRef,
-      kpi: kpiRef,
-      additional: additionalRef,
+      sessions: sessionsRef,
       custom: customRef,
     };
     const stepKey = TRAIN_TUTORIAL[tutStep].spotlightRef;
     const target = refLookup[stepKey];
-    // sectionScrollY holds onLayout offsets for the three top-level SECTIONS.
-    // Custom is a card within the kpi section and has no offset of its own -
-    // asking for one would read undefined and scroll to NaN.
-    const scrollKey = stepKey === 'custom' ? 'kpi' : stepKey;
+    // sectionScrollY holds onLayout offsets for the two top-level SECTIONS.
+    // Build your own is a card within the sessions grid and has no offset of
+    // its own - asking for one would read undefined and scroll to NaN.
+    const scrollKey = stepKey === 'custom' ? 'sessions' : stepKey;
     scrollRef.current?.scrollTo({
       y: Math.max(0, sectionScrollY.current[scrollKey] - SCROLL_TOP_PADDING),
       animated: true,
@@ -247,7 +199,6 @@ export default function TrainScreen() {
 
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
   const todayEffectiveTier = getEffectiveTier(todayTiers);
-  const hasFullGym = profileEquipment.includes('fullgym');
 
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
 
@@ -452,6 +403,19 @@ export default function TrainScreen() {
             )}
           </View>
 
+          {/* THE KIT PROMISE, FOR EVERYBODY.
+              This replaced a note shown only to people without a full gym:
+              "Sessions adapt to your equipment. Add Full Gym to unlock barbell
+              lifts and 1RM tracking." Two things in it had stopped being true.
+              No session is named after a barbell lift any more, so there is no
+              lift to unlock, and dangling one at somebody who chose No
+              Equipment reads as a paywall on their own training. The half worth
+              keeping is the promise itself, and it is owed to everybody: what
+              is on the chip above is what today is built from. */}
+          <Text style={styles.kitNote} testID="train-kit-note">
+            Every session is built from the equipment on this chip.
+          </Text>
+
           {/* Resume banner */}
           {activeSession && (
             <Animated.View
@@ -479,119 +443,70 @@ export default function TrainScreen() {
             </Animated.View>
           )}
 
-          {/* KPI Sessions */}
+          {/* Sessions. One grid: see lib/train-screen.ts for why it is not two. */}
           <View
-            ref={kpiRef}
+            ref={sessionsRef}
             collapsable={false}
             onLayout={(e) => {
-              sectionScrollY.current.kpi = e.nativeEvent.layout.y;
+              sectionScrollY.current.sessions = e.nativeEvent.layout.y;
             }}
           >
-          <GlossaryTerm
-            term="KPI Sessions"
-            definition="Key Performance Indicator lifts: Squat, Bench, and Deadlift. These are the lifts your 1RM (one-rep max) and strength progress are tracked against."
-            textStyle={styles.sectionHeading}
-          />
+          <Text style={styles.sectionHeading}>Sessions</Text>
           <Animated.View entering={FadeInDown.delay(0).duration(380)} style={styles.sessionGrid}>
-            {KPI_SESSION_TYPES.map((type) => {
-              const meta = SESSION_META[type];
-              return (
-                <Pressable
-                  key={type}
-                  ref={type === 'custom' ? customRef : undefined}
-                  collapsable={type === 'custom' ? false : undefined}
-                  onPress={() => handleSelect(type)}
-                  style={({ pressed }) => [
-                    styles.sessionCard,
-                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                  ]}
-                  testID={`train-session-${type}`}
-                >
-                  <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                    <Image
-                      source={getSessionImage(type, userProfile?.sex)}
-                      style={styles.sessionCardImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text style={styles.sessionCardLabel} numberOfLines={1}>
-                    {meta.label}
-                  </Text>
-                  <Text style={styles.sessionCardSub} numberOfLines={2}>
-                    {meta.subtitle}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            {TRAIN_SESSION_TYPES.map((type) => (
+              <Pressable
+                key={type}
+                ref={type === 'custom' ? customRef : undefined}
+                collapsable={type === 'custom' ? false : undefined}
+                onPress={() => handleSelect(type)}
+                style={({ pressed }) => [
+                  styles.sessionCard,
+                  pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
+                ]}
+                testID={`train-session-${type}`}
+              >
+                <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
+                  <Image
+                    source={getSessionImage(type, userProfile?.sex)}
+                    style={styles.sessionCardImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <Text style={styles.sessionCardLabel} numberOfLines={1}>
+                  {trainTileLabel(type)}
+                </Text>
+                <Text style={styles.sessionCardSub} numberOfLines={2}>
+                  {trainTileSubtitle(type)}
+                </Text>
+              </Pressable>
+            ))}
           </Animated.View>
           </View>
 
-          {/* KPI equipment callout — only for non-full-gym users */}
-          {!hasFullGym && (
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              style={({ pressed }) => [styles.kpiCallout, pressed && { opacity: 0.7 }]}
-              testID="train-kpi-equipment-callout"
-            >
-              <Ionicons name="information-circle-outline" size={14} color={C.primaryText} />
-              <Text style={styles.kpiCalloutText}>
-                Sessions adapt to your equipment. Add Full Gym to unlock barbell lifts and 1RM
-                tracking.
-              </Text>
-              <Ionicons name="chevron-forward" size={12} color={C.primaryText} />
-            </Pressable>
-          )}
-
-          {/* Additional Sessions */}
-          <View
-            ref={additionalRef}
-            collapsable={false}
-            onLayout={(e) => {
-              sectionScrollY.current.additional = e.nativeEvent.layout.y;
+          {/* Programmes. Its own row, under the sessions, because a programme is
+              not a session: it is an optional plan that picks sessions for you.
+              The word Optional is in the copy rather than implied by the layout. */}
+          <Pressable
+            onPress={() => {
+              if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/program');
             }}
+            style={({ pressed }) => [styles.programmeRow, pressed && { opacity: 0.8 }]}
+            testID="train-programmes"
+            accessibilityRole="button"
           >
-          <Text
-            style={[
-              styles.sectionHeading,
-              { marginTop: activeSession ? (compactCards ? 2 : 4) : compactCards ? 4 : 8 },
-            ]}
-          >
-            Additional Sessions
-          </Text>
-          <Animated.View entering={FadeInDown.delay(60).duration(380)} style={styles.sessionGrid}>
-            {WEEKLY_SESSION_TYPES_UI.map((type) => {
-              const meta = SESSION_META[type];
-              return (
-                <Pressable
-                  key={type}
-                  onPress={() => handleSelect(type)}
-                  style={({ pressed }) => [
-                    styles.sessionCard,
-                    pressed && { opacity: 0.88, transform: [{ scale: 0.97 }] },
-                  ]}
-                  testID={`train-session-${type}`}
-                >
-                  <View style={[styles.sessionCardIcon, compactCards && { height: 68 }]}>
-                    <Image
-                      source={getSessionImage(type, userProfile?.sex)}
-                      style={styles.sessionCardImage}
-                      resizeMode="contain"
-                    />
-                  </View>
-                  <Text style={styles.sessionCardLabel} numberOfLines={1}>
-                    {meta.label}
-                  </Text>
-                  <Text style={styles.sessionCardSub} numberOfLines={2}>
-                    {meta.subtitle}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </Animated.View>
-          </View>
+            <View style={styles.programmeRowIcon}>
+              <Ionicons name="git-branch-outline" size={17} color={C.primaryText} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.programmeRowLabel}>{PROGRAMMES_ENTRY.label}</Text>
+              <Text style={styles.programmeRowSub}>{PROGRAMMES_ENTRY.subtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={14} color={C.textTertiary} />
+          </Pressable>
         </ScrollView>
-        {/* Full Body and Conditioning are the last two cards on this tab and
-            nothing on screen said they were there. */}
+        {/* Build your own and the Programmes row are the last things on this tab
+            and nothing on screen said they were there. */}
         <ScrollIndicator {...scrollHint.state} top={70} bottom={92} />
       </View>
 
@@ -785,6 +700,14 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       borderRadius: 3,
       backgroundColor: C.primary,
     },
+    kitNote: {
+      fontSize: 11,
+      fontFamily: 'Inter_400Regular',
+      color: C.textSecondary,
+      lineHeight: 15,
+      marginTop: -6,
+      marginBottom: compact ? 8 : 12,
+    },
 
     resumeBanner: {
       flexDirection: 'row',
@@ -846,8 +769,8 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
     sessionCardLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: C.text, marginBottom: 3 },
     // Two lines, with room reserved for both so the cards in a row stay level
     // whether their subtitle wraps or not. At one line these were cut mid-word
-    // on a narrow card — "KPI · Quads · Glutes · Ha…" — which reads as broken
-    // rather than abbreviated.
+    // on a narrow card, "Squat · Hinge · Lun…", which reads as broken rather
+    // than abbreviated.
     sessionCardSub: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
@@ -856,22 +779,33 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       minHeight: 30,
     },
 
-    kpiCallout: {
+    programmeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
-      backgroundColor: C.primarySurface,
-      borderRadius: 10,
+      gap: 10,
+      backgroundColor: C.surface,
+      borderRadius: 14,
       paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingVertical: 11,
+      borderWidth: 1,
+      borderColor: C.borderLight,
       marginBottom: 4,
     },
-    kpiCalloutText: {
-      flex: 1,
+    programmeRowIcon: {
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: C.primaryMuted,
+    },
+    programmeRowLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.text },
+    programmeRowSub: {
       fontSize: 11,
       fontFamily: 'Inter_400Regular',
-      color: C.primaryText,
+      color: C.textSecondary,
       lineHeight: 15,
+      marginTop: 1,
     },
 
     // Equipment sheet

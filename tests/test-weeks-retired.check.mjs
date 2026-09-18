@@ -89,10 +89,19 @@ const session = (sessionType, extra = {}) => ({
   ...extra,
 });
 
-/** The exact history that used to make a test due at every frequency the old
- *  type allowed: 36 barbell sessions divides by 12 and by 18. */
+/**
+ * The exact history that used to make a test due at every frequency the old type
+ * allowed: 36 barbell sessions divides by 12 and by 18.
+ *
+ * Stored under the LIFT-NAMED ids, because that is what is on the phone of
+ * anybody this section is about: a test week only ever existed on a squat, bench
+ * or deadlift day. They count towards the rotation exactly as the Lower, Upper
+ * and Full Body sessions they now mean (lib/session-type.ts), which is why the
+ * arithmetic below still works.
+ */
+const LIFT_NAMED_IDS = ['squat', 'bench', 'deadlift'];
 const HISTORY_THAT_USED_TO_TRIGGER = () =>
-  Array.from({ length: 36 }, (_, i) => session(SESSION_ORDER[i % 3]));
+  Array.from({ length: 36 }, (_, i) => session(LIFT_NAMED_IDS[i % 3]));
 
 /**
  * THE ROTATION IS DELIBERATELY OFFSET BY ONE, and the whole of section 1 depends
@@ -108,6 +117,14 @@ const HISTORY_THAT_USED_TO_TRIGGER = () =>
  */
 const CYCLE_OFFSET = 1;
 
+/**
+ * The profile is written every time, and it is deliberately NOT a beginner.
+ *
+ * Off a programme, a beginner with no earned rung is offered Full Body every
+ * session whatever their history (Archie's second decision), so a fixture left
+ * on the store default would answer full_body to every question in section 1 and
+ * the rotation the test-week branch had to outrank would never be exercised.
+ */
 function reset(patch = {}) {
   useAppStore.setState({
     programme: null,
@@ -120,6 +137,13 @@ function reset(patch = {}) {
     xpTotal: 0,
     testWeekFrequency: 'never',
     testWeekDeferred: false,
+    userProfile: {
+      name: 'Probe',
+      sex: 'male',
+      experienceLevel: 'intermediate',
+      goals: ['muscle'],
+      bodyweightKg: 80,
+    },
     ...patch,
   });
 }
@@ -417,7 +441,7 @@ check(
  * anybody could have. The old rules awarded on one, three, five, ten and twenty.
  */
 const allTests = Array.from({ length: 25 }, (_, i) =>
-  session(SESSION_ORDER[i % 3], { isTestWeek: true })
+  session(LIFT_NAMED_IDS[i % 3], { isTestWeek: true })
 );
 const earnedFromTests = evaluateBadges({
   completedSessions: allTests,

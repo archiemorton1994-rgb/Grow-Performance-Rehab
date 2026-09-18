@@ -78,7 +78,7 @@ export const BUILDER_CATEGORY_LABELS: Record<BuilderCategory, string> = {
   active_stretch: 'Active Stretch',
   activation: 'Activation',
   power: 'Power',
-  kpi: 'KPI Lift',
+  kpi: 'Main exercise',
   accessory: 'Accessory',
   core_prehab: 'Core & Prehab',
   conditioning: 'Conditioning',
@@ -531,12 +531,24 @@ const POWER_BLOCK: BuilderBlock = {
   followsLift: true,
 };
 
+/**
+ * THE BLOCK ID AND CATEGORY STAY 'kpi'; ONLY THE WORDS CHANGED.
+ *
+ * "KPI Lift" was the heading over this step and the pill on the card in the
+ * session. It stood for Key Performance Indicator, meant the squat, the bench
+ * and the deadlift, and was the only place in the app the user had to be taught
+ * an acronym before they could read a screen. Archie's first decision retires
+ * it, and "Main exercise" says the same thing in words anybody has.
+ *
+ * The id underneath is a key in saved drafts and in every filter that walks the
+ * builder, so renaming it would be a data change dressed as a copy change.
+ */
 const KPI_BLOCK: BuilderBlock = {
   id: 'kpi',
   category: 'kpi',
   sessionCategory: 'main',
-  title: 'KPI Lift',
-  purpose: 'The lift this session is built around. Everything after it supports this.',
+  title: 'Main exercise',
+  purpose: 'The exercise this session is built around. Everything after it supports this.',
   picks: 1,
   optional: false,
   // This step is filtered by the FOCUS, not by the lift — it is the step that
@@ -551,7 +563,7 @@ const ACCESSORY_BLOCK: BuilderBlock = {
   category: 'accessory',
   sessionCategory: 'accessory',
   title: 'Accessories',
-  purpose: 'Support work for the same muscles the KPI lift trains.',
+  purpose: 'Support work for the same muscles the main exercise trains.',
   picks: 2,
   optional: true,
   followsLift: true,

@@ -9,7 +9,7 @@ import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
 // Type-only against this file, so there is no runtime edge back here and no
 // cycle. See the note at the top of lib/session-type.ts.
-import { countLiftingSessions } from '@/lib/session-type';
+import { countLiftingSessions, isLiftingSession } from '@/lib/session-type';
 import { performanceForLog } from '@/lib/set-performance';
 import {
   combineWithMeasuredReps,
@@ -1280,24 +1280,36 @@ interface AppState {
   mergeServerData: (data: SyncPayload) => void;
 }
 
-export const SESSION_ORDER: SessionType[] = ['squat', 'bench', 'deadlift'];
+/**
+ * THE ROTATION, AND WHY THE ORDER OF THIS LIST MATTERS.
+ *
+ * Lower Body, Upper Body, Full Body, in that order, taken in turn. It used to
+ * be 'squat', 'bench', 'deadlift' and it is the SAME rotation: a squat day is a
+ * lower body day, a bench day an upper body day and a deadlift day a full body
+ * one (lib/session-type.ts), and each one has kept its position in this list.
+ *
+ * That index-for-index match is load-bearing rather than tidy. `cycleStartOffset`
+ * is a stored NUMBER that says where in this list somebody's rotation begins, so
+ * re-ordering the three would silently move every existing user to a different
+ * session with nothing on disk changing. Guarded in tests/non-kpi-user.check.mjs
+ * against the Barbell Strength cycle, which is the other place the pairing is
+ * written down.
+ */
+export const SESSION_ORDER: SessionType[] = ['lower_body', 'upper_body', 'full_body'];
 
 /**
- * How many recent sessions the home suggestion looks at to decide whether
- * someone is training the barbell lifts.
+ * How many recent sessions the Your Program screen looks at to decide whether
+ * somebody is training the rotation at all.
  *
  * A window rather than an all-time count, so it corrects in BOTH directions: a
- * lifter who spends a month rehabbing stops being told to squat, and the first
- * squat they log brings the strength rotation straight back.
+ * lifter who spends a month rehabbing stops being drawn a lifting timeline, and
+ * their first session back brings it straight home.
  */
 export const RECENT_WINDOW = 6;
 
-/** Sessions needed before the home screen will diverge from the default
- *  suggestion at all. Enough to be a pattern, not a one-off. */
-export const NON_KPI_EVIDENCE = 3;
-
-/** Last-resort suggestion for someone with a history of nothing we can read. */
-export const NON_KPI_FALLBACK: SessionType = 'full_body';
+/** Sessions needed before that screen will diverge from the rotation at all.
+ *  Enough to be a pattern, not a one-off. */
+export const ROTATION_EVIDENCE = 3;
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -2510,22 +2522,25 @@ export const useAppStore = create<AppState>()(
       isOnStrengthProgramme: () => {
         const { completedSessions } = get();
         /**
-         * HOW MUCH EVIDENCE IT TAKES TO STOP SUGGESTING THE BARBELL LIFTS.
+         * IS THIS PERSON ACTUALLY TRAINING THE ROTATION?
          *
-         * A lifter who spends six sessions rehabbing stops being told to squat,
-         * and their first squat back restores the rotation exactly where it was.
+         * Only the Your Program screen asks now, to decide whether to draw a
+         * Lower / Upper / Full timeline or the last few sessions they really
+         * did. The home suggestion used to ask too, because the rotation was
+         * three barbell lifts and plenty of people neither can nor want to do
+         * them. It is Lower, Upper and Full Body now, which the generator builds
+         * at every equipment tier down to nothing at all, so there is no lift
+         * left to force on anybody and the suggestion follows Archie's second
+         * decision instead. See getCurrentSessionType.
          *
-         * There used to be a second, higher bar here for anyone who had opted in
-         * to strength test weeks: saying "test me every 12 sessions" was read as
-         * saying the three lifts were part of the plan, so it took a full recent
-         * window rather than three sessions to divert them. Test weeks are
-         * retired, nobody can opt in any more, and one threshold for everybody
-         * is what is left.
+         * Asked of the TRAIN type, not the stored id, so somebody whose history
+         * is lift-named squat days is recognised as the lower body training it
+         * was.
          */
-        if (completedSessions.length < NON_KPI_EVIDENCE) return true;
+        if (completedSessions.length < ROTATION_EVIDENCE) return true;
         return completedSessions
           .slice(0, RECENT_WINDOW)
-          .some((s) => SESSION_ORDER.includes(s.sessionType));
+          .some((s) => isLiftingSession(s.sessionType));
       },
 
       getCurrentSessionType: () => {
@@ -2549,70 +2564,60 @@ export const useAppStore = create<AppState>()(
           if (pos) return pos.next;
         }
 
-        // Cycle rotation only advances on squat/bench/deadlift sessions.
-        // Conditioning, prehab, flexibility, and custom sessions do not shift the rotation.
-        const strengthCount = completedSessions.filter((s) =>
-          SESSION_ORDER.includes(s.sessionType)
-        ).length;
-
-        // Nobody has to lift the big three.
-        //
-        // This used to fall straight through to SESSION_ORDER[offset % 3] with
-        // strengthCount pinned at 0, because the rotation filters non-strength
-        // sessions out before it counts. So someone who trains conditioning,
-        // mobility or their own custom sessions was told "Today: Squat Session"
-        // every single day, forever, and nothing they logged could move it.
-        //
-        // The decision is made on the RECENT window, not an all-time count, so
-        // it corrects both ways — a lifter who spends a month rehabbing stops
-        // being told to squat, and their first squat back restores the strength
-        // rotation exactly where it was (strengthCount is still all-time, so
-        // the cycle position is never lost).
-        if (get().isOnStrengthProgramme()) {
-          return SESSION_ORDER[(strengthCount + cycleStartOffset) % 3];
+        /**
+         * ARCHIE'S SECOND DECISION, OFF A PROGRAMME.
+         *
+         * "Beginners are offered Full Body every session until they step up a
+         * level. Everyone else rotates Lower Body, Upper Body, Full Body."
+         *
+         * A beginner needs frequency on every pattern more than they need a
+         * split: three sessions a week of the whole body beats one leg day a
+         * fortnight for somebody who has never trained. Stepping up is the
+         * earned rung, not the answer they gave at sign-up, because the rung is
+         * something they SHOWED us by finishing a block. So the moment their
+         * first rung is granted they join the rotation, even though the profile
+         * still says beginner, which is the answer they gave about their life
+         * outside the app and is not ours to overwrite.
+         *
+         * WHAT THIS REPLACED, and why none of it is needed now. The rotation
+         * used to be three barbell lifts, so anybody who trained conditioning,
+         * mobility or their own sessions was diverted off it onto whatever they
+         * had trained least recently, or they would have been told "Today: Squat
+         * Session" for ever. Lower, Upper and Full Body are built at every
+         * equipment tier down to no equipment at all, so there is no longer a
+         * suggestion anybody is unable to take.
+         */
+        const profile = get().userProfile;
+        const earnedRung = profile.earnedLevelBonus ?? 0;
+        if (profile.experienceLevel === 'beginner' && earnedRung === 0) {
+          return 'full_body';
         }
 
-        // Suggest from the kinds of session they ACTUALLY do — the one they
-        // have trained least recently. Someone who only does conditioning is
-        // only ever offered conditioning; someone who mixes conditioning and
-        // mobility gets them alternately. It can never suggest a type they have
-        // never chosen, which is the whole point.
-        //
-        // 'custom' is held back from the rotation rather than excluded from the
-        // answer. generateWorkout returns [] for it (lib/workout-engine.ts) —
-        // a custom session is assembled in the builder, not generated — so it
-        // must never be offered as one of several types to rotate through, or
-        // the home card would eventually hand someone an empty workout.
-        //
-        // But a user whose ONLY sessions are custom has no other vocabulary to
-        // draw on, and used to fall through to a generated full-body session
-        // they had never once chosen. For them the honest suggestion is their
-        // own session, and the home card routes it to the builder instead of
-        // the generator.
-        const vocabulary: SessionType[] = [];
-        let hasCustom = false;
-        for (const s of completedSessions) {
-          if (SESSION_ORDER.includes(s.sessionType)) continue;
-          if (s.sessionType === 'custom') {
-            hasCustom = true;
-            continue;
-          }
-          if (!vocabulary.includes(s.sessionType)) vocabulary.push(s.sessionType);
-        }
-        // completedSessions is newest-first, so the LAST entry gathered above is
-        // the one trained least recently.
-        if (vocabulary.length > 0) return vocabulary[vocabulary.length - 1];
-        return hasCustom ? 'custom' : NON_KPI_FALLBACK;
+        /**
+         * Counted through trainTypeOf, so a history of lift-named squat, bench
+         * and deadlift days carries its rotation position across unchanged:
+         * those ids sit at the same three indexes this list does. Conditioning,
+         * prehab, flexibility and custom sessions do not move the rotation, for
+         * the same reason they never did - they are not the training it turns.
+         */
+        const liftingCount = countLiftingSessions(completedSessions);
+        return SESSION_ORDER[(liftingCount + cycleStartOffset) % SESSION_ORDER.length];
       },
 
       getReturnWindow: () => {
         const { completedSessions } = get();
-        // The break is measured across ALL training — a month of conditioning is
-        // not a month off. What counts as re-establishing a baseline is narrower:
-        // only the barbell lifts, because a barbell test is what is waiting.
+        // The break is measured across ALL training - a month of conditioning is
+        // not a month off. What counts as re-establishing a baseline is
+        // narrower: only the sessions that put a weight through the body, since
+        // the load being eased back is theirs.
+        //
+        // Asked through isLiftingSession rather than of SESSION_ORDER, so a
+        // history of lift-named squat, bench and deadlift days still counts.
+        // Reading the rotation list directly would have told somebody with
+        // fifteen years of barbell training that they had never lifted at all.
         return computeReturnWindow(
           completedSessions.map((s) => s.date),
-          completedSessions.filter((s) => SESSION_ORDER.includes(s.sessionType)).map((s) => s.date)
+          completedSessions.filter((s) => isLiftingSession(s.sessionType)).map((s) => s.date)
         );
       },
 

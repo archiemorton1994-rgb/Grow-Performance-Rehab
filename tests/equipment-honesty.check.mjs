@@ -532,14 +532,30 @@ const profile = stripComments(src('app/(tabs)/profile.tsx'));
 const stats = stripComments(src('app/(tabs)/workouts.tsx'));
 const train = stripComments(src('app/(tabs)/train.tsx'));
 
+/*
+ * TRAIN'S SENTENCE CHANGED, AND IT IS NOW SAID TO EVERYBODY.
+ *
+ * It used to read "Sessions adapt to your equipment. Add Full Gym to unlock
+ * barbell lifts and 1RM tracking", shown only to people without a full gym. No
+ * session is named after a barbell lift any more, so there is nothing to unlock,
+ * and holding one out to somebody who answered No Equipment read as a charge on
+ * their own training. What survives is the half that was always the point: the
+ * session is built from the kit on the chip, which is true for every tier, so it
+ * is no longer gated on owning anything.
+ */
 check(
   'Train still makes the promise the other screens have to keep',
-  /Add Full Gym to unlock barbell lifts and 1RM/.test(train),
+  /built from the equipment on this chip/.test(train) && /train-kit-note/.test(train),
   'this is the sentence the checks below exist to keep the rest of the app consistent with'
 );
 check(
-  'all three screens decide it from the same fact',
-  [home, profile, train].every((s) => /fullgym/.test(s) && /hasFullGym/.test(s)),
+  'and it is made to every user, not only the ones without a barbell',
+  !/hasFullGym/.test(train),
+  'a promise about how a session is built is owed to somebody on bands as much as to anybody else'
+);
+check(
+  'both screens that still name the barbell decide it from the same fact',
+  [home, profile].every((s) => /fullgym/.test(s) && /hasFullGym/.test(s)),
   'a second way of asking is how two screens start disagreeing'
 );
 check(

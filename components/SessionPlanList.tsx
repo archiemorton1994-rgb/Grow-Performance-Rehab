@@ -42,7 +42,7 @@ export function categoryDisplay(C: ReturnType<typeof useColors>) {
     prep: { bg: C.primaryMuted, text: C.primaryText, label: 'Warm-Up' },
     mechanical: { bg: C.categoryMechanical, text: C.categoryMechanicalText, label: 'Activation' },
     neuro: { bg: C.categoryNeuro, text: C.categoryNeuroText, label: 'Power Primer' },
-    main: { bg: C.primaryMuted, text: C.primaryDark, label: 'KPI Lift' },
+    main: { bg: C.primaryMuted, text: C.primaryDark, label: 'Main exercise' },
     accessory: { bg: C.surfaceTertiary, text: C.textSecondary, label: 'Accessory' },
     prehab: { bg: C.categoryPrehab, text: C.categoryPrehabText, label: 'Prehab' },
     finisher: { bg: C.categoryFinisher, text: C.categoryFinisherText, label: 'Finisher' },

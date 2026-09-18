@@ -4287,7 +4287,7 @@ export default function SessionScreen() {
     prep: 'Warm-Up',
     mechanical: 'Activation',
     neuro: 'Power',
-    main: 'KPI Lift',
+    main: 'Main exercise',
     accessory: 'Pump',
     prehab: 'Recovery',
     finisher: 'Finisher',

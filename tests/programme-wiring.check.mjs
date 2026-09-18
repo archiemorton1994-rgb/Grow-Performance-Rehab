@@ -52,7 +52,16 @@ const session = (sessionType, extra = {}) => ({
   ...extra,
 });
 
-/** Reset to something like a clean install. */
+/**
+ * Reset to something like a clean install.
+ *
+ * The profile is written every time, and it is deliberately NOT a beginner.
+ * Archie's second decision hands a beginner with no earned rung Full Body every
+ * session, off a programme, whatever their history: a fixture left on the store
+ * default would answer full_body to every question in section 1 and the rotation
+ * would go untested. The beginner rule itself is held in
+ * tests/non-kpi-user.check.mjs, which sweeps it across thirteen session counts.
+ */
 function reset(patch = {}) {
   useAppStore.setState({
     programme: null,
@@ -61,6 +70,13 @@ function reset(patch = {}) {
     cycleStartOffset: 0,
     testWeekDeferred: false,
     oneRepMaxes: [],
+    userProfile: {
+      name: 'Probe',
+      sex: 'male',
+      experienceLevel: 'intermediate',
+      goals: ['muscle'],
+      bodyweightKg: 80,
+    },
     ...patch,
   });
 }
@@ -94,14 +110,14 @@ reset({
   ],
 });
 check(
-  'somebody who only ever does conditioning is still only offered conditioning',
-  S().getCurrentSessionType() === 'conditioning',
-  `got ${S().getCurrentSessionType()}; the divert-off-the-barbell logic must survive`
+  'conditioning sessions leave the rotation exactly where it was',
+  S().getCurrentSessionType() === SESSION_ORDER[0],
+  `got ${S().getCurrentSessionType()}; conditioning does not load the lifts being progressed, so it must not turn the rotation`
 );
 
 reset();
 check(
-  'a brand new install still opens on the first lift',
+  'a brand new install opens on the first session of the rotation',
   S().getCurrentSessionType() === SESSION_ORDER[0],
   ''
 );

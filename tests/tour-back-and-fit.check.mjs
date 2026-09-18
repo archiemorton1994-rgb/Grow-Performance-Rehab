@@ -216,11 +216,16 @@ check(
 // ─── 5. The Custom card is spotlit on its own ────────────────────────────────
 console.log('\n[5] "Or build your own" points at the Custom card');
 
+// The cards themselves are data now (lib/train-screen.ts), so the key is read
+// off the real step rather than matched in the screen. Everything below is
+// about the screen's wiring, which is React and can only be read.
+const { TRAIN_TUTORIAL } = await import('../lib/train-screen.ts');
 const train = stripComments(read('app/(tabs)/train.tsx'));
 check(
   'the step has its own spotlight key',
-  /spotlightRef: 'custom',/.test(train),
-  'it reused kpi, so the user saw the identical highlight twice in a row'
+  TRAIN_TUTORIAL.some((s) => s.spotlightRef === 'custom') &&
+    new Set(TRAIN_TUTORIAL.map((s) => s.spotlightRef)).size === TRAIN_TUTORIAL.length,
+  'it reused the grid key, so the user saw the identical highlight twice in a row'
 );
 check(
   'and the key resolves to the card, not the grid',
@@ -234,8 +239,8 @@ check(
   ''
 );
 check(
-  'and it scrolls to the KPI section, because a card inside a grid has no scroll offset of its own',
-  /const scrollKey = stepKey === 'custom' \? 'kpi' : stepKey;/.test(train),
+  'and it scrolls to the sessions grid, because a card inside a grid has no scroll offset of its own',
+  /const scrollKey = stepKey === 'custom' \? 'sessions' : stepKey;/.test(train),
   "sectionScrollY holds onLayout offsets for top-level sections; asking it for 'custom' reads undefined and scrolls to NaN"
 );
 

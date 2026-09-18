@@ -418,7 +418,14 @@ check(
 );
 check(
   'and what they are offered is an ordinary session',
-  ['squat', 'bench', 'deadlift'].includes(useAppStore.getState().getCurrentSessionType()),
+  // The rotation, not a max attempt. Named by what the app builds today rather
+  // than by the three lift ids this fixture is stored under: those ids resolve
+  // to exactly these three sessions (lib/session-type.ts), and a check pinned to
+  // the stored spelling would have gone quiet the moment they stopped being
+  // offered.
+  ['lower_body', 'upper_body', 'full_body'].includes(
+    useAppStore.getState().getCurrentSessionType()
+  ),
   useAppStore.getState().getCurrentSessionType()
 );
 

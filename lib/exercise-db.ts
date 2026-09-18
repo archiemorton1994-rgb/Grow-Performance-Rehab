@@ -2746,7 +2746,7 @@ const NEURO: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> =
         name: 'Squat Jump',
         sets: 3,
         reps: '5 explosive',
-        cue: 'Full squat, explode through hips, land soft - same movement as the KPI but at maximum intent',
+        cue: 'Full squat, explode through hips, land soft - same movement as your main exercise but at maximum intent',
         suggestedLoad: 'Bodyweight',
         category: 'neuro',
         targetRegions: ['quads', 'glutes', 'knee', 'hip_groin', 'calf_shin'],

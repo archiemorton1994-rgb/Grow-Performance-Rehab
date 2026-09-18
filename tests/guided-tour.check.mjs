@@ -54,10 +54,25 @@ function check(label, condition, detail) {
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
-/** Tab indices are fixed by the tab bar: Home 0, Profile 1, Train 2, Restore 3, Stats 4. */
+/**
+ * Tab indices are fixed by the tab bar: Home 0, Profile 1, Train 2, Restore 3,
+ * Stats 4.
+ *
+ * `constFile` is where the tour ARRAY lives when that is not the screen itself.
+ * Train's moved to lib/train-screen.ts, which has no React in it, so a check can
+ * import the cards and read the words rather than matching them in source. The
+ * refs are still looked up in the screen, because that is where they are made.
+ */
 const TOURS = [
   { name: 'Home', file: 'app/(tabs)/index.tsx', constName: 'HOME_TUTORIAL', tab: 0, handsOffTo: 2 },
-  { name: 'Train', file: 'app/(tabs)/train.tsx', constName: 'TRAIN_TUTORIAL', tab: 2, handsOffTo: 3 },
+  {
+    name: 'Train',
+    file: 'app/(tabs)/train.tsx',
+    constFile: 'lib/train-screen.ts',
+    constName: 'TRAIN_TUTORIAL',
+    tab: 2,
+    handsOffTo: 3,
+  },
   { name: 'Restore', file: 'app/(tabs)/recover.tsx', constName: 'RESTORE_TUTORIAL', tab: 3, handsOffTo: 4 },
   { name: 'Stats', file: 'app/(tabs)/workouts.tsx', constName: 'STATS_TUTORIAL', tab: 4, handsOffTo: 1 },
   { name: 'Profile', file: 'app/(tabs)/profile.tsx', constName: 'PROFILE_TUTORIAL', tab: 1, handsOffTo: null },
@@ -93,7 +108,7 @@ console.log('\n[1] Every step spotlights something that exists');
 let grandTotal = 0;
 for (const t of TOURS) {
   const src = read(t.file);
-  const block = blockOf(src, t.constName);
+  const block = blockOf(read(t.constFile ?? t.file), t.constName);
   if (!block) {
     check(`${t.name}: ${t.constName} found`, false, 'the tour array could not be located');
     continue;
@@ -161,7 +176,7 @@ check(
 // times in one tour is how the steps that matter get skipped.
 console.log('\n[4] Nothing is explained twice');
 const streakMentions = TOURS.filter((t) => {
-  const block = blockOf(read(t.file), t.constName);
+  const block = blockOf(read(t.constFile ?? t.file), t.constName);
   return block ? /streak/i.test(userFacingCopy(block)) : false;
 });
 check(
@@ -546,7 +561,11 @@ console.log('\n[10] It points at the programme, and says it is not the whole app
 
 {
   const home = read('app/(tabs)/index.tsx');
-  const train = read('app/(tabs)/train.tsx');
+  // RUN, do not read. Train's cards live in lib/train-screen.ts, which has no
+  // React in it, so the sentence below is the sentence the user gets rather than
+  // a line of source that might be the comment explaining it.
+  const { TRAIN_TUTORIAL } = await import('../lib/train-screen.ts');
+  const trainCopy = TRAIN_TUTORIAL.map((s) => `${s.title} ${s.body}`).join(' \n ');
 
   check(
     'there is a step on where the programme lives',
@@ -569,9 +588,16 @@ console.log('\n[10] It points at the programme, and says it is not the whole app
   );
   check(
     'and Train says choosing something else costs nothing',
-    /whether you are on a programme or not/.test(train) &&
-      /moves your programme along or sets it back/.test(train),
+    /whether you are on a programme or not/.test(trainCopy) &&
+      /moves your programme along or sets it back/.test(trainCopy),
     'the sentence that stops the programme reading as the whole app'
+  );
+  check(
+    'while none of its cards name a lift or say KPI',
+    ![/Squat Session/i, /Bench Session/i, /Deadlift Session/i, /\bKPI\b/i].some((re) =>
+      re.test(trainCopy)
+    ),
+    trainCopy
   );
 }
 

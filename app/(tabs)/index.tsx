@@ -31,7 +31,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
-import { useAppStore, STRENGTH_SESSION_TYPES } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
+import { countLiftingSessions } from '@/lib/session-type';
 import { getSessionImage } from '@/lib/session-images';
 import { nameOf } from '@/lib/programme';
 import { getTimeOfDayGreeting, kgToDisplayUnit, displayUnitToKg } from '@/lib/utils';
@@ -556,10 +557,16 @@ export default function HomeScreen() {
 
   const suggestedMeta = SESSION_META[suggestedSession];
 
-  const strengthCount = useMemo(
-    () => completedSessions.filter((s) => STRENGTH_SESSION_TYPES.includes(s.sessionType)).length,
-    [completedSessions]
-  );
+  /**
+   * How many times this person has put a weight through their body.
+   *
+   * Counted through trainTypeOf (see lib/session-type.ts), not against the three
+   * lift-named ids. That list stopped naming a session the app builds, so
+   * everybody training Lower, Upper and Full Body counted zero, and the one
+   * thing this number decides - whether the programme tile says "Choose one" or
+   * "Choose a programme" - read as brand new to somebody two hundred sessions in.
+   */
+  const strengthCount = useMemo(() => countLiftingSessions(completedSessions), [completedSessions]);
 
   /*
    * THE BLOCK-PROGRESS ROW IS GONE, along with the cycle it counted.
@@ -698,10 +705,14 @@ export default function HomeScreen() {
     const go = () => {
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       // A custom session is built, not generated — generateWorkout returns []
-      // for it. Someone whose only sessions are their own gets suggested their
-      // own, and that suggestion has to lead to the builder. Sending it through
-      // readiness would end in an empty workout, which is why the suggestion
-      // used to be a generated full-body session they had never chosen.
+      // for it, so sending one through readiness ends in an empty workout.
+      //
+      // The rotation cannot suggest one any more: off a programme it answers
+      // Lower, Upper or Full Body, and the session list of a programme is drawn
+      // from BUILDABLE_SESSION_TYPES, which has no 'custom' in it. The guard
+      // stays because a custom programme's cycle is stored on the device and
+      // synced back from the server, so it is not this screen's to assume is
+      // well formed.
       if (suggestedSession === 'custom') {
         router.push('/custom-session');
         return;

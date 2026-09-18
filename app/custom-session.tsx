@@ -90,12 +90,13 @@ function setsLabel(sets: number): string {
  * A block title used mid-sentence — "every accessory option", "search cardio
  * warm-up".
  *
- * Lowercasing the title outright turns the one acronym in the set into "kpi
- * lift", which is the block the whole flow is built around and the one place
- * the copy could least afford to look unfinished.
+ * This used to put the acronym back after lowercasing, because the set held one:
+ * "KPI Lift", which became "kpi lift" and read as unfinished. That block is
+ * called "Main exercise" now (Archie's first decision retires the word KPI), so
+ * every title in the set is ordinary words and plain lowercasing is right.
  */
 function blockNoun(title: string): string {
-  return title.toLowerCase().replace(/\bkpi\b/g, 'KPI');
+  return title.toLowerCase();
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

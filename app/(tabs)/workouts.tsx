@@ -89,7 +89,7 @@ const STATS_TUTORIAL: readonly StatsTutorialStep[] = [
     // Progress leads with the personal-best list now, so that is what it is
     // named by. "Volume and where the work landed" described the two sections
     // UNDER the one a user sees first.
-    body: 'Overview for the big picture, Strength for your KPI lifts, Progress for your personal bests and training volume, and History for every session you have logged.',
+    body: 'Overview for the big picture, Strength for your heaviest lifts and any maxes you have recorded, Progress for your personal bests and training volume, and History for every session you have logged.',
   },
   // The second step was cut. It described "this week, your current streak and
   // your all-time total" — a streak already explained on Home, over three zeroes
