@@ -596,7 +596,15 @@ function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
   return diversify ? diversifyByMovementPattern(shuffled) : shuffled;
 }
 
-function templateToExercise(
+/**
+ * A catalogue or library record, as a session card.
+ *
+ * Exported so the library generator in lib/library-session.ts builds its cards
+ * through exactly this function rather than a second copy of it. A card built
+ * two ways is a card that loses its video on one route and not the other, which
+ * is the failure tests/exercise-video.check.mjs was written for.
+ */
+export function templateToExercise(
   t: ExerciseTemplate,
   badge?: 'comfort' | 'volume',
   isDumbbell?: boolean
@@ -1007,7 +1015,21 @@ function personalizeLoad(
    * render boundary would leave the number it rounds drifting off-grid session
    * after session. See `roundToLoadable` for the full reasoning.
    */
-  loadUnit: WeightUnit = 'kg'
+  loadUnit: WeightUnit = 'kg',
+  /**
+   * A share of the FIRST-TIME estimate, for an age the estimate was not written
+   * for.
+   *
+   * ONE IS THE ONLY VALUE THE OLD ENGINE EVER PASSES, so nothing it prescribes
+   * moves by a gram. The library generator passes the real factor - see
+   * `ageLoadFactor` in lib/library-session.ts - and it lands on the heuristic
+   * estimate alone, deliberately: a weight worked out from bodyweight for a
+   * movement nobody has ever performed is a guess, and a guess for a sixteen
+   * year old or a sixty-five year old should start lower. A weight somebody has
+   * actually lifted is a fact, and every path that reads one returns before this
+   * is used, so no logged weight can be scaled down by a birthday.
+   */
+  ageFactor: number = 1
 ): PersonalisedLoad {
   /** Load text the engine did not compute — no structured weight to attach. */
   const verbatim = (text: string): PersonalisedLoad => ({ text, kg: null });
@@ -1262,7 +1284,8 @@ function personalizeLoad(
   const avgGoalFactor =
     activeGoals.reduce((sum, g) => sum + (goalFactor[g] ?? 1.0), 0) / activeGoals.length;
 
-  const scale = bwRatio * (expFactor[profile.experienceLevel] ?? 0.7) * avgGoalFactor * sexFactor;
+  const scale =
+    bwRatio * (expFactor[profile.experienceLevel] ?? 0.7) * avgGoalFactor * sexFactor * ageFactor;
 
   // Every weight in the string is scaled, so the sentence the user reads keeps
   // whatever shape it had — a range stays a range. The scaled values are
@@ -1380,8 +1403,12 @@ function applyComfortOrBadge(
  * accSetsDelta:  added to each accessory set count (muscle/fat_loss → +1, strength/rehab → -1)
  *
  * When two goals are selected the deltas are averaged and rounded.
+ *
+ * Exported so the library generator applies the SAME deltas this one does. Two
+ * tables of goal volume is one edit away from the two generators disagreeing
+ * about what a strength goal means.
  */
-function getGoalVolumeDeltas(goals: FitnessGoal[]): {
+export function getGoalVolumeDeltas(goals: FitnessGoal[]): {
   mainSetsDelta: number;
   accSetsDelta: number;
 } {
@@ -1496,7 +1523,17 @@ function applyKettlebellNaming(exercises: Exercise[]): Exercise[] {
   }));
 }
 
-function applyPersonalization(
+/**
+ * Exported so the library generator personalises its cards through the same
+ * function the old engine does.
+ *
+ * This is what plan section 2's "substitutes personalised again" means in
+ * practice: every card the new generator produces - a main lift, a stand-in
+ * chosen because something hurts, a warm-up drill - goes through here, so none
+ * of them can reach the screen still carrying the catalogue's reference-athlete
+ * sentence ("50-80 kg") instead of a weight worked out for the person reading it.
+ */
+export function applyPersonalization(
   ex: Exercise,
   profile: UserProfile | undefined,
   isUpperBody: boolean,
@@ -1522,7 +1559,9 @@ function applyPersonalization(
    * earned. Zero means "no epoch", which is a brand new account and every
    * caller that has no reason to care.
    */
-  libraryEpochSessionCount: number = 0
+  libraryEpochSessionCount: number = 0,
+  /** A share of the first-time estimate, by age. See personalizeLoad. */
+  ageFactor: number = 1
 ): Exercise {
   if (!profile) return ex;
   const isMainLift = ex.category === 'main';
@@ -1601,7 +1640,8 @@ function applyPersonalization(
       exerciseStuckStreak,
       lastSessionPerformance,
       layoff,
-      loadUnit
+      loadUnit,
+      ageFactor
     );
 
   const main = personalise(ex.suggestedLoad);
