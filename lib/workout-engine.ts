@@ -22,6 +22,9 @@ import { cardioWarmupPoolForSession } from './cardio-warmup';
 // its own, so this adds no edge back to the store.
 import { trainTypeOf } from './session-type';
 import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
+// Same reasoning as session-type above: lib/kit.ts imports nothing from the
+// store at runtime, so reading the supply-tier rule from it adds no edge back.
+import { isSupplyTier } from './kit';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -4123,6 +4126,10 @@ export function getEquipmentLabel(tier: EquipmentTier): string {
       return 'Kettlebells';
     case 'fullgym':
       return 'Full Gym';
+    // Never the effective tier of a session, so this never labels a session.
+    // It is here for the pickers that will offer it.
+    case 'bench':
+      return 'Bench, Box or Step';
   }
 }
 
@@ -4138,6 +4145,8 @@ export function getEquipmentIcon(tier: EquipmentTier): string {
       return 'barbell-outline';
     case 'fullgym':
       return 'barbell-outline';
+    case 'bench':
+      return 'tablet-landscape-outline';
   }
 }
 
@@ -4177,6 +4186,10 @@ export function getEffectiveTier(tiers: EquipmentTier[]): EquipmentTier {
   if (!tiers || tiers.length === 0) return 'bodyweight';
   let bestIdx = 0;
   for (const t of tiers) {
+    // A supply tier ("bench, box or sturdy step") is kit, not a rung: it can
+    // never be the tier a session is drawn at. Skipped by name so the rule is
+    // stated here too, not left to indexOf returning -1.
+    if (isSupplyTier(t)) continue;
     const idx = TIER_ORDER.indexOf(t);
     if (idx > bestIdx) bestIdx = idx;
   }

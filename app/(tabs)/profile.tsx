@@ -42,6 +42,7 @@ import {
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
+import { isSupplyTier, withKeptSupplies } from '@/lib/kit';
 import { THEME_OPTIONS } from '@/lib/theme-options';
 import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS, experienceNote } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
@@ -75,7 +76,9 @@ import { keepProfilePhoto, photoSource } from '@/lib/profile-photo';
 import { strengthScore, strengthScoreLabel } from '@/lib/strength-score';
 import { xpStanding, xpBandName } from '@/lib/xp';
 
-const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
+// Partial on purpose: the tiles are TIER_ORDER, which has no bench in it yet,
+// so there is no bench photograph to name here.
+const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
   dumbbells: require('@/assets/images/equipment/dumbbells.png'),
@@ -581,7 +584,7 @@ export default function ProfileScreen() {
         } else {
           const available =
             userProfile.experienceLevel === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
-          return available as EquipmentTier[];
+          return withKeptSupplies(available as EquipmentTier[], prev);
         }
       }
       if (prev.includes(tier)) {
@@ -615,8 +618,10 @@ export default function ProfileScreen() {
     // Downgrading experience can make previously-selected equipment tiers
     // invalid (e.g. dumbbells while now Beginner) — filter them out so they
     // don't stay stuck in stored state with no UI path to remove them.
+    // Kit that is not a tier at all (a bench) is kept: no level is barred from
+    // one, so dropping it here would quietly delete something the person owns.
     const allowedTiers = editExp === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
-    setEquipmentTiers(equipmentTiers.filter((t) => allowedTiers.includes(t)));
+    setEquipmentTiers(equipmentTiers.filter((t) => allowedTiers.includes(t) || isSupplyTier(t)));
     setUserProfile({
       name: editName.trim(),
       bodyweightKg: displayUnitToKg(editWeightParsed, weightUnit),

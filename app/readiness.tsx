@@ -26,6 +26,7 @@ import {
   TIER_ORDER,
   useAppStore,
 } from '@/lib/store';
+import { isSupplyTier, withKeptSupplies } from '@/lib/kit';
 import {
   getSessionLabel,
   getSessionSubtitle,
@@ -51,9 +52,15 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Available',
   kettlebells: 'Available',
   fullgym: 'Everything',
+  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
+  // rather than a rung on it. The wording is here so that the day it is
+  // offered, it says the same thing everywhere.
+  bench: 'Bench, box or sturdy step',
 };
 
-const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
+// Partial on purpose: there is no bench photograph, because there is no bench
+// tile to put one on yet.
+const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
   dumbbells: require('@/assets/images/equipment/dumbbells.png'),
@@ -200,11 +207,22 @@ export default function ReadinessScreen() {
     ? ['bodyweight', 'bands']
     : TIER_ORDER;
 
+  /**
+   * Kit somebody owns that is not one of the tiles is carried through both of
+   * these filters rather than dropped.
+   *
+   * The filters exist to stop a tier a beginner may not choose being applied
+   * behind their back. A bench is not a tier and no level is barred from one,
+   * so filtering it out would silently take away kit the session is entitled
+   * to use, with no tile to put it back on.
+   */
+  const keepsTier = (t: EquipmentTier) => availableTiers.includes(t) || isSupplyTier(t);
+
   const overrideTiers: EquipmentTier[] | null = (() => {
     if (!params.equipmentOverride) return null;
     try {
       const parsed = JSON.parse(params.equipmentOverride) as EquipmentTier[];
-      const filtered = parsed.filter((t) => availableTiers.includes(t));
+      const filtered = parsed.filter(keepsTier);
       return filtered.length > 0 ? filtered : null;
     } catch {
       return null;
@@ -214,7 +232,7 @@ export default function ReadinessScreen() {
   const initialTiers =
     overrideTiers ??
     (equipmentTiers && equipmentTiers.length > 0
-      ? equipmentTiers.filter((t) => availableTiers.includes(t))
+      ? equipmentTiers.filter(keepsTier)
       : ['bodyweight' as EquipmentTier]);
 
   const [step, setStep] = useState<Step>('main');
@@ -384,7 +402,7 @@ export default function ReadinessScreen() {
         if (prev.includes('fullgym')) {
           return prev.filter((t) => t !== 'fullgym');
         } else {
-          return [...TIER_ORDER];
+          return withKeptSupplies(TIER_ORDER, prev);
         }
       }
       if (prev.includes(tier)) {

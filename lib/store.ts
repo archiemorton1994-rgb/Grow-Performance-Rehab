@@ -7,6 +7,9 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { displayUnitToKg, isoWeek } from '@/lib/utils';
 import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
+// Which equipment answers are kit rather than a rung on the ladder. Its own
+// imports from here are type-only, so this adds no cycle.
+import { isSupplyTier } from '@/lib/kit';
 // Type-only against this file, so there is no runtime edge back here and no
 // cycle. See the note at the top of lib/session-type.ts.
 import { countLiftingSessions, isLiftingSession, rotatesSessions } from '@/lib/session-type';
@@ -53,7 +56,26 @@ import { BADGE_MAP } from './badges';
 import type { UnitCorrection } from './unit-correction';
 import type { CompletedProgramme } from './programme-report';
 
-export type EquipmentTier = 'bodyweight' | 'bands' | 'dumbbells' | 'kettlebells' | 'fullgym';
+/**
+ * What somebody has to train with.
+ *
+ * Five of these are rungs on a ladder: each one describes how well equipped a
+ * person is, and the best of them decides which pool a session is drawn from.
+ *
+ * 'bench' is not a rung. It answers a different question — "have you got a
+ * bench, box or sturdy step" — and a person who has one is no better equipped
+ * than a person who has not; they can simply do a few more of the same
+ * exercises. So it supplies kit and is deliberately kept out of TIER_ORDER,
+ * out of every picker, and out of getEffectiveTier. What it supplies, and the
+ * SUPPLY_TIERS list it belongs to, are in lib/kit.ts.
+ */
+export type EquipmentTier =
+  | 'bodyweight'
+  | 'bands'
+  | 'dumbbells'
+  | 'kettlebells'
+  | 'fullgym'
+  | 'bench';
 export type EnergyLevel = 'low' | 'normal' | 'high';
 
 export type SessionType =
@@ -721,6 +743,13 @@ export interface SignUpAnswers {
   clinicalAvoid: PainRegion[];
 }
 
+/**
+ * The equipment ladder, worst equipped first.
+ *
+ * This is the list every equipment picker shows, and the list an effective
+ * tier is chosen from. A value that is not on it is kit rather than a rung,
+ * and belongs in SUPPLY_TIERS instead.
+ */
 export const TIER_ORDER: EquipmentTier[] = [
   'bodyweight',
   'bands',
@@ -728,6 +757,10 @@ export const TIER_ORDER: EquipmentTier[] = [
   'kettlebells',
   'fullgym',
 ];
+// Values that are kit rather than a rung, which today is 'bench' alone, are
+// listed in lib/kit.ts as SUPPLY_TIERS, beside the rules that read them. The
+// workout engine needs the same answer and may not import runtime values from
+// this file, so the fact has one home that both can reach.
 
 interface AppState {
   onboardingComplete: boolean;
@@ -2689,6 +2722,11 @@ export const useAppStore = create<AppState>()(
         if (!equipmentTiers || equipmentTiers.length === 0) return 'bodyweight';
         let bestIdx = 0;
         for (const t of equipmentTiers) {
+          // A bench is kit, not a rung: somebody whose only tick is "bench,
+          // box or sturdy step" still trains at the bodyweight tier. Skipped
+          // by name rather than left to indexOf returning -1, so that the rule
+          // is stated rather than inferred from an accident of arithmetic.
+          if (isSupplyTier(t)) continue;
           const idx = TIER_ORDER.indexOf(t);
           if (idx > bestIdx) bestIdx = idx;
         }

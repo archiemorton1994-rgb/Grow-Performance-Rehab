@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { glowShadow } from '@/constants/shadows';
 import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
+import { withKeptSupplies } from '@/lib/kit';
 import { getRecoverImage } from '@/lib/session-images';
 import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
@@ -109,6 +110,9 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   fullgym: 'Everything - cables, machines, full setup',
+  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
+  // rather than a rung on it.
+  bench: 'Bench, box or sturdy step',
 };
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
@@ -462,7 +466,7 @@ export default function RecoverScreen() {
         if (prev.includes('fullgym')) {
           return prev.filter((t) => t !== 'fullgym');
         } else {
-          return [...TIER_ORDER];
+          return withKeptSupplies(TIER_ORDER, prev);
         }
       }
       if (prev.includes(tier)) {

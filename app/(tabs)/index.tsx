@@ -31,7 +31,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type EquipmentTier } from '@/lib/store';
+import { withKeptSupplies } from '@/lib/kit';
 import { countLiftingSessions, rotatesSessions } from '@/lib/session-type';
 import { getSessionImage } from '@/lib/session-images';
 import { nameOf } from '@/lib/programme';
@@ -159,7 +160,9 @@ export default function HomeScreen() {
    */
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [sheetDraft, setSheetDraft] = useState<(typeof ALL_TIERS)[number][]>([]);
+  // The draft holds whatever the person owns, which can include kit that is
+  // not one of the tiles (a bench). The tiles are still ALL_TIERS.
+  const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
 
   const openEquipmentSheet = () => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -167,12 +170,14 @@ export default function HomeScreen() {
     setSheetOpen(true);
   };
 
-  const handleDraftToggle = (tier: (typeof ALL_TIERS)[number]) => {
+  const handleDraftToggle = (tier: EquipmentTier) => {
     if (!(availableTiers as readonly string[]).includes(tier)) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
-        return prev.includes('fullgym') ? prev.filter((t) => t !== 'fullgym') : [...ALL_TIERS];
+        return prev.includes('fullgym')
+          ? prev.filter((t) => t !== 'fullgym')
+          : withKeptSupplies(ALL_TIERS, prev);
       }
       if (prev.includes(tier)) {
         const next = prev.filter((t) => t !== tier && t !== 'fullgym');

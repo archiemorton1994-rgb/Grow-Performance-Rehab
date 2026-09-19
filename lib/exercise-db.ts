@@ -4,6 +4,10 @@ import { EquipmentTier, ExerciseCategory, ExperienceLevel, SessionType, PainRegi
 // readable on their own, not buried at line 18,000 of a 20,000-line database.
 import { ACUTE_PREHAB_BY_REGION } from './acute-rehab';
 import { CHANNEL_EXERCISES } from './channel-exercises';
+// The one fact this file needs about the new kit model: which equipment
+// answers are supplies rather than rungs. lib/kit.ts has no runtime imports
+// from here, so there is no cycle.
+import { isSupplyTier } from './kit';
 
 export { ACUTE_PREHAB_BY_REGION, ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from './acute-rehab';
 export type { AcuteProtocolNotes } from './acute-rehab';
@@ -29,6 +33,10 @@ function effectiveOf(tier: EquipmentTier | readonly EquipmentTier[]): EquipmentT
   const ORDER: EquipmentTier[] = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
   let best = 0;
   for (const t of tier as readonly EquipmentTier[]) {
+    // "Bench, box or sturdy step" supplies kit and nothing else: it is not on
+    // the ladder and can never be the tier a pool is chosen at. Skipped by
+    // name rather than left to indexOf returning -1.
+    if (isSupplyTier(t)) continue;
     const i = ORDER.indexOf(t);
     if (i > best) best = i;
   }
@@ -102,7 +110,11 @@ export const EQUIPMENT_NAMES: string[] = Object.keys(EQUIPMENT_TIER);
  * a band because it is light. That conflation is the whole bug.
  */
 const EQUIPMENT_SUPPLIED_BY: Record<string, EquipmentTier[]> = {
-  bodyweight: ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'],
+  // 'bench' is on this line and no other: owning a bench, box or sturdy step
+  // never stops somebody doing bodyweight work, and it supplies nothing this
+  // old table names. What it does supply is written in lib/kit.ts, which is
+  // the table the library reads.
+  bodyweight: ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym', 'bench'],
   'resistance bands': ['bands', 'fullgym'],
   dumbbells: ['dumbbells', 'kettlebells', 'fullgym'],
   kettlebell: ['dumbbells', 'kettlebells', 'fullgym'],

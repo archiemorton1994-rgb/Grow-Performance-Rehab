@@ -20,6 +20,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
 import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
+import { withKeptSupplies } from '@/lib/kit';
 import { resumeParams } from '@/lib/resume-params';
 import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
@@ -41,6 +42,9 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   fullgym: 'Everything - cables, machines, full setup',
+  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
+  // rather than a rung on it.
+  bench: 'Bench, box or sturdy step',
 };
 
 export default function TrainScreen() {
@@ -216,7 +220,7 @@ export default function TrainScreen() {
         if (prev.includes('fullgym')) {
           return prev.filter((t) => t !== 'fullgym');
         } else {
-          return [...TIER_ORDER];
+          return withKeptSupplies(TIER_ORDER, prev);
         }
       }
       if (prev.includes(tier)) {

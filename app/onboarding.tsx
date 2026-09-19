@@ -155,7 +155,9 @@ const EQUIPMENT_OPTIONS: { value: EquipmentTier; label: string; description: str
   { value: 'fullgym', label: 'Full gym', description: 'Racks, cables and machines' },
 ];
 
-const EQUIPMENT_IMAGES: Record<EquipmentTier, any> = {
+// Partial on purpose: EQUIPMENT_OPTIONS above is the list of tiles, and there
+// is no bench tile yet, so there is no bench photograph either.
+const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
   dumbbells: require('@/assets/images/equipment/dumbbells.png'),

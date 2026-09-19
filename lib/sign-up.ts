@@ -45,6 +45,7 @@ import {
   type SignUpAnswers,
   type WeightUnit,
 } from './store';
+import { isSupplyTier, withKeptSupplies } from './kit';
 
 /**
  * The pages, in the order they are put to somebody.
@@ -217,9 +218,14 @@ export function toggleTier(
   tier: EquipmentTier,
   experience: ExperienceLevel | null
 ): EquipmentTier[] {
-  if (!allowedTiersFor(experience).includes(tier)) return tiers;
+  // A supply tier (a bench) is kit rather than a rung, so no level bars it and
+  // it is never refused here. It has no tile yet, so today this only matters
+  // for what the full-gym branch below keeps.
+  if (!isSupplyTier(tier) && !allowedTiersFor(experience).includes(tier)) return tiers;
   if (tier === 'fullgym') {
-    return tiers.includes('fullgym') ? tiers.filter((t) => t !== 'fullgym') : [...TIER_ORDER];
+    return tiers.includes('fullgym')
+      ? tiers.filter((t) => t !== 'fullgym')
+      : withKeptSupplies(TIER_ORDER, tiers);
   }
   if (tiers.includes(tier)) return tiers.filter((t) => t !== tier && t !== 'fullgym');
   return [...tiers, tier];
