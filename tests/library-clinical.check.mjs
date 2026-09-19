@@ -96,17 +96,17 @@ check(
   'the record list has changed size - every sweep below reads it'
 );
 
-// 122 movement records matched a template the app already had, by the scope
-// document's own reckoning: 73 exact, 17 "only a rename", 32 "the nearest
-// template has different kit", and Box Step Downs, which is a rename that could
-// not keep its id because the template it renames is Restore content. The other
-// 38 have no template behind them at all and are written in the next step.
+// 122 movement records matched a template the app already had and were written
+// first. The other 38 are movements the app has never carried in any form, and
+// they are being authored one pattern at a time so that each set can be read
+// and argued with on its own. Push is written: 8 records, so 130 of the 160.
+// The number rises with each pattern and reaches 160 when the last one lands.
 const authoredMovement = LIBRARY_EXERCISES.filter(hasAuthoredContent);
 const authoredConditioning = CONDITIONING_EXERCISES.filter(hasAuthoredContent);
 check(
-  `122 of the 160 movement records are written (${authoredMovement.length})`,
-  authoredMovement.length === 122,
-  'either a record lost its content or one was written that has no template to have been seeded from'
+  `130 of the 160 movement records are written (${authoredMovement.length})`,
+  authoredMovement.length === 130,
+  'either a record lost its content or one was written before its pattern was due'
 );
 check(
   `all nine conditioning records are written (${authoredConditioning.length})`,
