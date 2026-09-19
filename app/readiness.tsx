@@ -117,10 +117,17 @@ const READINESS_TUTORIAL = [
      * card names both and promises neither everywhere, because which one you
      * get depends on the session.
      *
+     * THE HEDGE HAS TO COVER BOTH CLAUSES, which it did not: "fewer or more
+     * sets where the session can move them, and an easier or harder finisher"
+     * qualified the sets and then promised the finisher flatly. A Lower Body
+     * session at low, normal and high gives the same finisher all three times,
+     * because the library picks it by rotation. One "depending on the session"
+     * at the end now covers the pair of them.
+     *
      * tests/guided-tour.check.mjs generates all three at each answer and fails
      * if any of that stops matching, which is the signal to re-read this.
      */
-    body: 'Low gives you an easier session and high a harder one: fewer or more sets where the session can move them, and an easier or harder finisher. It does not change the weight on the bar, which comes from what you lifted last time.',
+    body: 'Low gives you an easier session and high a harder one: fewer or more sets, or an easier or harder finisher, depending on the session. It does not change the weight on the bar, which comes from what you lifted last time.',
   },
   {
     iconName: 'time-outline',
@@ -146,11 +153,19 @@ const READINESS_TUTORIAL = [
      * both are true - a Lower Body session gets the Cool Down and an Upper or
      * Full Body one gets the Prehab - and neither is promised as the only one.
      *
+     * AND THE LAST SENTENCE WAS AN OVER-PROMISE FOR HALF THE SESSIONS. It said
+     * 60 "adds a Finisher on top", which is true of a library session and false
+     * of an Upper or Full Body one, where the Finisher goes in and the Prehab
+     * comes out. Counted at every tier: upper_body and full_body at 45 end
+     * Prehab then Cool Down, and at 60 they end Finisher then Cool Down with no
+     * Prehab at all. So the sentence says what happens to the block it replaces
+     * rather than implying nothing is lost. The 30 and 45 clauses are unchanged.
+     *
      * The block names are capitalised because they are the badges printed on
      * the cards themselves - see components/SessionPlanList.tsx - so the words
      * here are the words the user is about to read.
      */
-    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and eases you out of it, with a Cool Down or some Prehab for the joints you have just loaded. 60 adds a Finisher on top.',
+    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and eases you out of it, with a Cool Down or some Prehab for the joints you have just loaded. 60 adds a Finisher, which on some sessions goes in instead of the Prehab.',
   },
 ] as const;
 

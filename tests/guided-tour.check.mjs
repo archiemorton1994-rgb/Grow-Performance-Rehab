@@ -524,6 +524,64 @@ for (const [mins, plus] of [
   );
 }
 
+/**
+ * AND THE SAME QUESTION ASKED OF WHAT A LONGER SESSION TAKES AWAY, ON EVERY
+ * SESSION TYPE THE CARD SPEAKS FOR.
+ *
+ * Everything above this point was measured on ONE session type, and while two
+ * engines are running that is half the sessions. The card said 60 "adds a
+ * Finisher on top", which is true of a library session and false of an Upper or
+ * Full Body one: those end 45 with Prehab and Cool Down, and 60 with Finisher
+ * and Cool Down, the Prehab gone. Somebody who chose the longer session for the
+ * joint work it promised loses exactly that.
+ *
+ * So the clause is held to both directions - every block a duration adds AND
+ * every block it drops has to be named in it - across a library type and the
+ * two still on the old engine. A card that mentions a block only to say it goes
+ * in is not describing a session where something comes out.
+ */
+const CARD_TYPES = ['lower_body', 'upper_body', 'full_body'];
+const blockMoves = (shorter, longer) => {
+  const added = new Set();
+  const dropped = new Set();
+  for (const type of CARD_TYPES) {
+    const before = new Set(buildSession({ timeAvailable: shorter }, type).map((e) => e.category));
+    const after = new Set(buildSession({ timeAvailable: longer }, type).map((e) => e.category));
+    for (const c of after) if (!before.has(c)) added.add(c);
+    for (const c of before) if (!after.has(c)) dropped.add(c);
+  }
+  return { added: [...added], dropped: [...dropped] };
+};
+const label = (c) => BLOCK_LABELS[c] ?? c;
+let droppedAnywhere = 0;
+for (const [mins, shorter] of [
+  ['45', '30'],
+  ['60', '45'],
+]) {
+  const { added, dropped } = blockMoves(shorter, mins);
+  droppedAnywhere += dropped.length;
+  const clause = durationClause(mins);
+  const unnamed = [...added, ...dropped].filter((c) => !clause.includes(label(c)));
+  check(
+    `the ${mins}-minute clause names every block ${mins} moves on any session type (adds ${
+      added.map(label).join(', ') || 'nothing'
+    }; drops ${dropped.map(label).join(', ') || 'nothing'})`,
+    clause.length > 0 && unnamed.length === 0,
+    `unnamed: ${unnamed.map(label).join(', ') || '(no clause found)'} - the card promises a shape no session has`
+  );
+}
+check(
+  /**
+   * Without this the pair above passes the day nothing is dropped anywhere,
+   * while the card still says a block is replaced - the same over-promise
+   * pointing the other way. If this fails because every session type now keeps
+   * its blocks, the fix is to take the replacement clause back out of the card.
+   */
+  'and something really is dropped by a longer session, or the card should stop saying so',
+  droppedAnywhere > 0,
+  'no session type loses a block as it gets longer any more, so "goes in instead of" describes nothing'
+);
+
 // --- 9. The in-session tutorial names controls that are on the screen -------
 console.log('\n[9] The session tutorial points at real buttons');
 

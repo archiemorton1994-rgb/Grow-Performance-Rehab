@@ -1944,6 +1944,62 @@ export function generateWorkout(
   const buildType = trainTypeOf(sessionType);
 
   /**
+   * AREAS A CLINICIAN NAMED ARE SCREENED WHETHER OR NOT ANYTHING HURTS TODAY.
+   *
+   * The readiness screen asks what is sore right now, which is the correct
+   * question for the day to day and the wrong one for a shoulder somebody was
+   * told to stay off six months ago. That shoulder does not hurt, precisely
+   * because they have been avoiding it, so it answers no every single time.
+   *
+   * Merged into the regions rather than given its own pass, so it goes through
+   * the same swap machinery and produces the same honest caption on the card.
+   * Severity and the acute flag are deliberately untouched: this is "look after
+   * this area", not "this is hurting now", and setting acute would route
+   * somebody onto the acute rehab protocol permanently with no way off it.
+   *
+   * ABOVE THE LIBRARY RETURN, AND THERE IS ONLY ONE OF IT. It used to sit below
+   * the early return, where the old engine could reach it and the new one could
+   * not - so a Lower Body card's swap button offered a knee-loading exercise to
+   * somebody a clinician had told to stay off their knee. The session itself was
+   * clean, because the library builder does this same merge for its own picking,
+   * which is exactly why nothing caught it: the fault was one tap behind a
+   * button. Both paths read this one object now. A second copy inside the branch
+   * would be the same bug waiting for the next person to edit one of them.
+   */
+  const named = readiness.painRegion
+    ? Array.isArray(readiness.painRegion)
+      ? readiness.painRegion
+      : [readiness.painRegion]
+    : [];
+  const avoid = profile?.clinicalAvoid ?? [];
+  /**
+   * AND WHATEVER THEY TOLD US WAS ALREADY SORE WHEN THEY SIGNED UP.
+   *
+   * The builder asks "is anything sore or injured right now", then asks where
+   * and for how long. Those three answers were written to the profile, synced
+   * to the server, and read by NOTHING - while the programme certificate told
+   * the user, in as many words, that every session was being built around the
+   * area. Two sessions generated side by side, identical but for a standing
+   * knee problem, came back with the same exercises down to the last card.
+   *
+   * Merged here rather than given a pass of its own, for the same reasons the
+   * clinician's answer is: it goes through the same swap machinery and produces
+   * the same honest caption. Severity and the acute flag are left alone - this
+   * is "look after this area", not "this is hurting right now", and setting
+   * acute would route somebody onto the acute rehab protocol with no way off.
+   *
+   * IT HAS TO BE CLEARABLE, which is why this landed alongside the standing
+   * areas card in Profile. An answer given once at sign-up that silently
+   * suppresses half the catalogue for ever is worse than one that does nothing.
+   */
+  const standing = profile?.standingSoreRegions ?? [];
+  const workAround = [...new Set([...avoid, ...standing])];
+  const screenedReadiness: ReadinessCheck =
+    workAround.length === 0
+      ? readiness
+      : { ...readiness, painRegion: [...new Set([...named, ...workAround])] };
+
+  /**
    * AND THE SESSIONS THAT HAVE BEEN SWITCHED OVER ARE BUILT FROM THE LIBRARY.
    *
    * Everything below this line is the old catalogue. A session type listed in
@@ -2014,7 +2070,19 @@ export function generateWorkout(
     });
     return fillSwapAlternatives(
       librarySession.exercises,
-      readiness,
+      /**
+       * THE MERGED ONE, not the raw answer from the readiness screen.
+       *
+       * The builder above was handed the raw `readiness` on purpose - it does
+       * this same merge itself, with today's report leading so the rehab slot
+       * treats the right area - but the swap sheet is filled out here, and with
+       * the raw answer it offered exercises that load an area a clinician had
+       * ruled out. Somebody with a standing knee problem who says nothing hurts
+       * today was shown a clean session and a knee-loading alternative one tap
+       * behind it, which is the same failure the injury screen exists to stop,
+       * with an extra step.
+       */
+      screenedReadiness,
       equipmentTier,
       profile,
       // The same seed the old path uses, so which alternative comes up first
@@ -2025,52 +2093,6 @@ export function generateWorkout(
 
   const layoff = getLayoff(daysSinceLastSession);
 
-  /**
-   * AREAS A CLINICIAN NAMED ARE SCREENED WHETHER OR NOT ANYTHING HURTS TODAY.
-   *
-   * The readiness screen asks what is sore right now, which is the correct
-   * question for the day to day and the wrong one for a shoulder somebody was
-   * told to stay off six months ago. That shoulder does not hurt, precisely
-   * because they have been avoiding it, so it answers no every single time.
-   *
-   * Merged into the regions rather than given its own pass, so it goes through
-   * the same swap machinery and produces the same honest caption on the card.
-   * Severity and the acute flag are deliberately untouched: this is "look after
-   * this area", not "this is hurting now", and setting acute would route
-   * somebody onto the acute rehab protocol permanently with no way off it.
-   */
-  const named = readiness.painRegion
-    ? Array.isArray(readiness.painRegion)
-      ? readiness.painRegion
-      : [readiness.painRegion]
-    : [];
-  const avoid = profile?.clinicalAvoid ?? [];
-  /**
-   * AND WHATEVER THEY TOLD US WAS ALREADY SORE WHEN THEY SIGNED UP.
-   *
-   * The builder asks "is anything sore or injured right now", then asks where
-   * and for how long. Those three answers were written to the profile, synced
-   * to the server, and read by NOTHING - while the programme certificate told
-   * the user, in as many words, that every session was being built around the
-   * area. Two sessions generated side by side, identical but for a standing
-   * knee problem, came back with the same exercises down to the last card.
-   *
-   * Merged here rather than given a pass of its own, for the same reasons the
-   * clinician's answer is: it goes through the same swap machinery and produces
-   * the same honest caption. Severity and the acute flag are left alone - this
-   * is "look after this area", not "this is hurting right now", and setting
-   * acute would route somebody onto the acute rehab protocol with no way off.
-   *
-   * IT HAS TO BE CLEARABLE, which is why this landed alongside the standing
-   * areas card in Profile. An answer given once at sign-up that silently
-   * suppresses half the catalogue for ever is worse than one that does nothing.
-   */
-  const standing = profile?.standingSoreRegions ?? [];
-  const workAround = [...new Set([...avoid, ...standing])];
-  const screenedReadiness: ReadinessCheck =
-    workAround.length === 0
-      ? readiness
-      : { ...readiness, painRegion: [...new Set([...named, ...workAround])] };
   // Screen first, then fill the swap slots — so the alternatives on offer are
   // alternatives to what the user is actually being shown, and a substituted
   // exercise gets its own stand-ins rather than inheriting the removed one's.

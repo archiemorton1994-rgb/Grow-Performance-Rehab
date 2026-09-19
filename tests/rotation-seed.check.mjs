@@ -62,6 +62,9 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { useAppStore, STRENGTH_SESSION_TYPES } = await import('../lib/store.ts');
 const { countLiftingSessions, isLiftingSession } = await import('../lib/session-type.ts');
+// The same grid the engine snaps every prescription onto, so section 3 can say
+// which weights a fifth is arithmetically able to move and which it is not.
+const { roundToLoadable } = await import('../lib/utils.ts');
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -300,21 +303,50 @@ const sharedNoMark = [...noMark.keys()].filter((id) => beforeWeekly.has(id));
  *
  * Not every card, and it never was about every card: a fifth added to a 7.5 kg
  * dumbbell does not reach the next one on the rack, so the multiplier is
- * applied and the grid puts it back. What must hold is that nothing gets
- * LIGHTER without the mark, and that most of the session really does move -
- * if none of it moved, the mark would be doing nothing and the assertion above
- * would be vacuous.
+ * applied and the grid puts it back.
+ *
+ * THAT EXCUSE IS NOW CHECKED RATHER THAN ASSUMED. This used to accept any
+ * majority - "none lighter, and at least half of them heavier" - which passes
+ * while any minority of the session quietly stops responding to the mark at
+ * all. The arithmetic says exactly which weights are allowed to stay put.
+ *
+ * The estimate behind a quoted weight w landed somewhere in w's bucket on the
+ * grid, which is w plus or minus half a step. The smallest it could have been
+ * is w - step/2, and a fifth of that reaches the next rung, w + step/2, only
+ * when 1.2(w - step/2) >= w + step/2, which is w >= 5.5 steps. On the 2.5 kg
+ * grid that is 13.75 kg. So anything quoted at or above that MUST come out
+ * heavier without the mark; anything below it may or may not, and this says
+ * which of the two it was rather than counting heads.
+ *
+ * The step is measured off roundToLoadable rather than written in, so a change
+ * to the grid moves this rule with it instead of silently loosening it.
  */
+const rungAbove = (w) => {
+  let x = w;
+  while (roundToLoadable(x, 'kg') <= w && x < w * 3 + 50) x += 0.05;
+  return roundToLoadable(x, 'kg');
+};
+/** True when a fifth added to this weight cannot reach the next rung. */
+const stuckOnGrid = (w) => 0.2 * w < 1.1 * (rungAbove(w) - w);
 const heavierNoMark = sharedNoMark.filter((id) => noMark.get(id) > beforeWeekly.get(id));
 const lighterNoMark = sharedNoMark.filter((id) => noMark.get(id) < beforeWeekly.get(id));
+const unexplained = sharedNoMark.filter(
+  (id) => noMark.get(id) <= beforeWeekly.get(id) && !stuckOnGrid(beforeWeekly.get(id))
+);
 check(
-  `and without the mark they would be heavier (${heavierNoMark.length} of ${sharedNoMark.length} move; the rest are too light for a fifth to reach the next weight)`,
-  sharedNoMark.length >= 3 &&
-    lighterNoMark.length === 0 &&
-    heavierNoMark.length >= Math.ceil(sharedNoMark.length / 2),
+  `and without the mark every weight the grid can move is heavier (${heavierNoMark.length} of ${sharedNoMark.length} move; the rest are under ${5.5 * (rungAbove(10) - 10)} kg, where a fifth cannot reach the next rung)`,
+  sharedNoMark.length >= 3 && lighterNoMark.length === 0 && unexplained.length === 0,
   lighterNoMark.length > 0
     ? `lighter without the mark: ${lighterNoMark.map((id) => `${id}: ${beforeWeekly.get(id)} -> ${noMark.get(id)}`).join(', ')}`
-    : 'if this passes without the mark too, the mark is doing nothing and the assertion above is vacuous'
+    : `heavy enough to move and did not: ${unexplained.map((id) => `${id}: ${beforeWeekly.get(id)} -> ${noMark.get(id)}`).join(', ')}`
+);
+check(
+  // Non-vacuity, stated on its own rather than folded into a majority: if the
+  // whole session were light enough to be excused, the rule above would pass
+  // with the mark doing nothing at all.
+  'and at least some of the session really does move, so the mark is not doing nothing',
+  heavierNoMark.length > 0,
+  'every shared weight was excused by the grid, which makes the comparison above vacuous'
 );
 check(
   'by up to a fifth, which is the ceiling the multiplier reaches',

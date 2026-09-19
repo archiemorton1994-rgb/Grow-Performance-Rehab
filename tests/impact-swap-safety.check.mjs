@@ -265,6 +265,118 @@ check(
   `${kneeBodyweight.length} exercises across ${TYPES.length} sessions — screening should adapt, not strip`
 );
 
+// ─── 6. The same rule for an area nothing hurts on today ─────────────────────
+//
+// SECTIONS 4 AND 5 ASK TODAY'S QUESTION. Every session above reports pain on
+// the readiness screen, so every one of them tests the answer somebody gave
+// this morning. The two areas that are NOT reported this morning - the one a
+// clinician told them to stay off, and the one that was already sore when they
+// signed up - are the whole reason a shoulder avoided for six months answers
+// "nothing hurts" every single time.
+//
+// WHAT WENT WRONG, and why nothing here caught it. When Lower Body was switched
+// onto the exercise library, the merge that folds those two lists into the
+// screened regions was computed BELOW the library's early return. The library
+// builder does the same merge for its own picking, so the session that appeared
+// on screen was clean and every existing check stayed green - but the swap
+// sheet is filled in the engine, and it was being filled from the raw readiness
+// answer. Measured at the time: a Lower Body session for somebody with a
+// standing knee problem and nothing sore today offered "Jump Lunge + Skater
+// Hop Round" and "Barbell Bulgarian Split Squat" one tap behind the button.
+//
+// So this sweep asks section 4's question with the pain moved off the readiness
+// screen and onto the profile, across both questions, every area, every session
+// type - the library ones and the old-engine ones - and every tier.
+console.log('\n[6] And for an area named on the profile rather than reported today');
+
+{
+  let standingSessions = 0;
+  let offered = 0;
+  const behindButton = [];
+  const nothingOffered = [];
+
+  for (const which of ['standingSoreRegions', 'clinicalAvoid']) {
+    for (const region of Object.keys(RESTRICTED_BY_REGION)) {
+      const banned = restrictedTagsFor([region], advanced.experienceLevel, 'mild');
+      for (const type of TYPES) {
+        for (const tier of TIERS) {
+          const ex = generateWorkout(
+            type,
+            tier,
+            // Nothing sore this morning. That is the point.
+            { hasAches: false, energy: 'normal', timeAvailable: '60' },
+            { ...advanced, [which]: [region] },
+            undefined,
+            undefined,
+            3
+          );
+          standingSessions++;
+          const where = `${which}/${region}/${type}/${tier}`;
+          let here = 0;
+          for (const e of ex) {
+            // Chosen FOR the area, exempt on purpose — see SCREEN_EXEMPT_CATEGORIES.
+            if (e.category === 'prehab') continue;
+            // A safety substitution carries the exercise it replaced, as the revert.
+            if (e.safetyNote?.startsWith('Swapped from')) continue;
+            for (const alt of [e.swapName, e.swap2Name]) {
+              if (!alt) continue;
+              here++;
+              offered++;
+              const hits = restrictedTagsOn(alt, banned);
+              if (hits.length > 0) behindButton.push(`${where}: ${e.name} → ${alt} [${hits}]`);
+            }
+          }
+          if (here === 0) nothingOffered.push(where);
+        }
+      }
+    }
+  }
+
+  check(
+    `the swap button never offers an area a clinician ruled out (${standingSessions} sessions, ${offered} alternatives)`,
+    behindButton.length === 0,
+    behindButton.slice(0, 6).join(' | ')
+  );
+  check(
+    // Without this the assertion above passes the day the swap sheet goes empty,
+    // which is the other way to serve nobody an unsafe alternative.
+    'and there is still something behind every session\'s button to be safe about',
+    nothingOffered.length === 0 && offered > standingSessions * 3,
+    `${nothingOffered.length} sessions with no alternative at all: ${nothingOffered.slice(0, 5).join(', ')}`
+  );
+
+  // The reported case named in the review, kept as its own line so a failure
+  // says which session it was rather than only how many.
+  const kneeLower = generateWorkout(
+    'lower_body',
+    'fullgym',
+    { hasAches: false, energy: 'normal', timeAvailable: '60' },
+    { ...advanced, standingSoreRegions: ['knee'] },
+    undefined,
+    undefined,
+    3
+  );
+  const kneeBanned = restrictedTagsFor(['knee'], advanced.experienceLevel, 'mild');
+  check(
+    'a Lower Body session for a standing knee problem is clean behind the button too',
+    kneeLower
+      .filter((e) => e.category !== 'prehab' && !e.safetyNote?.startsWith('Swapped from'))
+      .every(
+        (e) =>
+          [e.swapName, e.swap2Name].filter(Boolean).every(
+            (alt) => restrictedTagsOn(alt, kneeBanned).length === 0
+          )
+      ),
+    kneeLower
+      .flatMap((e) =>
+        [e.swapName, e.swap2Name]
+          .filter((a) => a && restrictedTagsOn(a, kneeBanned).length > 0)
+          .map((a) => `${e.name} → ${a}`)
+      )
+      .join(' | ')
+  );
+}
+
 console.log('');
 if (failures > 0) {
   console.error(`impact-swap-safety: ${failures}/${total} check(s) FAILED\n`);
