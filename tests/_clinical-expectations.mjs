@@ -57,6 +57,14 @@ export const CLINICAL = {
       'Bodyweight Squats',
       'Box Squats',
       'Kettlebell Goblet Squats',
+      // The two squats written in Stage 3 that exist to be the regression. A
+      // sore knee has just lost every barbell squat above, and these are what
+      // it is handed instead: one where the straps take some of the weight and
+      // one where a box decides the depth. Pinned here because a tag added to
+      // either of them in passing would take away the replacement along with
+      // the movement, and nothing else would notice.
+      'Assisted Squats',
+      'Kettlebell Box Squats',
       'Glute Bridge',
       'Barbell Deadlift',
       'Plank',
