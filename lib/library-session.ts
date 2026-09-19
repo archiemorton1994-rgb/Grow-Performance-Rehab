@@ -292,8 +292,14 @@ const PATTERN_WORDS: Record<LibraryPattern, string> = {
   core: 'core',
 };
 
-/** Kit, in the words somebody ticking a box would use. */
-const KIT_WORDS: Record<KitKey, string> = {
+/**
+ * Kit, in the words somebody ticking a box would use.
+ *
+ * Exported so the conditioning session next door says "a rowing machine" in the
+ * same words this one does. Two copies of this table is how one of them starts
+ * calling a sled "a sled" on one screen and "a prowler" on the next.
+ */
+export const KIT_WORDS: Record<KitKey, string> = {
   plates: 'weight plates',
   blocks: 'a block',
   bench: 'a bench',
@@ -455,7 +461,7 @@ function kitThatWouldUnlock(
 }
 
 /** "Dumbbells or a kettlebell would open more up." */
-function kitSentence(keys: KitKey[]): string {
+export function kitSentence(keys: KitKey[]): string {
   if (keys.length === 0) return 'Nothing on the equipment list would change that.';
   const words = keys.map((k) => KIT_WORDS[k]);
   const list = words.length === 1 ? words[0] : `${words[0]} or ${words[1]}`;
