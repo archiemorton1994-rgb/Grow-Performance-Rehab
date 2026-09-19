@@ -114,20 +114,23 @@ const READINESS_TUTORIAL = [
      * two halves swap over: a library session takes a set off EVERY exercise
      * when you say low and adds one when you say high, and its finisher comes
      * off the conditioning list by rotation rather than by how you feel. So the
-     * card names both and promises neither everywhere, because which one you
-     * get depends on the session.
+     * card named both and promised neither everywhere, because which one you
+     * got depended on the session.
      *
-     * THE HEDGE HAS TO COVER BOTH CLAUSES, which it did not: "fewer or more
-     * sets where the session can move them, and an easier or harder finisher"
-     * qualified the sets and then promised the finisher flatly. A Lower Body
-     * session at low, normal and high gives the same finisher all three times,
-     * because the library picks it by rotation. One "depending on the session"
-     * at the end now covers the pair of them.
+     * AND THE FINISHER HALF IS NOW GONE, because the session it was true of is.
+     * Full Body was the last type the old engine built, and with it switched
+     * over there is no session anywhere that picks a different finisher when
+     * you say you feel flat. What the answer moves, on all three types, is the
+     * sets: 14 / 19 / 24 on a Lower or Upper Body hour and 17 / 23 / 29 on a
+     * Full Body one. So the sentence says the one thing that is true of every
+     * session rather than hedging between two, and the hedge goes with it.
      *
      * tests/guided-tour.check.mjs generates all three at each answer and fails
-     * if any of that stops matching, which is the signal to re-read this.
+     * if any of that stops matching, which is the signal to re-read this. It
+     * also fails if the finisher starts moving with energy again while the card
+     * stays quiet about it.
      */
-    body: 'Low gives you an easier session and high a harder one: fewer or more sets, or an easier or harder finisher, depending on the session. It does not change the weight on the bar, which comes from what you lifted last time.',
+    body: 'Low gives you an easier session and high a harder one: fewer or more sets on every exercise in it. It does not change the weight on the bar, which comes from what you lifted last time.',
   },
   {
     iconName: 'time-outline',
@@ -147,27 +150,25 @@ const READINESS_TUTORIAL = [
      * which put a Power Primer and an Activation drill in and reached its
      * finisher at 45. No session the app builds has any of that.
      *
-     * COUNTED AGAIN when Lower Body moved to Archie's library, which ends its
-     * 45 with a Cool Down rather than with Prehab: it only puts Prehab in when
-     * there is an area to look after. Both are named, because while the switch
-     * is half done both are true - a session off the library gets the Cool Down
-     * and one the old engine still builds gets the Prehab - and neither is
-     * promised as the only one. Upper Body has since moved across too, so Full
-     * Body is the one that still ends its 45 on Prehab.
+     * COUNTED AGAIN, now that all three of them are built from Archie's list.
+     * Every type gives the same shape: 30 is Warm-Up, main lift and
+     * Accessories; 45 adds a Cool Down; 60 adds a Finisher. Nothing is taken
+     * away as the session gets longer, on any type, at any tier.
      *
-     * AND THE LAST SENTENCE WAS AN OVER-PROMISE FOR THE SESSIONS THE OLD ENGINE
-     * BUILDS. It said 60 "adds a Finisher on top", which is true of a library
-     * session and false of one of those, where the Finisher goes in and the
-     * Prehab comes out. Counted at every tier: a full_body session at 45 ends
-     * Prehab then Cool Down, and at 60 ends Finisher then Cool Down with no
-     * Prehab at all. So the sentence says what happens to the block it replaces
-     * rather than implying nothing is lost. The 30 and 45 clauses are unchanged.
+     * SO TWO THINGS CAME OUT OF THIS CARD. Prehab, because it is not a
+     * duration any more: a library session puts a rehab drill in whenever
+     * there is an area to look after, and it does that at 30, 45 and 60 alike,
+     * so naming it under 45 told somebody the wrong reason they were or were
+     * not getting one. And "goes in instead of the Prehab", because no session
+     * loses a block by being longer now. That clause was true of the old
+     * engine's Full Body day, which ended 45 on Prehab and 60 on the Finisher
+     * with the Prehab gone, and that day is not built any more.
      *
      * The block names are capitalised because they are the badges printed on
      * the cards themselves - see components/SessionPlanList.tsx - so the words
      * here are the words the user is about to read.
      */
-    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and eases you out of it, with a Cool Down or some Prehab for the joints you have just loaded. 60 adds a Finisher, which on some sessions goes in instead of the Prehab.',
+    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and adds a Cool Down to ease you out of it. 60 adds a Finisher on top.',
   },
 ] as const;
 

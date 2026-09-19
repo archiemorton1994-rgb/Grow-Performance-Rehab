@@ -1100,7 +1100,7 @@ console.log('\n[13] Reps climb, then the weight goes up; a stall deloads; time a
  * stays a promise the app has to keep rather than one it gets to withdraw.
  */
 /** Switched over, one line per phase, and never taken out again. */
-const ALREADY_SWITCHED = ['lower_body', 'upper_body'];
+const ALREADY_SWITCHED = ['lower_body', 'upper_body', 'full_body'];
 console.log('\n[14] generateWorkout serves the library for every live type');
 {
   const offList = [];

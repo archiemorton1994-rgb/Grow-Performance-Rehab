@@ -319,15 +319,16 @@ console.log('\n[3] Every card and every box, across every session type and tier'
           // states one weight, or a range whose bottom the app prescribes, the
           // first number on the card IS the number in the box.
           //
-          // Kettlebells are excluded, and only kettlebells. `applyKettlebellNaming`
-          // rewrites the load SENTENCE to the nearest real bell after the load
-          // has been worked out, and does not touch the structured weight behind
-          // it — so a KB Good Morning has said "8 kg" on the card and prefilled
-          // 5 kg for as long as the two have existed. That is a kilogram bug as
-          // much as a pounds one (section 4 proves it), it changes what a
-          // kettlebell user is told to lift, and it is not this fix.
+          // KETTLEBELLS USED TO BE EXCLUDED HERE, AND ARE NOT ANY MORE.
+          // `applyKettlebellNaming` rewrote the load SENTENCE to the nearest
+          // real bell after the load had been worked out, without touching the
+          // structured weight behind it, so a KB Good Morning said "8 kg" on
+          // the card and prefilled 5 kg. That renaming only ever ran inside the
+          // old weekly generator, and with Full Body switched over no lifting
+          // session reaches it, so the gap has closed on its own. Section 4
+          // holds it closed in both units.
           const card = cardNumbers(ex, 'lbs');
-          if (tier !== 'kettlebells' && card.length > 0 && box.length > 0) {
+          if (card.length > 0 && box.length > 0) {
             const boxTop = kgToDisplayUnit(box.at(-1), 'lbs');
             const cardTarget = card.length >= box.length ? card.at(-1) : card[0];
             const matches = card.includes(boxTop) || cardTarget === boxTop || card[0] === kgToDisplayUnit(box[0], 'lbs');
@@ -409,18 +410,25 @@ console.log('\n[4] The kilogram user sees exactly what they saw before');
     'snapToLoadable must be identity for kg'
   );
 
-  // The one card/box disagreement section 3 skips, pinned here so it is on the
-  // record rather than quietly excluded. If this ever passes, the exclusion in
-  // section 3 should go with it.
   /**
-   * Swept over every session type rather than asked of a Lower Body one.
+   * THE KETTLEBELL CARD AND ITS BOX NOW AGREE, AND THIS IS WHAT HOLDS THEM TO IT.
    *
-   * `applyKettlebellNaming` belongs to the old engine, and Lower Body is built
-   * from Archie's library now, so the session this probe used to build cannot
-   * show the gap any more. That is not the bug being fixed - every other
-   * session type still goes through the renaming - and a probe that reported
-   * "fixed" because it was pointed at the one session that had moved would have
-   * taken the exclusion out of section 3 while the gap was still there.
+   * This used to be the opposite assertion. `applyKettlebellNaming` rewrote the
+   * load sentence to the nearest real bell after the load had been worked out
+   * and left the structured weight behind it alone, so a kettlebell card named
+   * one weight and prefilled another, in kilograms as much as in pounds.
+   * Section 3 skipped the kettlebell tier because of it and this pinned the
+   * gap, in both units, so that it was on the record rather than quietly
+   * excluded - and said in its own failure message that if it ever passed, the
+   * exclusion should go with it.
+   *
+   * It passes. The renaming only ever ran inside the old weekly generator, and
+   * with Full Body switched over there is no lifting session left that reaches
+   * it. So the exclusion in section 3 is gone and every kettlebell card is now
+   * swept with the rest, and this asks the same question the other way up: the
+   * first weight a kettlebell card names is the weight its box prefills, in
+   * kilograms and in pounds. Swept over every session type, because a type that
+   * came back to the old engine would bring the gap back with it.
    */
   const kbMismatch = (unit) => {
     for (const type of SESSION_TYPES) {
@@ -437,11 +445,10 @@ console.log('\n[4] The kilogram user sees exactly what they saw before');
   const inKg = kbMismatch('kg');
   const inLbs = kbMismatch('lbs');
   check(
-    'the kettlebell card/box gap is pre-existing and unit-independent, not a pounds defect',
-    inKg !== null && inLbs !== null,
-    `kg: ${inKg} | lbs: ${inLbs} — if both are null the bug is fixed and section 3 should stop skipping kettlebells`
+    'a kettlebell card names the weight its box prefills, in both units',
+    inKg === null && inLbs === null,
+    `kg: ${inKg} | lbs: ${inLbs} — the load sentence and the structured weight behind it have come apart again`
   );
-  console.log(`     (known, untouched: kg ${inKg})`);
 }
 
 // ─── 5. "New Record!" ────────────────────────────────────────────────────────

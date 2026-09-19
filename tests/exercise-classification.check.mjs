@@ -16,6 +16,24 @@
  * tier) and where the session generator FILES it (its category). Those had been
  * the same field doing two jobs.
  *
+ * WHAT READS THESE RULES, AND WHAT ARCHIE'S LIBRARY ADDED
+ * ──────────────────────────────────────────────────────
+ * In the app, `canBeMainLift` and `tierOf` are read by the CUSTOM session
+ * builder and nowhere else (lib/session-builder.ts, app/custom-session.tsx),
+ * over the old catalogue in lib/exercise-db.ts. Sections 1 to 3 are that
+ * contract and it is still live. The Train sessions do not consult these rules
+ * at all: lib/library-session.ts walks each pattern's own pool down the level
+ * ladder, so what may lead one of those is a property of Archie's list.
+ *
+ * Section 3b is the piece the library did add, and it is not decoration.
+ * tests/session-variety.check.mjs holds the promise that no isolation movement
+ * ever leads a Train session, and it asks that question by running `tierOf`
+ * over library RECORDS - a shape these rules were never written for. If the
+ * classifier answered "compound" for everything it was handed off that list,
+ * because a field it reads is spelled differently there, that promise would go
+ * quietly green while the app got worse. So this asks the rules to prove they
+ * really discriminate over Archie's list before another file leans on them.
+ *
  * Run:  npx tsx tests/exercise-classification.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -146,6 +164,58 @@ check(
   tierOf(get('Nordic Hamstring Curl')) !== 'isolation',
   'a nordic curl is not a bicep curl'
 );
+
+// ─── 3b. The rules answer honestly about Archie's library too ────────────────
+console.log("\n[3b] And they really discriminate over Archie's list");
+
+const { LIBRARY_EXERCISES } = await import('../lib/exercise-library.ts');
+const libTier = new Map(LIBRARY_EXERCISES.map((r) => [r.name, tierOf(r)]));
+const libCount = (t) => [...libTier.values()].filter((x) => x === t).length;
+
+check(
+  `every record in the library gets an answer (${LIBRARY_EXERCISES.length} records)`,
+  LIBRARY_EXERCISES.length > 100 && [...libTier.values()].every(Boolean),
+  'a record the rules cannot read would be silently absent from every tier below'
+);
+
+/**
+ * ALL THREE TIERS, because one tier for everything is the failure mode.
+ *
+ * A library record is not an ExerciseTemplate, and if a field the rules read
+ * were spelled differently there `tierOf` would fall through to one answer for
+ * the whole list rather than throwing. Measured today: 123 compound, 33
+ * accessory, 4 isolation. The bar is set at "each tier has something in it",
+ * not at those numbers, so re-levelling an exercise does not fail this.
+ */
+check(
+  `all three tiers are represented (${libCount('primary_compound')} compound, ${libCount('accessory')} accessory, ${libCount('isolation')} isolation)`,
+  libCount('primary_compound') > 0 && libCount('accessory') > 0 && libCount('isolation') > 0,
+  'one tier for the whole library means the rules are not reading it, and every check that leans on them is green for nothing'
+);
+
+/**
+ * And on the records a physio would name, one per tier.
+ *
+ * The Banded Serratus Punch is the interesting one: it is support work aimed at
+ * a stabiliser, and it is the single exception written down in
+ * tests/session-variety.check.mjs for the exercise that may lead a session.
+ * If it ever reads as a compound here, that exception goes stale there, so the
+ * two files fail together rather than drifting apart.
+ */
+for (const [name, tier] of [
+  ['Barbell Deadlift', 'primary_compound'],
+  ['Push Up', 'primary_compound'],
+  ['Banded Serratus Punch', 'accessory'],
+  ['Banded Face Pulls', 'isolation'],
+]) {
+  check(
+    `"${name}" reads as ${tier}`,
+    libTier.get(name) === tier,
+    libTier.has(name)
+      ? `read as ${libTier.get(name)}`
+      : 'not in the library at all, so this assertion has stopped measuring anything'
+  );
+}
 
 // ─── 4. The plate calculator ─────────────────────────────────────────────────
 console.log('\n[4] What to actually put on the bar');

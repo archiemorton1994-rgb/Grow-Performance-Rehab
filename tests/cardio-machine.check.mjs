@@ -33,11 +33,19 @@
  * A library session opens on one of the nine conditioning exercises at an easy
  * pace (plan section 1), which is a pulse raiser rather than a machine chosen
  * to prime a half of the body: two of the nine are not machines at all, and
- * Archie's list is what a session is allowed to draw on. So the machine rules
- * below are asked of the session types the old engine still builds, and the
- * types that have been switched over are held to their own rule in section 2b.
- * Which types those are is read from the app (LIBRARY_LIVE_TYPES) rather than
- * listed here, so this file follows the switch instead of pinning it.
+ * Archie's list is what a session is allowed to draw on.
+ *
+ * ALL THREE WEEKLY TYPES ARE NOW ON THE LIBRARY, so no generated session opens
+ * on a cardio machine at all. That does not retire the machine rules, it moves
+ * where they are asked: the machines are still reachable, through the warm-up
+ * card's own picker, and what that picker offers is decided by
+ * `cardioWarmupPoolForSession` and `machinesForFocus`. So the "primes the half
+ * of the body the session loads" rule is asked of the picker in sections 2 and
+ * 4, where the decision is actually made, rather than of a session that no
+ * longer contains a machine; the generated sessions are held to opening on
+ * Archie's list instead (section 2b). Which types are on the library is read
+ * from the app (LIBRARY_LIVE_TYPES) rather than listed here, so this file
+ * follows the switch instead of pinning it.
  *
  * Run:  npx tsx tests/cardio-machine.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -135,37 +143,24 @@ function openings() {
 }
 
 const rows = openings();
-/** The sessions the machine rules are about: the ones the old engine builds. */
+/** Any row the old engine still builds. All six weekly types have left it. */
 const oldEngine = rows.filter((r) => !r.library);
 const fromLibrary = rows.filter((r) => r.library);
-const gym = oldEngine.filter((r) => r.tier === 'fullgym');
-const home = oldEngine.filter((r) => r.tier !== 'fullgym');
+const gym = fromLibrary.filter((r) => r.tier === 'fullgym');
+const home = fromLibrary.filter((r) => r.tier !== 'fullgym');
 
 console.log('\n[1] The sessions were really generated');
 
-/**
- * THE GYM FLOOR IS DERIVED, NOT A NUMBER THAT GETS LOWERED EACH PHASE.
- *
- * Every session type switched over to the library leaves the old engine, and a
- * written-down floor would have to come down with it - which is the same as not
- * checking. So the floor is every combination the old engine still builds: one
- * row per remaining type, per session length, per seed, at the gym tier. If a
- * single one of those stops opening on a warm-up the count falls short and this
- * fails, and when the last type switches the count is zero and it says so.
- */
-const oldEngineTypes = [...new Set(oldEngine.map((r) => r.sessionType))];
-const expectedGym = oldEngineTypes.length * SWEPT_TIMES.length * SWEPT_SEEDS;
-
 check(
-  `${rows.length} sessions opened, ${gym.length} of them in a gym on the old engine (${oldEngineTypes.join(', ') || 'none left'})`,
-  rows.length > 500 && oldEngineTypes.length > 0 && gym.length === expectedGym,
-  `expected ${expectedGym} gym openings from ${oldEngineTypes.length} old-engine types, got ${gym.length} - everything below measures nothing if this is small`
+  `${rows.length} sessions opened, all ${fromLibrary.length} of them from the library`,
+  rows.length > 500 && fromLibrary.length === rows.length,
+  `${oldEngine.length} row(s) still came from the old engine (${[...new Set(oldEngine.map((r) => r.sessionType))].join(', ')}) - LIBRARY_LIVE_TYPES is ${LIBRARY_LIVE_TYPES.join(', ') || 'empty'}`
 );
 
 check(
-  `and ${fromLibrary.length} of them came from the library`,
-  fromLibrary.length > 100,
-  `LIBRARY_LIVE_TYPES is ${LIBRARY_LIVE_TYPES.join(', ') || 'empty'}, so section 2b measures nothing`
+  `and both halves of the sweep are populated (${gym.length} gym, ${home.length} home)`,
+  gym.length > 0 && home.length > 0,
+  'sections 2b and 3 measure nothing if either is empty'
 );
 
 check(
@@ -183,36 +178,30 @@ const UPPER = new Set(
   CARDIO_MACHINES.filter((m) => m.primes === 'upper').map((m) => `cardio-machine-${m.id}`)
 );
 
-check(
-  'a gym session always opens on a machine',
-  gym.every((r) => CARDIO_MACHINE_IDS.includes(r.first.id)),
-  gym
-    .filter((r) => !CARDIO_MACHINE_IDS.includes(r.first.id))
-    .slice(0, 3)
-    .map((r) => `${r.sessionType} opened on ${r.first.name}`)
-    .join('; ')
-);
-
 /**
- * Every day the old engine still builds, against the half it loads.
+ * THE RULE MOVED TO THE PICKER, BECAUSE THAT IS WHERE THE CHOICE IS MADE NOW.
  *
- * Asked per row through `cardioFocusForSession` rather than by naming leg days
- * and pressing days, so that a session type moving to the library takes its
- * rows out of here without leaving an assertion pinned to a type nothing
- * generates. A session whose focus is 'both' has no wrong machine to open on.
+ * No generated session contains a machine any more, so asking "does this gym
+ * day open on the right machine" would sweep an empty list and pass for ever.
+ * The machines are still offered: the warm-up card's picker draws on
+ * `cardioWarmupPoolForSession`, which is the same function the old generator
+ * picked from. So the promise is asked of it directly, per session type,
+ * through `cardioFocusForSession` rather than by naming leg days and pressing
+ * days, and a type whose focus is 'both' has no wrong machine to offer.
  */
 const FOCUS_MACHINES = { lower: LOWER, upper: UPPER };
-const misprimed = gym.filter((r) => {
-  const suits = FOCUS_MACHINES[cardioFocusForSession(r.sessionType)];
-  return suits ? !suits.has(r.first.id) : false;
-});
+const misprimed = [];
+for (const sessionType of SWEPT_TYPES) {
+  const suits = FOCUS_MACHINES[cardioFocusForSession(sessionType)];
+  if (!suits) continue;
+  for (const tpl of cardioWarmupPoolForSession(sessionType)) {
+    if (!suits.has(tpl.id)) misprimed.push(`${sessionType} would offer ${tpl.name}`);
+  }
+}
 check(
-  `every gym day opens on a machine that primes what it loads (${gym.length} checked)`,
-  gym.length > 0 && misprimed.length === 0,
-  misprimed
-    .slice(0, 3)
-    .map((r) => `${r.sessionType} opened on ${r.first.name}`)
-    .join('; ')
+  `every session type offers only machines that prime what it loads (${SWEPT_TYPES.length} types)`,
+  misprimed.length === 0,
+  misprimed.slice(0, 3).join('; ')
 );
 
 /**
@@ -220,16 +209,27 @@ check(
  *
  * Not decoration. A single fixed machine per session type is what the old code
  * effectively did, and the comment in the catalogue claimed otherwise for
- * years. If this ever drops to one, the rotation has quietly died again.
+ * years. If this ever drops to one, somebody standing in front of an occupied
+ * rower has nowhere to go.
  */
-for (const type of [...new Set(gym.map((r) => r.sessionType))]) {
-  const seen = new Set(gym.filter((r) => r.sessionType === type).map((r) => r.first.name));
+for (const sessionType of SWEPT_TYPES) {
+  const pool = cardioWarmupPoolForSession(sessionType);
   check(
-    `${type} days rotate between machines rather than always naming one`,
-    seen.size >= 2,
-    `only ever saw: ${[...seen].join(', ')}`
+    `${sessionType} offers more than one machine rather than always naming one`,
+    new Set(pool.map((tpl) => tpl.id)).size >= 2,
+    `only ever offers: ${pool.map((tpl) => tpl.name).join(', ') || 'nothing'}`
   );
 }
+
+check(
+  'and no generated session opens on a machine any more',
+  rows.every((r) => !CARDIO_MACHINE_IDS.includes(r.first.id)),
+  rows
+    .filter((r) => CARDIO_MACHINE_IDS.includes(r.first.id))
+    .slice(0, 3)
+    .map((r) => `${r.sessionType}/${r.tier} opened on ${r.first.name}`)
+    .join('; ')
+);
 
 console.log('\n[2b] A library session opens on one of the nine, at an easy pace');
 
@@ -287,8 +287,8 @@ check(
 console.log('\n[3] Nothing changed for somebody without a gym');
 
 check(
-  'a home session never opens on a machine',
-  home.every((r) => !CARDIO_MACHINE_IDS.includes(r.first.id)),
+  `a home session never opens on a machine (${home.length} checked)`,
+  home.length > 0 && home.every((r) => !CARDIO_MACHINE_IDS.includes(r.first.id)),
   home
     .filter((r) => CARDIO_MACHINE_IDS.includes(r.first.id))
     .slice(0, 3)
@@ -296,11 +296,25 @@ check(
     .join('; ')
 );
 
+/**
+ * Asked of the record's own kit rather than of a name regex.
+ *
+ * The old rule matched "march", "swing", "rope" or "skip" in the name, which
+ * were the four things the old engine's home warm-ups were called. A library
+ * session opens on Bear Crawl, Duck Walks or Skipping, and two of those three
+ * match nothing in that list - so the rule would have gone red on a home
+ * warm-up that is in fact perfectly equipment-free. `canPerformWith` answers
+ * the question the rule was always asking, and it answers it for whatever
+ * Archie's list holds next.
+ */
+const needsKitAtHome = home.filter((r) => {
+  const record = conditioningByName.get(r.first.name);
+  return record ? !canPerformWith(record, [r.tier]) : false;
+});
 check(
-  'and it opens on something that needs no equipment',
-  home.every((r) => /bodyweight/i.test(r.first.suggestedLoad) || /march|swing|rope|skip/i.test(r.first.name)),
-  home
-    .filter((r) => !/bodyweight/i.test(r.first.suggestedLoad) && !/march|swing|rope|skip/i.test(r.first.name))
+  'and it opens on something that needs no equipment they have not got',
+  needsKitAtHome.length === 0,
+  needsKitAtHome
     .slice(0, 3)
     .map((r) => `${r.tier} was given ${r.first.name} (${r.first.suggestedLoad})`)
     .join('; ')
@@ -358,16 +372,24 @@ check(
   'the duration is the prescription; the machine is not allowed to change it'
 );
 
+/**
+ * Asked of the pool the picker offers, not of a generated session.
+ *
+ * No session opens on a machine now, so a sweep of generated cards holds none
+ * of them and both of these would have gone quietly vacuous. What a person can
+ * still be given is whatever is in the picker, so that is what is measured.
+ */
+const offered = SWEPT_TYPES.flatMap((t) => cardioWarmupPoolForSession(t));
 check(
-  'every generated machine warm-up asks for minutes',
-  gym.every((r) => /\d+\s*min/.test(r.first.reps)),
+  `every machine the picker offers asks for minutes (${offered.length} checked)`,
+  offered.length > 0 && offered.every((tpl) => /\d+\s*min/.test(tpl.reps)),
   'the session screen decides to draw a warm-up TIMER by matching minutes in the prescription'
 );
 
 check(
-  'and every machine in a session asks for the same duration',
-  new Set(gym.map((r) => r.first.reps)).size === 1,
-  `saw: ${[...new Set(gym.map((r) => r.first.reps))].join(' | ')}`
+  'and every machine it offers asks for the same duration',
+  new Set(offered.map((tpl) => tpl.reps)).size === 1,
+  `saw: ${[...new Set(offered.map((tpl) => tpl.reps))].join(' | ')}`
 );
 
 console.log('\n[6] The picker is actually wired to the screen');

@@ -7,49 +7,57 @@
  * time?" It was, and the reason was not the rotation engine — that already
  * existed and was already used. It was the pool:
  *
- *   WEEKLY_UPPER_BODY / _LOWER_BODY / _FULL_BODY are hand-written lists of five
- *   or six exercises per tier, held separately from the exercise database. With
- *   four required movement patterns out of a pool of five, an upper body session
- *   had exactly one rotating slot — and none at all at 30 minutes.
- *
- * Meanwhile the database holds 447 pickable exercises and the KPI sessions have
- * been drawing accessories from pools of 14-18 the whole time. The optional
- * slots in a weekly session now come from that same accessory pool.
+ *   WEEKLY_UPPER_BODY / _LOWER_BODY / _FULL_BODY were hand-written lists of
+ *   five or six exercises per tier, held separately from the exercise database.
+ *   With four required movement patterns out of a pool of five, an upper body
+ *   session had exactly one rotating slot — and none at all at 30 minutes.
  *
  * Two things must hold together, and they pull against each other:
  *   VARIETY  — the accessories must genuinely change between sessions
- *   COHERENCE— the required movement patterns must still be covered, the
- *              curated choices must still lead, and the main lift must stay put
- *              most of the time because it is the thing being progressed
+ *   COHERENCE— the session must still be about what it is called, nothing may
+ *              appear twice, and the main exercise must stay put most of the
+ *              time because it is the thing being progressed
  *
- * WHAT THE LIBRARY CHANGED. The session types built from Archie's library
- * (LIBRARY_LIVE_TYPES) do not draw on the curated weekly lists at all, so the
- * coverage and duplicate rules below, which are written against those lists,
- * are asked only of the types the old engine still builds. Their own coverage
- * rule - every pattern the session asked for is in it or the gap is declared -
- * is held by tests/train-library.check.mjs, which is where it belongs, because
- * the patterns a library session asks for are the library's own.
+ * WHAT THE LIBRARY CHANGED, AND WHY THIS FILE IS NOW ALL BEHAVIOUR
+ * ───────────────────────────────────────────────────────────────
+ * Lower, Upper and Full Body are all built from Archie's library now
+ * (LIBRARY_LIVE_TYPES in lib/workout-engine.ts), so the curated weekly lists
+ * and the wide accessory pool that this file was written about build nothing at
+ * all. Three kinds of assertion have gone with them, and each is replaced by
+ * the same promise asked of the builder that does run:
  *
- * The main lift still has to stay put, and that IS asked of both, because it is
- * the same promise about progression whoever built the session. A library
- * session alternates which pattern leads - squat, then hinge, then squat - and
- * steps along the pattern's pool every fourth session of its type, so the same
- * main comes back every other session and changes every fourth. That is more
- * faces over eight sessions than the old engine's one-in-four, and still a main
- * that repeats rather than one that is new every time.
+ *   The wiring assertions read lib/workout-engine.ts for the spellings of
+ *   `widePool`, `accessoryPool` and `MAIN_VARIATION_EVERY`. Those lines are in
+ *   a generator nothing reaches, so they had become a test that reads code
+ *   nobody runs - which is this repo's commonest defect, in the check rather
+ *   than in the app. Section 1 measures the variation instead.
+ *
+ *   The coverage assertion asked that every pattern in the curated list turned
+ *   up in the session. A library session's patterns are the library's own, and
+ *   "every pattern the session asked for is in it or the gap is declared" is
+ *   held by tests/train-library.check.mjs, where it belongs. What is asked here
+ *   instead is the half that file does not cover: a Lower Body session may only
+ *   contain lower body work, whatever the level or the kit.
+ *
+ *   The substitution assertions said a stand-in must share the movement
+ *   pattern, the muscle family and enough supporting muscles. The library
+ *   substitutes by walking the SAME pattern's pool down the level ladder, so
+ *   same-pattern is structural rather than a rule that can drift, and section 2
+ *   measures it on the cards themselves.
+ *
+ * The main exercise still has to stay put, and that IS asked of all three,
+ * because it is the same promise about progression whoever built the session. A
+ * library session alternates which pattern leads - squat, then hinge, then
+ * squat - and steps along the pattern's pool every fourth session of its type,
+ * so the same main comes back every other session and changes every fourth.
+ * That is more faces over eight sessions than the old engine's one in four, and
+ * still a main that repeats rather than one that is new every time.
  *
  * Run:  npx tsx tests/session-variety.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
 
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
 globalThis.__DEV__ = false;
-
-const __dir = dirname(fileURLToPath(import.meta.url));
-const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 
 let failures = 0;
 let total = 0;
@@ -62,87 +70,95 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Wiring ───────────────────────────────────────────────────────────────
-console.log('\n[1] Weekly sessions draw on the real accessory pool');
-
-check(
-  // Read to the END of the array literal rather than to a character count. The
-  // 160-character window this used to allow was a limit on how much the block
-  // could be commented, which is not a rule anybody meant to write: adding a
-  // comment inside widePool broke a test about where the exercises come from.
-  'the wide pool is built from getAccessories',
-  (() => {
-    const at = engineSrc.indexOf('const widePool = [');
-    if (at < 0) return false;
-    const end = engineSrc.indexOf('];', at);
-    if (end < 0) return false;
-    return /getAccessories\(accessorySource, equipmentTier\)/.test(engineSrc.slice(at, end));
-  })(),
-  'the optional slots used to be leftovers of the same five-exercise weekly list'
+const { generateWorkout, LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
+const { CONDITIONING_EXERCISES, LIBRARY_EXERCISES, patternsOf } = await import(
+  '../lib/exercise-library.ts'
 );
-check(
-  'the optional slots draw from that wide pool',
-  /const accessoryPool = widePool\.filter\(/.test(engineSrc),
-  ''
-);
-check(
-  'the main movement is resolved before the pool is filtered',
-  engineSrc.indexOf('const resolvedMainName') < engineSrc.indexOf('const accessoryPool'),
-  'otherwise an accessory can duplicate whichever variant the main became'
-);
-check(
-  'main variation is occasional, not a shuffle',
-  /const MAIN_VARIATION_EVERY = ([2-9]|\d\d);/.test(engineSrc),
-  'the main lift is what you are progressing; it needs to stay put most of the time'
-);
+const { tierOf } = await import('../lib/exercise-classification.ts');
 
-// ─── 2. Behaviour ────────────────────────────────────────────────────────────
-console.log('\n[2] Generated for real');
+/** Every record a session can serve, by the name that goes on the card. */
+const recordByName = new Map();
+for (const r of LIBRARY_EXERCISES) recordByName.set(r.name, r);
+for (const r of CONDITIONING_EXERCISES) recordByName.set(r.name, r);
 
-const { generateWorkout } = await import('../lib/workout-engine.ts');
-const {
-  getWeeklyUpperBodyExercises,
-  getWeeklyLowerBodyExercises,
-  getWeeklyFullBodyExercises,
-} = await import('../lib/exercise-db.ts');
+const TYPES = ['lower_body', 'upper_body', 'full_body'];
+const LEVELS = ['beginner', 'intermediate', 'advanced', 'athlete'];
+const TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const TIMES = ['30', '45', '60'];
 
-const profile = {
-  name: 'A',
-  sex: 'male',
-  experienceLevel: 'intermediate',
-  goals: ['muscle'],
-  bodyweightKg: 80,
-};
-const gen = (type, tier, time, n) =>
+const gen = (type, tier, time, n, level = 'intermediate') =>
   generateWorkout(
     type,
     tier,
     { energy: 'normal', timeAvailable: time, hasAches: false },
-    profile,
+    { name: 'A', sex: 'male', experienceLevel: level, goals: ['muscle'], bodyweightKg: 80 },
     {},
     undefined,
-    n
+    n,
+    undefined,
+    undefined,
+    undefined,
+    0,
+    { equipment: [tier], sessionTypeCount: n }
   );
 
-const { LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
-const builtFromLibrary = (type) => LIBRARY_LIVE_TYPES.includes(type);
+check(
+  `all three lifting sessions are built from the library (${LIBRARY_LIVE_TYPES.join(', ')})`,
+  TYPES.every((t) => LIBRARY_LIVE_TYPES.includes(t)),
+  'a type still on the old engine is not measured by anything in this file any more'
+);
 
-for (const type of ['upper_body', 'lower_body']) {
+// ─── 1. Variety, session after session ───────────────────────────────────────
+console.log('\n[1] The work moves between sessions, and the main exercise does not');
+
+/**
+ * THE BAR WAS IN THE WRONG PLACE, AND A MUTATION RUN FOUND IT.
+ *
+ * This used to ask for six distinct accessories across eight sessions, which
+ * sounds like a variety rule and is not one: a single Full Body session already
+ * holds five, so almost any behaviour clears it. Freezing the pool walk outright
+ * - SLOT_ROTATION_EVERY in lib/library-session.ts from 3 to 1000, so every slot
+ * takes the first record of its pool for ever - left it green at six and seven.
+ * The bar was sitting exactly on the failure.
+ *
+ * Two things fix it, and it takes both, because the library has two independent
+ * sources of variety and either one alone would carry the other's weight:
+ *
+ *   THE UNION, measured against what ONE session holds. Frozen, the eight
+ *     sessions between them hold barely more than one session does, because all
+ *     that is left is the pattern order turning over. Measured: 15, 16 and 18
+ *     across the three types against 4, 4 and 5 in a single session; frozen, 6,
+ *     7 and 6. The bar is twice one session's worth, which is well above the
+ *     mutant and well below the real thing.
+ *
+ *   THE SESSIONS THEMSELVES BEING DIFFERENT, which is the promise in the words
+ *     somebody would use. Six of the eight accessory lists are distinct today
+ *     and two are when the walk is frozen.
+ */
+for (const type of TYPES) {
   const accessories = new Set();
-  const mains = new Set();
   const mainCounts = new Map();
+  const lists = new Set();
+  let biggestSession = 0;
   for (let n = 0; n < 8; n++) {
     const w = gen(type, 'fullgym', '60', n);
-    w.filter((e) => e.category === 'accessory').forEach((e) => accessories.add(e.name));
+    const names = w.filter((e) => e.category === 'accessory').map((e) => e.name);
+    names.forEach((name) => accessories.add(name));
+    biggestSession = Math.max(biggestSession, new Set(names).size);
+    lists.add([...names].sort().join('|'));
     w.filter((e) => e.category === 'main').forEach((e) => {
-      mains.add(e.name);
       mainCounts.set(e.name, (mainCounts.get(e.name) ?? 0) + 1);
     });
   }
   check(
-    `${type}: accessories vary across 8 sessions (${accessories.size} distinct)`,
-    accessories.size >= 6,
-    `only ${accessories.size} — the whole point is that these rotate`
+    `${type}: 8 sessions hold far more accessories than one does (${accessories.size} across 8, ${biggestSession} in the fullest single session)`,
+    biggestSession > 0 && accessories.size >= biggestSession * 2,
+    `${accessories.size} distinct across 8 sessions when one session alone holds ${biggestSession} — the pool is not being walked`
+  );
+  check(
+    `${type}: and the sessions are not the same session twice (${lists.size} distinct accessory lists of 8)`,
+    lists.size >= 4,
+    `only ${lists.size} of 8 differ — somebody training twice a week gets the identical work`
   );
   /**
    * A main that is never repeated is a main nobody can progress. The library
@@ -151,86 +167,32 @@ for (const type of ['upper_body', 'lower_body']) {
    */
   const onceOnly = [...mainCounts].filter(([, n]) => n < 2).map(([name]) => name);
   check(
-    `${type}: the main lift stays put (${mains.size} distinct across 8)`,
-    builtFromLibrary(type)
-      ? mains.size >= 1 && mains.size <= 4 && onceOnly.length === 0
-      : mains.size >= 1 && mains.size <= 3,
+    `${type}: the main exercise stays put (${mainCounts.size} distinct across 8)`,
+    mainCounts.size >= 1 && mainCounts.size <= 4 && onceOnly.length === 0,
     onceOnly.length > 0
       ? `never repeated: ${onceOnly.join(', ')} — progression needs the same movement more than once`
-      : `${mains.size} distinct mains — progression needs the same movement most weeks`
+      : `${mainCounts.size} distinct mains — progression needs the same movement most weeks`
   );
 }
 
-// Coverage must survive the extra variety.
-const CURATED = {
-  upper_body: getWeeklyUpperBodyExercises,
-  lower_body: getWeeklyLowerBodyExercises,
-  full_body: getWeeklyFullBodyExercises,
+// ─── 2. Coherence, swept over every level, kit and length ────────────────────
+console.log('\n[2] And the session is still the session it is called');
+
+/**
+ * The patterns each session is about, written here rather than read off
+ * lib/library-session.ts.
+ *
+ * Deliberately a second opinion. Asking the builder which patterns a Lower Body
+ * session may contain and then checking that it only used those is a question
+ * that answers itself; this is the product promise stated independently, so a
+ * pattern quietly joining a session type's list fails here.
+ */
+const PATTERNS_OF_TYPE = {
+  lower_body: ['squat', 'hinge', 'lunge', 'core'],
+  upper_body: ['push', 'pull', 'core'],
+  full_body: ['squat', 'hinge', 'push', 'pull', 'core', 'lunge'],
 };
-const REQUIRED = { upper_body: 4, lower_body: 3, full_body: 6 };
-// A required exercise satisfies coverage whether it appears as itself or as one
-// of its curated grip variants — a Wide-Grip Inverted Row is still the pull that
-// slot exists to guarantee. Checking by bare name would fail the moment the
-// variant fires, which is a test problem, not a coverage problem.
-const { GRIP_VARIANTS } = await import('../lib/grip-variants.ts');
-const acceptableNames = (base) => [base, ...(GRIP_VARIANTS[base] ?? []).map((v) => v.name)];
 
-// Coverage is about MOVEMENTS, not exercise names.
-//
-// A required slot may legitimately be filled by a different exercise now — a
-// barbell row by a bent-over row, an overhead press by a landmine press — and
-// the main lift may appear as its own alternative. Asserting exact names would
-// fail on exactly the behaviour this file exists to encourage. What must hold is
-// that each required movement pattern is still present.
-const { getAllPickableExercises: pickables } = await import('../lib/exercise-db.ts');
-const templateByName = new Map(pickables().map((e) => [e.template.name, e.template]));
-// A grip variant is not in the database under its variant name, so map it back.
-const variantToBase = new Map();
-for (const [base, vs] of Object.entries(GRIP_VARIANTS)) {
-  for (const v of vs) variantToBase.set(v.name, base);
-}
-const patternOf = (name) =>
-  templateByName.get(name)?.movementPattern ??
-  templateByName.get(variantToBase.get(name))?.movementPattern;
-
-let coverageOk = true;
-const coverageDetail = [];
-/** The types these curated-list rules can still be asked of. See the header. */
-const oldEngineTypes = Object.keys(CURATED).filter((type) => !builtFromLibrary(type));
-check(
-  `the curated weekly lists still build ${oldEngineTypes.length} session type(s)`,
-  oldEngineTypes.length > 0,
-  'every type is built from the library now, so the coverage and duplicate rules below measure nothing and this section has retired'
-);
-for (const [type, getter] of Object.entries(CURATED)) {
-  if (builtFromLibrary(type)) continue;
-  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-    // Slot 0 is the main lift, which has its own alternative and is checked by
-    // the "main stays put" assertion above.
-    const requiredPatterns = getter(tier)
-      .slice(1, REQUIRED[type])
-      .map((e) => e.movementPattern)
-      .filter(Boolean);
-    for (let n = 0; n < 4; n++) {
-      const present = gen(type, tier, '60', n)
-        .filter((e) => e.category === 'main' || e.category === 'accessory')
-        .map((e) => patternOf(e.name))
-        .filter(Boolean);
-      const missing = requiredPatterns.filter((p) => !present.includes(p));
-      if (missing.length > 0) {
-        coverageOk = false;
-        coverageDetail.push(`${type}/${tier}#${n}: no ${missing.join(', ')}`);
-      }
-    }
-  }
-}
-check(
-  'every required movement pattern is present in every session',
-  coverageOk,
-  coverageDetail.slice(0, 3).join(' | ')
-);
-
-// Sessions must not contain the same movement twice because of the wider pool.
 const NOISE = new Set([
   'barbell',
   'dumbbell',
@@ -262,91 +224,120 @@ const sameMovement = (x, y) => {
     : s.size === l.size && [...s].every((w) => l.has(w));
 };
 
-let introduced = 0;
-for (const [type, getter] of Object.entries(CURATED)) {
-  if (builtFromLibrary(type)) continue;
-  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-    const curated = new Set(getter(tier).map((e) => e.name));
-    for (const time of ['30', '45', '60']) {
-      for (let n = 0; n < 8; n++) {
-        const names = gen(type, tier, time, n)
-          .filter((e) => e.category === 'main' || e.category === 'accessory')
-          .map((e) => e.name);
-        for (let i = 0; i < names.length; i++) {
-          for (let j = i + 1; j < names.length; j++) {
-            if (!sameMovement(names[i], names[j])) continue;
-            // Pairs where BOTH sides are from the pre-existing curated list are
-            // not this change's doing — e.g. Push-Up and Pike Push-Up, which are
-            // genuinely different patterns the name heuristic cannot separate.
-            if (curated.has(names[i]) && curated.has(names[j])) continue;
-            introduced++;
+/**
+ * THE ONE PAIR THAT READS AS THE SAME MOVEMENT TWICE, PINNED EXACTLY.
+ *
+ * An Upper Body session asks for push, pull, core, push, pull, and at full gym
+ * from Intermediate up the two press slots can land on the seated and the
+ * standing dumbbell press in the same session. Archie's list holds them as two
+ * exercises and they are two exercises, but a card reading "Seated Dumbbell
+ * Press" above one reading "Standing Dumbbell Press" is the complaint this rule
+ * exists for.
+ *
+ * Pinned in BOTH directions rather than tolerated: a new pair appearing fails
+ * here, and this pair disappearing fails here too, so whoever fixes it has to
+ * come back and say so. 3 of the 1,440 sessions swept.
+ */
+const KNOWN_REPEAT = ['Seated Dumbbell Press + Standing Dumbbell Press'];
+
+const offPattern = [];
+const repeats = new Map();
+const isolationMains = [];
+const weakMains = [];
+let sessions = 0;
+let workCards = 0;
+
+for (const type of TYPES) {
+  for (const level of LEVELS) {
+    for (const tier of TIERS) {
+      for (const time of TIMES) {
+        for (let n = 0; n < 8; n++) {
+          const w = gen(type, tier, time, n, level);
+          sessions++;
+          const work = w.filter((e) => e.category === 'main' || e.category === 'accessory');
+          workCards += work.length;
+          const where = `${type}/${level}/${tier}/${time}#${n}`;
+
+          for (const e of work) {
+            const record = recordByName.get(e.name);
+            if (!record) {
+              offPattern.push(`${where}: ${e.name} is not a library record at all`);
+              continue;
+            }
+            if (!patternsOf(record).some((p) => PATTERNS_OF_TYPE[type].includes(p))) {
+              offPattern.push(`${where}: ${e.name} is ${patternsOf(record).join('/')} work`);
+            }
+          }
+
+          const names = work.map((e) => e.name);
+          for (let i = 0; i < names.length; i++) {
+            for (let j = i + 1; j < names.length; j++) {
+              if (!sameMovement(names[i], names[j])) continue;
+              const pair = [names[i], names[j]].sort().join(' + ');
+              repeats.set(pair, (repeats.get(pair) ?? 0) + 1);
+            }
+          }
+
+          const main = w.find((e) => e.category === 'main');
+          const mainRecord = main ? recordByName.get(main.name) : undefined;
+          if (mainRecord && tierOf(mainRecord) === 'isolation') {
+            isolationMains.push(`${where}: ${main.name}`);
+          }
+          if (mainRecord && tierOf(mainRecord) !== 'primary_compound') {
+            weakMains.push(`${type}/${level}/${tier}: ${main.name}`);
           }
         }
       }
     }
   }
 }
-check(
-  'the wider pool introduces no duplicated movements',
-  introduced === 0,
-  `${introduced} pair(s) where an accessory repeats another exercise in the same session`
-);
-
-// ─── 3. Required slots substitute like for like ──────────────────────────────
-console.log('\n[3] Required-slot substitutes are equivalent, not merely same-pattern');
 
 check(
-  'substitutes must share the movement pattern',
-  /a\.movementPattern === t\.movementPattern &&/.test(engineSrc),
-  ''
-);
-check(
-  'and the muscle family',
-  /sameMuscleFamily\(a\.primaryMuscle, t\.primaryMuscle\)/.test(engineSrc),
-  'pattern alone lets a tricep pushdown fill the vertical-press slot'
-);
-check(
-  'and be compound enough to hold a required slot',
-  /\(a\.secondaryMuscles\?\.length \?\? 0\) >= MIN_COMPOUND_SECONDARIES/.test(engineSrc),
-  'muscle family alone lets a cable front raise replace an overhead press, leaving no vertical pressing'
-);
-check(
-  'required rotation is staggered per slot, not session-wide',
-  /\(sessionSeed \+ i\) % REQUIRED_VARIATION_EVERY !== 0/.test(engineSrc),
-  'switching every required slot at once is a different workout, not a variation'
-);
-check(
-  'the main lift is excluded from required rotation',
-  /if \(i === 0 \|\| REQUIRED_VARIATION_EVERY <= 0\) return t;/.test(engineSrc),
-  'it has its own, rarer, rotation'
+  `the sweep really built sessions (${sessions} sessions, ${workCards} pieces of work)`,
+  sessions > 1000 && workCards > 3000,
+  'nothing was generated, so everything below proves nothing'
 );
 
-// Behaviour: no isolation movement may occupy a required slot.
-const { getAllPickableExercises } = await import('../lib/exercise-db.ts');
-const byName = new Map(getAllPickableExercises().map((e) => [e.template.name, e.template]));
-const isolationInRequired = [];
-for (const [type, getter] of Object.entries(CURATED)) {
-  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-    for (let n = 0; n < 8; n++) {
-      const w = gen(type, tier, '60', n);
-      // Required slots are the first REQUIRED[type] main/accessory entries.
-      const core = w
-        .filter((e) => e.category === 'main' || e.category === 'accessory')
-        .slice(0, REQUIRED[type]);
-      for (const e of core) {
-        const t = byName.get(e.name);
-        if (!t) continue; // a grip variant or comfort swap — not a substitution
-        if ((t.secondaryMuscles?.length ?? 0) < 2 && !getter(tier).some((c) => c.name === e.name)) {
-          isolationInRequired.push(`${type}/${tier}#${n}: ${e.name}`);
-        }
-      }
-    }
-  }
-}
 check(
-  'no isolation movement ever fills a required slot',
-  isolationInRequired.length === 0,
-  isolationInRequired.slice(0, 4).join(' | ')
+  'a session only ever contains work the session is about',
+  offPattern.length === 0,
+  `${offPattern.length}: ${[...new Set(offPattern)].slice(0, 3).join(' | ')}`
+);
+
+const newRepeats = [...repeats.keys()].filter((p) => !KNOWN_REPEAT.includes(p));
+const goneRepeats = KNOWN_REPEAT.filter((p) => !repeats.has(p));
+check(
+  `nothing appears twice in a session except the pair that is written down (${repeats.size} pair(s))`,
+  newRepeats.length === 0 && goneRepeats.length === 0,
+  newRepeats.length > 0
+    ? `new: ${newRepeats.join(' | ')}`
+    : `fixed, so take it out of KNOWN_REPEAT: ${goneRepeats.join(' | ')}`
+);
+
+check(
+  'no isolation movement ever leads a session',
+  isolationMains.length === 0,
+  [...new Set(isolationMains)].slice(0, 4).join(' | ')
+);
+
+/**
+ * AND ALMOST NONE OF THEM IS SUPPORT WORK EITHER, with the exception named.
+ *
+ * `tierOf` calls a Banded Serratus Punch support work because it is aimed at a
+ * stabiliser, and it is right. It is the only record in Archie's list that ever
+ * leads a session: a Beginner whose only kit is bands has one press, one pull
+ * and that punch to choose from, and on two of the eight rotations the walk
+ * lands on it. Pinned rather than tolerated, in both directions, so a second
+ * one appearing fails here and this one going away has to be noticed.
+ */
+const KNOWN_WEAK_MAIN = 'upper_body/beginner/bands: Banded Serratus Punch';
+const unexpectedWeak = [...new Set(weakMains)].filter((m) => m !== KNOWN_WEAK_MAIN);
+check(
+  `and the exercise that leads a session is a compound one, bar the case written down (${new Set(weakMains).size})`,
+  unexpectedWeak.length === 0 && weakMains.includes(KNOWN_WEAK_MAIN),
+  unexpectedWeak.length > 0
+    ? `${unexpectedWeak.slice(0, 4).join(' | ')}`
+    : `${KNOWN_WEAK_MAIN} no longer happens, so take it out of KNOWN_WEAK_MAIN`
 );
 
 console.log('');

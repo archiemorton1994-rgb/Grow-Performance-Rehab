@@ -413,47 +413,54 @@ const eHigh = mainLiftOf(buildSession({ energy: 'high' }));
  * takes sets off every exercise in it.
  *
  * MEASURED AGAIN when Lower Body moved to Archie's library. The two halves of
- * the promise now live on different session types: the library picks its
+ * the promise then lived on different session types: the library picks its
  * finisher off the conditioning list by rotation, so energy does not move it,
  * and instead energy moves the sets on every exercise in the session. The old
- * engine, which still builds Full Body, is the other way round. Both
- * halves are measured below, each on a session type that really does it, so the
- * card cannot promise something no session does.
+ * engine, which still built Full Body, was the other way round, so both halves
+ * were measured, each on a session type that really did it.
+ *
+ * AND MEASURED AGAIN NOW FULL BODY HAS SWITCHED OVER TOO, which leaves one
+ * half standing. No session anywhere picks a different finisher because
+ * somebody said they feel flat; every session takes sets off. So the sets half
+ * is asked of all three types, and the finisher half is asked the other way
+ * round: it must NOT move, and while it does not, the card must not say it
+ * does. If a builder starts moving it again, the first half of that pair fails
+ * and the card has to earn the word back.
  */
 const finisherOf = (w) =>
   w
     .filter((e) => e.category === 'finisher')
     .map((e) => e.name)
     .join('/');
-const finishers = ['low', 'normal', 'high'].map((e) =>
-  finisherOf(buildSession({ energy: e }, 'full_body'))
-);
-check(
-  `energy changes the finisher on a Full Body session (${finishers.join(' / ')})`,
-  new Set(finishers).size === 3,
-  'if this stops being true the card describing it has to change with it'
-);
 /** Every set of work in the session, which is what "an easier session" means. */
 const workSetsAt = (energy, type) =>
   buildSession({ energy }, type)
     .filter((e) => e.category === 'main' || e.category === 'accessory')
     .reduce((n, e) => n + e.sets, 0);
-const lowerSets = ['low', 'normal', 'high'].map((e) => workSetsAt(e, 'lower_body'));
-check(
-  `and on a Lower Body session it moves the sets (${lowerSets.join(' / ')})`,
-  lowerSets[0] < lowerSets[1] && lowerSets[1] < lowerSets[2],
-  'saying you are flat has to take work off somewhere, or the question is decoration'
+for (const type of ['lower_body', 'upper_body', 'full_body']) {
+  const sets = ['low', 'normal', 'high'].map((e) => workSetsAt(e, type));
+  check(
+    `energy moves the sets on a ${type} session (${sets.join(' / ')})`,
+    sets[0] < sets[1] && sets[1] < sets[2],
+    'saying you are flat has to take work off somewhere, or the question is decoration'
+  );
+}
+const finisherMoves = ['lower_body', 'upper_body', 'full_body'].filter(
+  (type) =>
+    new Set(['low', 'normal', 'high'].map((e) => finisherOf(buildSession({ energy: e }, type))))
+      .size > 1
 );
-const fullMain = (energy) => mainLiftOf(buildSession({ energy }, 'full_body'));
 check(
-  `and on a Full Body session it moves the sets (${fullMain('low')?.sets} / ${fullMain('normal')?.sets} / ${fullMain('high')?.sets})`,
-  fullMain('low') != null && fullMain('low').sets < fullMain('normal').sets,
-  'saying you are flat has to take work off somewhere, or the question is decoration'
+  `no session picks its finisher by how you feel, and the card does not claim one does (${finisherMoves.join(', ') || 'none move'})`,
+  finisherMoves.length === 0 && !/\bfinisher\b/i.test(energyCopy),
+  finisherMoves.length > 0
+    ? `${finisherMoves.join(', ')} moved its finisher with energy, so the card has to say so again`
+    : 'the card still names the finisher, and nothing it builds changes one'
 );
 check(
-  'and the card names both, the finisher and the sets',
-  /\bfinisher\b/i.test(energyCopy) && /\bsets?\b/i.test(energyCopy),
-  'those are the two things this answer changes, so those are what it can honestly promise'
+  'and the card names the sets, which is what it does change',
+  /\bsets?\b/i.test(energyCopy),
+  'that is the one thing this answer changes, so that is what it can honestly promise'
 );
 check(
   'energy does NOT move the weight on the bar',
@@ -570,16 +577,28 @@ for (const [mins, shorter] of [
     `unnamed: ${unnamed.map(label).join(', ') || '(no clause found)'} - the card promises a shape no session has`
   );
 }
+/**
+ * AND THE SAME RULE POINTING THE OTHER WAY.
+ *
+ * Without this, the pair above passes the day nothing is dropped anywhere while
+ * the card still says a block is replaced. This used to assert that something
+ * really was dropped, with its own failure message saying that if every session
+ * type kept its blocks the fix was to take the replacement clause back out of
+ * the card. That is what happened: with all three types on the library, 30, 45
+ * and 60 only ever add, so the clause came out.
+ *
+ * So it is now a two-way rule rather than a floor. Nothing dropped and no
+ * replacement wording is fine; something dropped and the clause back in is fine
+ * (the pair above then holds it to naming the right block); and the two
+ * mismatched fails here.
+ */
+const REPLACEMENT_WORDING = /instead of|in place of|replaces|rather than/i;
 check(
-  /**
-   * Without this the pair above passes the day nothing is dropped anywhere,
-   * while the card still says a block is replaced - the same over-promise
-   * pointing the other way. If this fails because every session type now keeps
-   * its blocks, the fix is to take the replacement clause back out of the card.
-   */
-  'and something really is dropped by a longer session, or the card should stop saying so',
-  droppedAnywhere > 0,
-  'no session type loses a block as it gets longer any more, so "goes in instead of" describes nothing'
+  droppedAnywhere > 0
+    ? 'a longer session does drop a block, so the card is allowed to say what it replaces'
+    : 'nothing is dropped by a longer session, and the card no longer says anything is',
+  droppedAnywhere > 0 || !REPLACEMENT_WORDING.test(timeCopy),
+  'no session type loses a block as it gets longer any more, so the card must not describe a replacement'
 );
 
 // --- 9. The in-session tutorial names controls that are on the screen -------

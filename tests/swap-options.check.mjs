@@ -45,7 +45,7 @@ globalThis.__DEV__ = false;
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { generateWorkout } from '../lib/workout-engine.ts';
+import { fillSwapAlternatives, generateWorkout } from '../lib/workout-engine.ts';
 import { restrictedTagsFor, restrictedTagsOn } from '../lib/exercise-safety.ts';
 import { getRegionsByExerciseNameMap, getAllPickableExercises } from '../lib/exercise-db.ts';
 import {
@@ -139,9 +139,18 @@ const sessions = build();
  *
  * So it is asked for explicitly, and the sample is proved to contain what the
  * assertion is about before the assertion is made.
+ *
+ * AND IT HAS TO NAME A SORE AREA, now that all three weekly types are built
+ * from Archie's library. The library only puts a rehab drill in when there is
+ * an area to look after, which is the point of that slot, so a pain-free
+ * sample of any length holds none of them at all. The sore-knee sample is what
+ * the rehab promise is measured on; the pain-free one is still swept below,
+ * because "nothing is left with nothing" has to hold for a session where
+ * nothing hurts too.
  */
 const shortSessions = build(undefined, profile, 0, '45');
-const rehabCards = shortSessions.flatMap(({ type, tier, ex }) =>
+const soreSessions = build(['knee'], profile, 0, '45');
+const rehabCards = soreSessions.flatMap(({ type, tier, ex }) =>
   ex.filter((e) => e.category === 'prehab').map((e) => ({ type, tier, e }))
 );
 
@@ -179,7 +188,7 @@ check(
   single.slice(0, 6).join(' | ')
 );
 check(
-  'the 45 minute sample really does contain rehab drills to look at',
+  `the sore-knee sample really does contain rehab drills to look at (${rehabCards.length})`,
   rehabCards.length > 0,
   'no rehab slot was generated at all, so the promise below would prove nothing'
 );
@@ -427,15 +436,62 @@ check(
  * other way to be loaded — so the promise is "two labelled options", not "one
  * of each". This asserts the equipment slot is genuinely working, without
  * pretending it can always be filled.
+ *
+ * ASKED OF THE FILL ITSELF NOW, OVER THE CATALOGUE IT SEARCHES.
+ *
+ * It used to be counted off the generated sessions above, and with all three
+ * weekly types built from Archie's library that count fell to 2 of 119 - not
+ * because the rule broke, but because the fill matches by NAME against
+ * lib/exercise-db.ts and 102 of those 119 cards are library records the
+ * catalogue has never heard of. A canary that goes red when the app gets
+ * better is worse than no canary, and lowering the bar to suit it would be
+ * the same as switching it off.
+ *
+ * So the question is put to `fillSwapAlternatives` directly, over the working
+ * templates the catalogue holds, in session-sized groups of six, because the
+ * fill will not offer something already in the same session and handing it all
+ * 318 at once would suppress almost every match. That is the rule's real
+ * domain, it is nearly a thousand cards rather than seventeen, and it still
+ * fails the day the equipment rule stops matching.
+ *
+ * WHAT IT DOES NOT COVER, and is worth saying out loud: a card off Archie's
+ * list cannot be offered the kit half of the sheet at all, because the search
+ * cannot find its name. Every one of those cards still has something behind
+ * the button, which section 1 above holds for the whole session. Re-pointing
+ * the swap sheet at the library is a later phase.
  */
-const working = sessions
-  .flatMap(({ ex }) => ex)
-  .filter((e) => ['main', 'accessory', 'explosive', 'finisher', 'core'].includes(e.category));
-const withKit = working.filter(
-  (e) => e.swapKind === 'equipment' || e.swap2Kind === 'equipment'
-).length;
+const CATALOGUE_WORKING = getAllPickableExercises().filter((p) =>
+  ['main', 'accessory'].includes(p.template.category)
+);
+let filledCards = 0;
+let withKit = 0;
+for (const tier of TIERS) {
+  for (let i = 0; i + 6 <= CATALOGUE_WORKING.length; i += 6) {
+    const group = CATALOGUE_WORKING.slice(i, i + 6).map((p) => ({
+      id: p.template.id ?? p.template.name,
+      name: p.template.name,
+      category: p.template.category,
+      cue: p.template.cue,
+      sets: 3,
+      reps: '8-12',
+      suggestedLoad: p.template.suggestedLoad,
+      primaryMuscle: p.template.primaryMuscle,
+    }));
+    const filled = fillSwapAlternatives(
+      group,
+      { hasAches: false, energy: 'normal', timeAvailable: '60' },
+      tier,
+      profile,
+      i
+    );
+    filledCards += filled.length;
+    withKit += filled.filter(
+      (e) => e.swapKind === 'equipment' || e.swap2Kind === 'equipment'
+    ).length;
+  }
+}
 check(
-  `a meaningful share of the lifting gets a kit alternative (${withKit}/${working.length})`,
+  `a meaningful share of the lifting gets a kit alternative (${withKit}/${filledCards})`,
   /**
    * A CANARY, NOT A TARGET, and it was set on a knife edge.
    *
@@ -450,7 +506,7 @@ check(
    * percentage point, so the bar is set where a real regression would land
    * rather than where today's sample happens to.
    */
-  working.length > 0 && withKit >= Math.floor(working.length * 0.1),
+  filledCards > 300 && withKit >= Math.floor(filledCards * 0.1),
   'if this drops, the equipment rule has stopped matching anything'
 );
 

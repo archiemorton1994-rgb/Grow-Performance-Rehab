@@ -26,6 +26,28 @@
  *   USABLE   every focus and every equipment tier still has a KPI step worth
  *            looking at — a rule that empties a list is not an improvement
  *
+ * WHICH SCREEN THIS IS ABOUT, because the name no longer says it on its own
+ * ────────────────────────────────────────────────────────────────────────
+ * `canBeMainLift` is read in exactly two places, and neither of them is Train:
+ * lib/session-builder.ts and app/custom-session.tsx, which is the screen where
+ * somebody assembles a session themselves. lib/session-builder.ts is imported
+ * by that screen and by nothing else. So this file is the contract for the
+ * exercises the CUSTOM builder offers as a lead, drawn from the old catalogue
+ * in lib/exercise-db.ts, and all of that is still live and still reached.
+ *
+ * It is deliberately NOT re-pointed at Archie's library, and that is worth
+ * saying out loud because the rebuild plan asked for it. The library builder
+ * (lib/library-session.ts) does not consult `canBeMainLift` or `tierOf` at all:
+ * it walks the pattern's own pool down the level ladder, so eligibility there
+ * is a property of Archie's list rather than of these rules. Re-pointing this
+ * file at library records would have tested a function against data nothing
+ * ever hands it, which is this repo's commonest defect wearing a new coat.
+ *
+ * The same promise for the sessions Train builds - the exercise that leads one
+ * is a compound, at every level and every tier, with the single exception
+ * written down - is held in tests/session-variety.check.mjs section 2, where
+ * it is measured on generated sessions rather than on a pool.
+ *
  * Run:  npx tsx tests/main-lift-eligibility.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */

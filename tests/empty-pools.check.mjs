@@ -90,7 +90,7 @@ function arraysIn(value, out = []) {
 }
 
 /**
- * SIX OF THE TABLES ARE NOT POOLS ANY MORE, and that is the point.
+ * MOST OF THE TABLES ARE NOT POOLS ANY MORE, and that is the point.
  *
  * Nothing in the app builds a session out of any of them, so emptying one
  * changes nothing and the "the pool really was emptied" half of section 2 would
@@ -106,23 +106,33 @@ function arraysIn(value, out = []) {
  *     generator. That generator was only ever reached through the session ids
  *     'squat', 'bench' and 'deadlift', and those now build a lower, upper or
  *     full body session instead (lib/session-type.ts), so the branch that reads
- *     these four is unreachable. The weekly generator draws its warm-up, its
- *     accessories, its rehab slot, its finisher and its cool-down from PREP,
- *     ACCESSORIES, PREHAB, FINISHERS and COOLDOWN, which are all still live and
- *     still tested in section 2.
+ *     these four is unreachable.
  *
- *   WEEKLY_LOWER_BODY and WEEKLY_UPPER_BODY - the old Lower Body and Upper Body
- *     main lifts. Both types are built from Archie's library now
- *     (LIBRARY_LIVE_TYPES in lib/workout-engine.ts), and 'squat' and 'bench'
- *     map to them, so no session reads either table. WEEKLY_FULL_BODY is still
- *     live and still tested in section 2; it moves down here when Full Body is
- *     switched over.
+ *   WEEKLY_LOWER_BODY, WEEKLY_UPPER_BODY and WEEKLY_FULL_BODY - the old main
+ *     lifts of the three weekly sessions. All three types are built from
+ *     Archie's library now (LIBRARY_LIVE_TYPES in lib/workout-engine.ts), and
+ *     'squat', 'bench' and 'deadlift' map to them, so no session reads any of
+ *     the three.
+ *
+ *   CARDIO_WARMUPS, ACCESSORIES, PREHAB, FINISHERS and CARDIO_MACHINES - the
+ *     warm-up, the optional slots, the rehab slot, the finisher and the gym
+ *     warm-up machines of the WEEKLY generator. Those five were live right up
+ *     until Full Body switched over, because the weekly generator was the one
+ *     path still reading them. With all three weekly types on the library, that
+ *     generator builds nothing, and the whole of it went dark in one step: a
+ *     library session takes its warm-up and its finisher off the nine
+ *     conditioning records, its pattern slots off Archie's list and its cool
+ *     down and its rehab slot out of Restore.
+ *
+ * PREP and COOLDOWN are the two that are still live, and they are still tested
+ * in section 2: the conditioning, rehab and stretching sessions are built by
+ * the old engine and open and close on them.
  *
  * Listed here rather than quietly dropped, so section 5 can ASSERT the
  * unreachability instead of leaving it as a thing this file stopped looking at.
- * For the two weekly tables that assertion is the whole point: emptying the old
- * lower body or upper body lifts has to change nothing, because no session of
- * either type may be built out of them any more.
+ * For the weekly tables that assertion is the whole point: emptying the old
+ * lower, upper or full body lifts, or the accessories that hung off them, has
+ * to change nothing, because no session may be built out of them any more.
  */
 const UNREACHED_NAMES = [
   'ORM_TEST',
@@ -132,18 +142,22 @@ const UNREACHED_NAMES = [
   'GOAL_CONDITIONING_BLOCKS',
   'WEEKLY_LOWER_BODY',
   'WEEKLY_UPPER_BODY',
+  'WEEKLY_FULL_BODY',
+  'CARDIO_WARMUPS',
+  'ACCESSORIES',
+  'PREHAB',
+  'FINISHERS',
 ];
-const UNREACHED_POOLS = UNREACHED_NAMES.map((name) => ({
-  name,
-  arrays: arraysIn(SESSION_POOLS[name]),
-}));
-const POOLS = [
-  ...Object.entries(SESSION_POOLS)
-    .filter(([name]) => !UNREACHED_NAMES.includes(name))
-    .map(([name, value]) => ({ name, arrays: arraysIn(value) })),
-  // The gym warm-up machines live in their own file.
+const UNREACHED_POOLS = [
+  ...UNREACHED_NAMES.map((name) => ({ name, arrays: arraysIn(SESSION_POOLS[name]) })),
+  // The gym warm-up machines live in their own file. They were only ever
+  // reached through the weekly generator's warm-up slot, so they went dark
+  // with it.
   { name: 'CARDIO_MACHINES', arrays: arraysIn(CARDIO_MACHINES) },
 ];
+const POOLS = Object.entries(SESSION_POOLS)
+  .filter(([name]) => !UNREACHED_NAMES.includes(name))
+  .map(([name, value]) => ({ name, arrays: arraysIn(value) }));
 
 function emptied(pools, run) {
   const arrays = [...new Set(pools.flatMap((p) => p.arrays))];

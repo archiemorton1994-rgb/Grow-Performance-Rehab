@@ -133,14 +133,49 @@ check(
   'the main lift has its own, deliberately rarer, rotation'
 );
 
-// ─── 5. It fires in a real session ───────────────────────────────────────────
+// ─── 5. Where it can and cannot reach ────────────────────────────────────────
 console.log('\n[5] Observed in generated sessions');
 
-const { generateWorkout } = await import('../lib/workout-engine.ts');
+/**
+ * THE TABLE IS DORMANT, AND THAT IS NOW THE THING WORTH ASSERTING.
+ *
+ * This used to say "a grip variant appears in real sessions", sampled on Upper
+ * Body and Full Body, because a table that fires nowhere is a table not worth
+ * having. The only caller is the weekly generator's accessory loop, and with
+ * Lower, Upper and Full Body all built from Archie's library that generator
+ * builds no session at all, so the answer is zero everywhere - not because the
+ * coverage went thin, but because the loop is unreachable. Left as it was, the
+ * assertion would have been asking the app to do something it must not:
+ * a library session may serve Archie's list, the nine conditioning records and
+ * Restore, and a Wide-Grip Inverted Row is none of those.
+ *
+ * So it is asked the other way round. A grip variant must not reach a session
+ * built from the library, which is a promise that holds for good; and the
+ * sweep covers every session type the app builds, so the day something starts
+ * serving one the count is no longer zero and this says where.
+ *
+ * The table itself, its wiring and its rotation are still held by sections 1 to
+ * 4. Removing grip variants from Train is a later phase's job, and until then
+ * this file keeps them honest rather than pretending they fire.
+ */
+const { generateWorkout, LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
+const { trainTypeOf } = await import('../lib/session-type.ts');
 const profile = { name: 'A', sex: 'male', experienceLevel: 'intermediate', goals: ['muscle'], bodyweightKg: 80 };
 const variantSet = new Set(variantNames);
-let sightings = 0;
-for (const type of ['upper_body', 'full_body']) {
+const TYPES = [
+  'squat',
+  'bench',
+  'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
+  'conditioning',
+  'prehab',
+  'flexibility',
+];
+const sightings = [];
+let sampled = 0;
+for (const type of TYPES) {
   for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
     for (let n = 0; n < 12; n++) {
       const w = generateWorkout(
@@ -152,14 +187,26 @@ for (const type of ['upper_body', 'full_body']) {
         undefined,
         n
       );
-      if (w.some((e) => variantSet.has(e.name))) sightings++;
+      sampled++;
+      for (const e of w) {
+        if (variantSet.has(e.name)) sightings.push({ type, tier, n, name: e.name });
+      }
     }
   }
 }
 check(
-  `a grip variant appears in real sessions (${sightings} of 72 sampled)`,
-  sightings > 0,
-  'the table is wired but nothing it covers is ever selected — coverage is too thin to be worth having'
+  `the sweep really built sessions (${sampled} sampled)`,
+  sampled > 300,
+  'nothing was generated, so the rule below proves nothing'
+);
+const inLibrarySession = sightings.filter((s) => LIBRARY_LIVE_TYPES.includes(trainTypeOf(s.type)));
+check(
+  'no session built from the library is ever served a grip variant',
+  inLibrarySession.length === 0,
+  inLibrarySession.slice(0, 3).map((s) => `${s.type}/${s.tier}#${s.n}: ${s.name}`).join(' | ')
+);
+console.log(
+  `     (the table fires in ${sightings.length} of ${sampled} sessions today: the weekly loop that applies it builds none)`
 );
 
 console.log('');

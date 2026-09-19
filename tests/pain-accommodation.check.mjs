@@ -294,35 +294,41 @@ check(
   'banning the substitute along with the movement leaves nothing to put in its place'
 );
 
-// ─── 4. Warm-ups accommodate pain like everything else ───────────────────────
-console.log('\n[4] Every block applies its comfort variants, not just three of them');
-
-const comfortByCategory = {};
-for (const c of cards) {
-  if (String(c.id ?? '').endsWith('-comfort')) {
-    comfortByCategory[c.category ?? '?'] = (comfortByCategory[c.category ?? '?'] ?? 0) + 1;
-  }
-}
+// ─── 4. Every block deals with the pain, one way or the other ────────────────
+console.log('\n[4] No block gets to skip the sore area');
 
 /**
- * WHICH BLOCKS ARE ASKED, DERIVED RATHER THAN TYPED OUT.
+ * THE SAME PROMISE, ASKED OF A BUILDER THAT WORKS THE OTHER WAY ROUND.
  *
- * This used to name five categories - prep, mechanical, neuro, main and
- * accessory - which was a list of the blocks the old lift-day generator had.
- * Two of those blocks do not exist in the session anybody is given now, and a
- * hardcoded list of them would either fail for ever or have to be quietly
- * shortened, which is how a clinical promise turns into a comment.
+ * The defect this section was written for was 48 accommodations that could
+ * never fire: the old engine picked an exercise and then softened it, and the
+ * warm-up and priming blocks called templateToExercise directly, so they went
+ * round the softening and every gentler version written for them was dead
+ * code. The assertion was "each block applies its comfort variants", counted
+ * by the `-comfort` ids they produce.
  *
- * So the question is asked the other way round, off the catalogue and off the
- * sessions actually built: if the app can put an exercise in a slot, and
- * SOMEBODY HAS WRITTEN A GENTLER VERSION OF THAT EXERCISE, then a user in pain
- * has to be able to receive it. A category with no accommodation authored for
- * it is not asked for one; a category nothing builds is not asked either.
+ * All three lifting sessions are built from Archie's library now, and it does
+ * not pick and then soften. It screens the pool BEFORE it picks, so a slot that
+ * would have gone to something the sore area rules out goes to the next clean
+ * exercise of the SAME pattern instead, labelled and reversible - and the
+ * blocks it fills from Restore and from the nine conditioning records are
+ * screened the same way, so they come out clean rather than softened and
+ * produce no `-comfort` id at all. Counting those ids would now read a session
+ * that is handling the pain properly as one that is ignoring it, which is the
+ * exact misreading the previous phase found in session-pain-adaptation.
  *
- * It answers the same question the five names did, and it answers it for
- * whatever the app looks like next: author a comfort variant on a finisher
- * tomorrow, and the finisher block has to start applying it.
+ * So the promise is asked in the two halves the new builder actually has, and
+ * between them they still say "no block gets to skip the sore area":
+ *
+ *   SUBSTITUTED - the pattern slots really do move, on every session type and
+ *     at every session length, and every card that moved says why and offers
+ *     the way back.
+ *   CLEAN - and the blocks that never move, the warm-up, the finisher and the
+ *     cool down, carry nothing the sore area rules out. That is the half that
+ *     replaces "this block calls templateToExercise directly": a block that
+ *     went round the screen would show up here as banned work in a warm-up.
  */
+/** Every exercise template nested anywhere inside a pool. Used by section 5. */
 function templatesIn(value, out = []) {
   if (Array.isArray(value)) {
     for (const v of value) templatesIn(v, out);
@@ -338,59 +344,93 @@ function templatesIn(value, out = []) {
   return out;
 }
 
-const authoredByCategory = {};
-for (const t of templatesIn(SESSION_POOLS)) {
-  if (!t.comfortVariant) continue;
-  authoredByCategory[t.category] = (authoredByCategory[t.category] ?? 0) + 1;
-}
-const builtCategories = new Set(cards.map((c) => c.category));
-const accommodating = Object.keys(authoredByCategory)
-  .filter((c) => builtCategories.has(c))
-  .sort();
+const accommodated = cards.filter((c) => c.badge === 'comfort');
+const SUBSTITUTED_BLOCKS = ['main', 'accessory'];
+const UNSOFTENED_BLOCKS = ['prep', 'finisher', 'cooldown'];
 
 check(
-  `${accommodating.length} kinds of block both get built and have accommodations written for them`,
-  accommodating.length >= 2,
-  `only ${accommodating.join(', ') || 'none'}, so everything below would be measuring almost nothing`
+  `${accommodated.length} cards were moved to work round the sore area`,
+  accommodated.length > 0,
+  'no card in the whole sweep was substituted, so everything below is measuring nothing'
 );
-for (const category of accommodating) {
+
+for (const sessionType of ['lower_body', 'upper_body', 'full_body']) {
+  const n = accommodated.filter((c) => c.sessionType === sessionType).length;
   check(
-    `${category}: ${comfortByCategory[category] ?? 0} of its ${authoredByCategory[category]} authored accommodations fired`,
-    (comfortByCategory[category] ?? 0) > 0,
-    'this block calls templateToExercise directly, so every accommodation written for it is unreachable'
+    `${sessionType}: ${n} slots moved for a sore area`,
+    n > 0,
+    'every session type is built by the same builder, so one of them accommodating nothing means a pattern list nothing screens'
   );
 }
 
-
 /**
- * PER SESSION LENGTH, because how many cards a block pushes branches on it.
+ * PER SESSION LENGTH, because how many slots a session asks for branches on it.
  *
  * An aggregate count is satisfied by one branch on its own: a mutation run
  * proved exactly that, by breaking the short-session push and watching the
  * checks above stay green on the 60-minute numbers alone. So each length is
- * counted separately, over the same derived list of blocks.
- *
- * There was a source-text assertion here as well, pinning the exact spelling of
- * the prep loop's call to applyComfortOrBadge. It is gone: the loop it pinned
- * belonged to the lift-day generator nothing reaches any more, so it had become
- * a test that reads a line nobody runs, and the counts above and below say the
- * same thing about the code that does run.
+ * counted separately, over the blocks the builder can substitute.
  */
 for (const t of ['60', '45']) {
-  for (const category of accommodating) {
-    const applied = cards.filter(
-      (c) =>
-        c.timeAvailable === t &&
-        c.category === category &&
-        String(c.id ?? '').endsWith('-comfort')
+  for (const category of SUBSTITUTED_BLOCKS) {
+    const applied = accommodated.filter(
+      (c) => c.timeAvailable === t && c.category === category
     ).length;
     check(
-      `${category} at ${t} minutes: ${applied} comfort variants applied`,
+      `${category} at ${t} minutes: ${applied} slots moved`,
       applied > 0,
-      'this block has a separate code path per session length and each one has to accommodate pain'
+      'a session length has its own slot count, and each one has to accommodate pain'
     );
   }
 }
+
+/**
+ * A move nobody can see is a move nobody can undo.
+ *
+ * The card has to say what it replaced and has to offer it back, because the
+ * app is choosing on somebody's behalf and they are entitled to disagree.
+ */
+const unexplained = accommodated.filter((c) => !c.safetyNote || !c.swapName);
+check(
+  'every moved card says what it replaced and offers it back',
+  unexplained.length === 0,
+  [...new Set(unexplained.map((c) => `${c.sessionType}/${c.tier}: ${c.name}`))].slice(0, 5).join(' | ')
+);
+
+/**
+ * AND THE BLOCKS THAT ARE NEVER SOFTENED ARE CLEAN INSTEAD.
+ *
+ * Read off the records' and templates' own stress, not off whether the app
+ * chose to put a badge on the card, so a block that went round the screen
+ * entirely fails here rather than passing for having nothing to show.
+ */
+const unscreened = [];
+let regionsWithRules = 0;
+for (const region of ['quads', 'knee', 'hip_groin', 'hamstrings', 'front_shoulder', 'glutes']) {
+  for (const severity of ['mild', 'severe']) {
+    const banned = S.restrictedTagsFor([region], profile.experienceLevel, severity);
+    if (banned.size === 0) continue;
+    regionsWithRules++;
+    for (const c of cards) {
+      if (c.region !== region || c.severity !== severity) continue;
+      if (!UNSOFTENED_BLOCKS.includes(c.category)) continue;
+      const hits = S.restrictedTagsOn(c.name, banned, undefined, c.cue);
+      if (hits.length > 0) {
+        unscreened.push(`${region}/${severity} ${c.sessionType}/${c.tier}: ${c.name} [${c.category}] carries ${hits.join(', ')}`);
+      }
+    }
+  }
+}
+check(
+  `the sweep covered ${regionsWithRules} region and severity pairs that actually ban something`,
+  regionsWithRules > 0,
+  'no region in the sweep restricts anything, so the rule below is vacuous'
+);
+check(
+  `nothing in a warm-up, a finisher or a cool down carries what the sore area rules out (${cards.filter((c) => UNSOFTENED_BLOCKS.includes(c.category)).length} cards)`,
+  unscreened.length === 0,
+  [...new Set(unscreened)].slice(0, 5).join(' | ')
+);
 
 // ─── 5. The rehab slot survives a collision with the warm-up ─────────────────
 console.log('\n[5] The acute rehab card is never the one deleted');

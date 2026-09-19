@@ -176,105 +176,111 @@ check(
   misplaced.finisher.slice(0, 3).join(', ')
 );
 
+/**
+ * SECTIONS 4 AND 5 ARE ASKED OF ALL THREE LIFTING TYPES NOW.
+ *
+ * They used to be asked of Upper Body alone, which was a fair sample while one
+ * generator built all three. It is not any more: Lower, Upper and Full Body are
+ * each built from Archie's library (LIBRARY_LIVE_TYPES in
+ * lib/workout-engine.ts) and each rotates on its OWN count of sessions of that
+ * type, so a rotation that froze on one of them would not show up on another.
+ * Full Body is the one this phase switched over, and it is the one that asks
+ * for all six patterns at once, so it is the likeliest to run out of pool and
+ * settle on a single answer.
+ */
+const LIFTING_TYPES = ['lower_body', 'upper_body', 'full_body'];
+const LIFTER = {
+  name: 'T',
+  sex: 'male',
+  experienceLevel: 'intermediate',
+  goals: ['muscle'],
+  bodyweightKg: 85,
+};
+const HOUR = { hasAches: false, energy: 'normal', timeAvailable: '60' };
+const buildLifting = (type, d, weights) =>
+  generateWorkout(type, 'fullgym', HOUR, LIFTER, {}, undefined, d, weights, {}, {}, 0, {
+    equipment: ['fullgym'],
+    sessionTypeCount: d,
+  });
+
 // ─── 4. The weekly finisher rotates too ──────────────────────────────────────
 console.log('\n[4] The weekly split no longer ends on the same exercise forever');
 
-check(
-  'a 60-minute weekly session varies its finisher',
-  (() => {
-    const seen = new Set();
-    for (let d = 0; d < DAYS; d++) {
-      const built = generateWorkout(
-        'upper_body',
-        'fullgym',
-        { hasAches: false, energy: 'normal', timeAvailable: '60' },
-        {
-          name: 'T',
-          sex: 'male',
-          experienceLevel: 'intermediate',
-          goals: ['muscle'],
-          bodyweightKg: 85,
-        },
-        {},
-        undefined,
-        d
-      );
-      const fin = built.find((e) => e.category === 'finisher');
-      if (fin) seen.add(fin.name);
-    }
-    return seen.size > 1;
-  })(),
-  'it was hardcoded to finisherPool[0] while the KPI sessions rotated theirs'
-);
+for (const type of LIFTING_TYPES) {
+  const seen = new Set();
+  for (let d = 0; d < DAYS; d++) {
+    const fin = buildLifting(type, d).find((e) => e.category === 'finisher');
+    if (fin) seen.add(fin.name);
+  }
+  check(
+    `a 60-minute ${type} session varies its finisher (${seen.size} over ${DAYS} days)`,
+    seen.size > 1,
+    `only ever finished on: ${[...seen].join(', ') || 'nothing at all'}`
+  );
+}
 
-// ─── 5. A main-lift variation is its own exercise ────────────────────────────
-console.log('\n[5] A main-lift variation carries its own progression, not the base lift\'s');
+// ─── 5. The lead exercise is its own exercise ────────────────────────────────
+console.log('\n[5] The exercise that leads a session carries its own progression');
 
-check(
-  'the variation trains under a different id from the lift it stands in for',
-  (() => {
-    const ids = new Set();
-    for (let d = 0; d < 40; d++) {
-      const built = generateWorkout(
-        'upper_body',
-        'fullgym',
-        { hasAches: false, energy: 'normal', timeAvailable: '60' },
-        {
-          name: 'T',
-          sex: 'male',
-          experienceLevel: 'intermediate',
-          goals: ['muscle'],
-          bodyweightKg: 85,
-        },
-        {},
-        undefined,
-        d
-      );
-      const main = built.find((e) => e.category === 'main');
-      if (main) ids.add(main.id);
-    }
-    return ids.size > 1;
-  })(),
-  'sharing the id had an incline bench prescribed at the flat bench weight, then logging its own lighter result back over it'
-);
+/**
+ * THE SAME PROMISE, AFTER THE MECHANISM UNDER IT CHANGED.
+ *
+ * This was written about the old engine's main-lift variation: every fourth
+ * session the lead was served by its curated alternative, and it used to keep
+ * the base lift's id, so an incline bench was prescribed at the flat bench's
+ * working weight and then wrote its own lighter result back over it. One id,
+ * two movements, neither history true. The fix gave the variation a derived id
+ * of its own.
+ *
+ * That rotation is gone - nothing the app builds appends a derived id any more,
+ * which tests/muscle-map-variation.check.mjs now pins - but the promise it was
+ * made to keep is not about the mechanism. It is: when the lead of a session
+ * changes, the new exercise must not be handed the old one's weight. The
+ * library keeps it a different way, by giving every record in Archie's list its
+ * own id and its own history, and it is worth holding to exactly as it was.
+ *
+ * So both assertions are unchanged in what they ask and are now asked of each
+ * lifting type. The second one is the one that matters: log 140 kg against the
+ * exercise that led one session, and no OTHER exercise may come back prescribed
+ * at 140 kg in any of the next forty.
+ */
+for (const type of LIFTING_TYPES) {
+  const ids = new Set();
+  for (let d = 0; d < 40; d++) {
+    const main = buildLifting(type, d).find((e) => e.category === 'main');
+    if (main) ids.add(main.id);
+  }
+  check(
+    `${type}: the lead changes, and changes id with itself (${ids.size} over 40)`,
+    ids.size > 1,
+    'sharing the id had an incline bench prescribed at the flat bench weight, then logging its own lighter result back over it'
+  );
+}
 
-check(
-  'and the base lift keeps a weight the variation cannot inherit',
-  (() => {
-    const profile = {
-      name: 'T',
-      sex: 'male',
-      experienceLevel: 'intermediate',
-      goals: ['muscle'],
-      bodyweightKg: 85,
-    };
-    const readiness = { hasAches: false, energy: 'normal', timeAvailable: '60' };
-    const weights = {};
-    // Find the base id first, then give it a heavy logged weight and confirm no
-    // variation session comes out prescribing it.
-    const baseId = generateWorkout('upper_body', 'fullgym', readiness, profile, {}, undefined, 1)
-      .find((e) => e.category === 'main')?.id;
-    if (!baseId) return false;
-    weights[baseId] = 140;
-    for (let d = 0; d < 40; d++) {
-      const main = generateWorkout(
-        'upper_body',
-        'fullgym',
-        readiness,
-        profile,
-        {},
-        undefined,
-        d,
-        weights,
-        {},
-        {}
-      ).find((e) => e.category === 'main');
-      if (main && main.id !== baseId && (main.loadKg?.[0] ?? 0) >= 140) return false;
-    }
-    return true;
-  })(),
-  'a variation inheriting the base id was prescribed the base lift load'
-);
+for (const type of LIFTING_TYPES) {
+  check(
+    `${type}: and the lift you logged keeps a weight the next one cannot inherit`,
+    (() => {
+      const weights = {};
+      // Find the base id first, then give it a heavy logged weight and confirm
+      // no later session comes out prescribing it for something else.
+      const baseId = buildLifting(type, 1).find((e) => e.category === 'main')?.id;
+      if (!baseId) return false;
+      weights[baseId] = 140;
+      let others = 0;
+      for (let d = 0; d < 40; d++) {
+        const main = buildLifting(type, d, weights).find((e) => e.category === 'main');
+        if (!main || main.id === baseId) continue;
+        others++;
+        if ((main.loadKg?.[0] ?? 0) >= 140) return false;
+      }
+      // A type whose lead never changes proves nothing here, so say so rather
+      // than passing on an empty loop.
+      return others > 0;
+    })(),
+    'an exercise inheriting another one id was prescribed that lift load'
+  );
+}
 
 console.log(
   failures === 0
