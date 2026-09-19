@@ -7,6 +7,7 @@ import { evaluateBadges } from '@/lib/badge-engine';
 import { displayUnitToKg, isoWeek } from '@/lib/utils';
 import { mergeSessionsById } from '@/lib/sync-merge';
 import { canonicalExerciseName } from '@/lib/exercise-aliases';
+import { carryProgressForwardInPlace } from '@/lib/exercise-id-merge';
 // Which equipment answers are kit rather than a rung on the ladder. Its own
 // imports from here are type-only, so this adds no cycle.
 import { isSupplyTier } from '@/lib/kit';
@@ -2872,6 +2873,25 @@ export const useAppStore = create<AppState>()(
 
       mergeServerData: (data) => {
         const s = get();
+        /**
+         * THE DUPLICATE-ID MERGE IS DONE TO THE PAYLOAD BEFORE IT IS ADOPTED.
+         *
+         * The v37 migration copies each per-exercise map forward onto the id
+         * the library kept. A payload uploaded by a build from before that
+         * migration carries only the old duplicate keys, and the branch below
+         * REPLACES the local maps with the payload's - so signing in on a new
+         * phone, or after a reinstall, would hand back exactly the split the
+         * migration had just healed, and the first library session would come
+         * back at the beginner's estimate.
+         *
+         * A migration that is not mirrored here is a migration that does not
+         * hold. Same rule as the retired test weeks above.
+         *
+         * Done on a copy: `data` belongs to the caller, and the merge is also
+         * the object a failed sign-in may hand to something else.
+         */
+        data = { ...data };
+        carryProgressForwardInPlace(data as unknown as Record<string, unknown>);
         // A reset that has not reached the server yet outranks anything the
         // server can offer. Without this, resetting with no signal looked like
         // it worked and was silently undone on the next launch — the server is
@@ -3508,9 +3528,39 @@ export const useAppStore = create<AppState>()(
           );
         }
 
+        /**
+         * v37 - THE WEIGHTS FOLLOW THE EXERCISE, NOT THE POOL IT WAS FILED IN.
+         *
+         * The old catalogue holds the same movement several times over, once
+         * per collection it appears in: a Back Squat done on Lower Body day was
+         * logged against `wlb-fg-squat` and the identical Back Squat done on
+         * squat day against `sq-main-fg`. The library has one Barbell Back
+         * Squat and it keeps `sq-main-fg`, so without this everybody who
+         * trained Lower Body rather than the old three-lift rotation would meet
+         * their first library session on the beginner's estimate, with months
+         * of real sets sitting under an id nothing asks for any more.
+         *
+         * COPIED, not moved, and only onto an id that has nothing. Somebody who
+         * trained both keeps what the survivor already knows, and the old keys
+         * stay exactly where they are because the old engine is still live and
+         * still logging against them. See lib/exercise-id-merge.ts for the
+         * table, what is deliberately left out of it, and why.
+         *
+         * Unconditional rather than gated on the stored version. It is
+         * idempotent by construction - a second pass finds every survivor
+         * already filled and changes nothing - and a device that has been
+         * through it once loses nothing by being asked again.
+         *
+         * mergeServerData does the same thing to an incoming payload, because a
+         * copy uploaded by an older build carries only the duplicate keys and a
+         * migration that runs against local storage alone would be undone by
+         * the next sign-in.
+         */
+        carryProgressForwardInPlace(persistedState);
+
         return persistedState;
       },
-      version: 36,
+      version: 37,
     }
   )
 );

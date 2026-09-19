@@ -217,7 +217,16 @@ export const HOLD_SECONDS_BY_LEVEL: Record<'bodyweight' | 'loaded', Record<Libra
 export const CARRY_METRES_BY_LEVEL: Record<LibraryLevel, number> = { 1: 20, 2: 30, 3: 40, 4: 40 };
 
 export interface LibraryExercise extends ExerciseTemplate {
-  /** The name exactly as docs/EXERCISE-LIBRARY.md spells it. */
+  /**
+   * The name exactly as docs/EXERCISE-LIBRARY.md spells it.
+   *
+   * `name`, inherited from ExerciseTemplate, is what is shown and what gets
+   * logged, and it is the same string for all but two records. The exception is
+   * the Single Leg Romanian Deadlift, which the document lists twice on purpose
+   * (dumbbell at Intermediate, barbell at Advanced). A display name is what a
+   * personal best, a progress chart and a recalled note are keyed on, so those
+   * two carry a qualifier: one record per movement, one name per record.
+   */
   libraryName: string;
   pattern: LibraryPattern;
   /**
@@ -1571,7 +1580,11 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
   },
   {
     id: 'dl-acc-db-5',
-    name: 'Single Leg Romanian Deadlift',
+    // Qualified, because the document lists this name twice on purpose and a
+    // display name is what a personal best and a progress chart are keyed on.
+    // Left as it was, an 8 kg dumbbell hinge and a 40 kg barbell one would have
+    // shared one record of somebody's best lift. See `name` on LibraryExercise.
+    name: 'Single Leg Romanian Deadlift (Dumbbell)',
     libraryName: 'Single Leg Romanian Deadlift',
     pattern: 'hinge',
     level: 2,
@@ -1835,7 +1848,8 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
   },
   {
     id: 'lib-hinge-single-leg-romanian-deadlift',
-    name: 'Single Leg Romanian Deadlift',
+    // The barbell half of the pair. See the dumbbell record above.
+    name: 'Single Leg Romanian Deadlift (Barbell)',
     libraryName: 'Single Leg Romanian Deadlift',
     pattern: 'hinge',
     level: 3,

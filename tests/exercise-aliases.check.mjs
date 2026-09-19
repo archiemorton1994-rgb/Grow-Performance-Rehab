@@ -20,13 +20,33 @@
  * the old data sits there under a name nothing looks for. Most of this file is
  * about that, not about the names.
  *
+ * WHAT THE LIBRARY CHANGED ABOUT THIS TEST
+ * ────────────────────────────────────────
+ * The original rename RETIRED the old name: it left the catalogue, so "the old
+ * name is no longer offered" was the same statement as "each movement appears
+ * once". Archie's library renames differently. It is built beside the old
+ * engine and wired up later, so for now the catalogue still serves "Back Squat"
+ * while the library record that keeps its id is called "Barbell Back Squat".
+ * The old test would read that as a second row and fail on seventy-four
+ * perfectly correct entries.
+ *
+ * So the rules below are stated over what a user would SEE and what their
+ * history would DO, not over which strings are in the table:
+ *
+ *   - no two rows in the picker mean the same movement
+ *   - every name an alias points at is a name the app can actually serve
+ *   - the name progression is keyed on is the name the library will use
+ *   - nothing is aliased across implements
+ *
  * Run:  npx tsx tests/exercise-aliases.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
 
 globalThis.__DEV__ = false;
 
-import { getAllPickableExercises, getMainLift } from '../lib/exercise-db.ts';
+import { getAllPickableExercises, getMainLift, getExerciseNameMap } from '../lib/exercise-db.ts';
+import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
+import { DUMBBELL_FOR_KETTLEBELL } from '../lib/kit.ts';
 import { EXERCISE_ALIASES, canonicalExerciseName, isSameExercise } from '../lib/exercise-aliases.ts';
 
 let failures = 0;
@@ -42,24 +62,73 @@ function check(label, condition, detail) {
 
 const all = getAllPickableExercises();
 const names = new Set(all.map((p) => p.template.name));
+const RECORDS = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
+const recordById = new Map(RECORDS.map((e) => [e.id, e]));
+const libraryNames = new Set(RECORDS.map((e) => e.name));
 
-// ─── 1. The retired names are gone from the catalogue ────────────────────────
+// ─── 1. Each movement still means one thing ──────────────────────────────────
 console.log('\n[1] Each movement appears once');
 
-for (const old of Object.keys(EXERCISE_ALIASES)) {
-  check(`"${old}" is no longer offered`, !names.has(old), 'the picker would show it as a second row');
+/**
+ * The one pair the picker still shows twice, and why it is allowed to.
+ *
+ * The KPI pool calls the standing dumbbell press "Standing Overhead Press" and
+ * the weekly pools call it "DB Shoulder Press". They are the same movement, so
+ * both read as one name here and both sets of history count together - but the
+ * picker de-dupes on the raw name, so it lists them separately. That is the old
+ * engine's own duplicate, and the library retires it by having one record for
+ * the two of them. Anything else landing in this list is a new fault.
+ */
+const KNOWN_PICKER_DUPLICATES = [['Standing Overhead Press', 'DB Shoulder Press']];
+const allowedDuplicate = (group) =>
+  KNOWN_PICKER_DUPLICATES.some(
+    (known) => known.length === group.length && known.every((n) => group.includes(n))
+  );
+
+const byMeaning = new Map();
+for (const name of names) {
+  const key = canonicalExerciseName(name);
+  byMeaning.set(key, [...(byMeaning.get(key) ?? []), name]);
 }
+const doubleRows = [...byMeaning.entries()].filter(
+  ([, group]) => group.length > 1 && !allowedDuplicate(group)
+);
+check(
+  'no two rows in the picker are the same movement',
+  doubleRows.length === 0,
+  doubleRows.map(([k, g]) => `"${k}" <- ${g.map((n) => `"${n}"`).join(', ')}`).join(' | ')
+);
+for (const known of KNOWN_PICKER_DUPLICATES) {
+  check(
+    `the known duplicate ${known.map((n) => `"${n}"`).join(' / ')} is still one movement`,
+    new Set(known.map(canonicalExerciseName)).size === 1,
+    'it is listed as tolerated because their history counts together; if it stops, it is not'
+  );
+}
+
+// A name nothing can serve is a name a chart disappears into.
 for (const kept of new Set(Object.values(EXERCISE_ALIASES))) {
-  check(`"${kept}" survives`, names.has(kept), 'the rename pointed at a name that does not exist');
+  check(
+    `"${kept}" is a name the app can serve`,
+    names.has(kept) || libraryNames.has(kept),
+    'the rename pointed at a name that is in neither the catalogue nor the library'
+  );
 }
 
 // ─── 2. The survivor is the one the engine already used ──────────────────────
 console.log('\n[2] The name kept is the one progression is keyed on');
 
-// This is the whole reason the survivors were not chosen on aesthetics. Personal
-// bests, last-logged weights and the 1RM flow all key off whatever getMainLift
-// returns; keeping the other name in each pair would have moved the problem
-// rather than fixed it.
+/**
+ * The whole reason the survivors were not chosen on aesthetics. Personal bests,
+ * last-logged weights and the 1RM flow all key off whatever getMainLift
+ * returns, so its name has to be the same movement as the record that will take
+ * over from it - the one that keeps its id.
+ *
+ * Two of the six have no library record behind them: Barbell Bench Press and
+ * Romanian Deadlift are not on Archie's list. Those are held to the older rule
+ * instead, that the catalogue can still serve the name the engine returns.
+ */
+const templateNames = getExerciseNameMap();
 const KPI = [
   ['squat', 'fullgym'],
   ['squat', 'dumbbells'],
@@ -69,13 +138,27 @@ const KPI = [
   ['deadlift', 'dumbbells'],
 ];
 for (const [lift, tier] of KPI) {
-  const name = getMainLift(lift, tier).name;
-  check(
-    `${lift}/${tier} main lift "${name}" was not renamed away`,
-    !EXERCISE_ALIASES[name] && names.has(name),
-    'the engine points at a name the catalogue no longer has'
-  );
+  const main = getMainLift(lift, tier);
+  const record = recordById.get(main.id);
+  if (record) {
+    check(
+      `${lift}/${tier} main lift "${main.name}" is the same movement as the record that keeps its id`,
+      isSameExercise(main.name, record.name),
+      `the library calls ${main.id} "${record.name}" — one of the two would lose its history`
+    );
+  } else {
+    check(
+      `${lift}/${tier} main lift "${main.name}" was not renamed away`,
+      !EXERCISE_ALIASES[main.name] && names.has(main.name),
+      'the engine points at a name the catalogue no longer has'
+    );
+  }
 }
+check(
+  'every KPI main lift id still resolves to a name',
+  KPI.every(([lift, tier]) => Boolean(templateNames[getMainLift(lift, tier).id])),
+  ''
+);
 
 // ─── 3. Genuine variants were left alone ─────────────────────────────────────
 console.log('\n[3] Different equipment is a different exercise');
@@ -96,6 +179,56 @@ for (const pair of [
     ''
   );
 }
+
+/**
+ * NEVER ACROSS IMPLEMENTS, said over every entry rather than three examples.
+ *
+ * A library rename may ADD a qualifier the catalogue left off - "Back Squat"
+ * becoming "Barbell Back Squat" names the bar that was always there. What it
+ * may never do is SWAP one implement for another, because the two sides of
+ * that alias are two exercises and one of them would inherit the other's loads.
+ *
+ * The single exception is decision 5: a dumbbell does the kettlebell's job on
+ * twelve named exercises, so a dumbbell name may read as the kettlebell record
+ * for exactly those twelve and no others.
+ */
+const IMPLEMENTS = [
+  ['barbell', /\bbarbell\b/i],
+  ['dumbbell', /\bdumbbells?\b|\bdb\b/i],
+  ['kettlebell', /\bkettlebells?\b|\bkb\b/i],
+  ['cable', /\bcable\b/i],
+  ['band', /\bbands?\b|\bbanded\b/i],
+  ['trapbar', /\btrap ?bar\b/i],
+  ['landmine', /\blandmine\b/i],
+  ['medball', /\bmed ?ball\b/i],
+  ['slamball', /\bslam ?ball\b/i],
+  ['sled', /\bsled\b/i],
+  ['trx', /\btrx\b/i],
+];
+const implementsIn = (name) => IMPLEMENTS.filter(([, re]) => re.test(name)).map(([k]) => k);
+const decisionFive = new Set(DUMBBELL_FOR_KETTLEBELL);
+const swapped = [];
+for (const [old, now] of Object.entries(EXERCISE_ALIASES)) {
+  const before = implementsIn(old);
+  const after = implementsIn(now);
+  const dropped = before.filter((k) => !after.includes(k));
+  const gained = after.filter((k) => !before.includes(k));
+  if (dropped.length === 0 || gained.length === 0) continue;
+  const isDecisionFive =
+    dropped.join() === 'dumbbell' && gained.join() === 'kettlebell' && decisionFive.has(now);
+  if (!isDecisionFive) swapped.push(`"${old}" (${before.join('+')}) -> "${now}" (${after.join('+')})`);
+}
+check(
+  'no alias swaps one implement for another',
+  swapped.length === 0,
+  swapped.join(' | ') + ' — a dumbbell press must not inherit a barbell press'
+);
+check(
+  'the one dumbbell-to-kettlebell reading is one decision 5 actually allows',
+  canonicalExerciseName('DB Goblet Squat') === 'Kettlebell Goblet Squats' &&
+    decisionFive.has('Kettlebell Goblet Squats'),
+  `"${canonicalExerciseName('DB Goblet Squat')}"`
+);
 
 // ─── 4. Nobody's history is orphaned ─────────────────────────────────────────
 console.log('\n[4] Data logged under the old name still counts');

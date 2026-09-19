@@ -22,10 +22,16 @@
  * logged is filed under the id of the exercise they did, so where a record is
  * the same movement with the same implement as an exercise the app already had,
  * it keeps that exercise's id. This asserts that every one of those ids still
- * resolves to a real exercise in the live catalogue, that no two records claim
- * the same one, that none of them is Restore content (which keeps serving under
- * its own name), and that a brand-new record never lands on an id that already
- * belongs to something else.
+ * resolves to a real exercise in the live catalogue, that it resolves to the
+ * SAME MOVEMENT it did before (proving an id merely exists let a wrong-but-
+ * valid reuse hand somebody another exercise's loads and stay green), that no
+ * two records claim the same one, that none of them is Restore content (which
+ * keeps serving under its own name), and that a brand-new record never lands on
+ * an id that already belongs to something else.
+ *
+ * The name side of the same question is here too: no two records may be
+ * displayed under one name, because a personal best, a progress chart and a
+ * recalled note are all keyed on the name rather than the id.
  *
  * Section [8] asks the other question a list cannot answer for itself: is
  * there anything actually behind each name? A record with no sets, no rep
@@ -38,7 +44,10 @@
  *   - "Squat Jump" (Squat, Athlete) and "Squat Jumps" (Lunge, Athlete) are one
  *     movement listed twice. One record, both patterns, both spellings.
  *   - "Single Leg Romanian Deadlift" is two exercises on purpose: dumbbell or
- *     kettlebell at Intermediate, barbell at Advanced.
+ *     kettlebell at Intermediate, barbell at Advanced. Both carry the
+ *     document's spelling as their libraryName and a bracketed qualifier as
+ *     their display name, so one person's 8 kg hinge and their 40 kg one are
+ *     not the same personal best.
  *
  * Run:  npx tsx tests/exercise-library.check.mjs
  * Run against an edited copy, which is how it is mutation-tested:
@@ -54,6 +63,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { getExerciseNameMap, getExerciseCategoryMap } from '../lib/exercise-db.ts';
+import { canonicalExerciseName } from '../lib/exercise-aliases.ts';
 import {
   LIBRARY_EXERCISES,
   CONDITIONING_EXERCISES,
@@ -303,7 +313,17 @@ for (const row of doc.rows) {
       `${row.pattern}/${row.level} "${row.name}": document says ${show(row.kit)}, record says ${show(record.kit)}`
     );
   }
-  if (record.name !== record.libraryName) {
+  // The display name is normally the document's spelling exactly. The one
+  // allowance is a record the document lists twice on purpose: a display name
+  // is what a personal best and a progress chart are keyed on, so those two
+  // carry a qualifier in brackets rather than sharing one history between an
+  // 8 kg dumbbell hinge and a 40 kg barbell one.
+  const listedTwice = LIBRARY_EXERCISES.filter((e) => e.libraryName === record.libraryName);
+  const qualified =
+    listedTwice.length > 1 &&
+    record.name.startsWith(`${record.libraryName} (`) &&
+    record.name.endsWith(')');
+  if (record.name !== record.libraryName && !qualified) {
     wrongName.push(`${record.id}: name "${record.name}" is not libraryName "${record.libraryName}"`);
   }
 }
@@ -316,6 +336,20 @@ check(
   'every record is displayed under the name the document spells',
   wrongName.length === 0,
   wrongName.slice(0, 6).join(' | ')
+);
+
+// Two records under one display name share a personal best, a progress chart
+// and a recalled note, because all three key off the name rather than the id.
+const displayNames = new Map();
+for (const e of [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES]) {
+  displayNames.set(e.name, [...(displayNames.get(e.name) ?? []), e.id]);
+}
+const sharedDisplayNames = [...displayNames.entries()].filter(([, ids]) => ids.length > 1);
+check(
+  'no two records answer to the same display name',
+  sharedDisplayNames.length === 0,
+  sharedDisplayNames.map(([n, ids]) => `"${n}" <- ${ids.join(', ')}`).join(' | ') +
+    ' — they would share one record of somebody\'s best lift'
 );
 
 const badLevel = LIBRARY_EXERCISES.filter((e) => !LIBRARY_LEVEL_NAMES[e.level]);
@@ -415,6 +449,31 @@ check(
 
 const reused = all.filter((e) => !e.id.startsWith('lib-'));
 const fresh = all.filter((e) => e.id.startsWith('lib-'));
+
+/**
+ * AND THE ID RESOLVES TO THE SAME MOVEMENT, not merely to something.
+ *
+ * The check below proves a reused id exists. On its own that let a
+ * wrong-but-valid reuse through: give the Plank sq-acc-db-5, a real template
+ * for the Goblet Squat, and every assertion here passed while somebody's squat
+ * loads were handed to their plank. The names have to agree, and they agree
+ * through EXERCISE_ALIASES, which is where every rename the library makes is
+ * written down. A reuse nobody meant would need an alias nobody would write.
+ */
+const wrongMovement = [];
+for (const e of reused) {
+  const catalogueName = templateNames[e.id];
+  if (!catalogueName) continue;
+  if (canonicalExerciseName(catalogueName) !== e.name) {
+    wrongMovement.push(`${e.id} is "${catalogueName}" but the record is "${e.name}"`);
+  }
+}
+check(
+  `all ${reused.length} reused ids are the same movement they were`,
+  wrongMovement.length === 0,
+  wrongMovement.slice(0, 6).join(' | ') +
+    ' — an id carries a person\'s logged loads, so the wrong one hands them another exercise\'s weights'
+);
 
 const missingTemplates = reused.filter((e) => !templateNames[e.id]);
 check(
