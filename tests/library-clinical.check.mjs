@@ -99,14 +99,14 @@ check(
 // 122 movement records matched a template the app already had and were written
 // first. The other 38 are movements the app has never carried in any form, and
 // they are being authored one pattern at a time so that each set can be read
-// and argued with on its own. Push (8), Pull (4), Hinge (6), Squat (9) and
-// Lunge (3) are written, so 152 of the 160. Core is the last eight.
+// and argued with on its own. Core was the last eight, so every one of the 160
+// is now written and nothing in the library is a name with nothing behind it.
 const authoredMovement = LIBRARY_EXERCISES.filter(hasAuthoredContent);
 const authoredConditioning = CONDITIONING_EXERCISES.filter(hasAuthoredContent);
 check(
-  `152 of the 160 movement records are written (${authoredMovement.length})`,
-  authoredMovement.length === 152,
-  'either a record lost its content or one was written before its pattern was due'
+  `all 160 movement records are written (${authoredMovement.length})`,
+  authoredMovement.length === 160,
+  'a record has lost its content, and every sweep below now reads one fewer'
 );
 check(
   `all nine conditioning records are written (${authoredConditioning.length})`,

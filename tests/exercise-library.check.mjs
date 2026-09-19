@@ -27,6 +27,12 @@
  * its own name), and that a brand-new record never lands on an id that already
  * belongs to something else.
  *
+ * Section [8] asks the other question a list cannot answer for itself: is
+ * there anything actually behind each name? A record with no sets, no rep
+ * prescription the engine can read, no coaching line and no muscles is a name
+ * in a table, and the generator must never reach one. The count of records
+ * like that is now zero and this holds it there.
+ *
  * And the document's own two exceptions, written in its "Notes taken while
  * transcribing" section:
  *   - "Squat Jump" (Squat, Athlete) and "Squat Jumps" (Lunge, Athlete) are one
@@ -53,10 +59,12 @@ import {
   CONDITIONING_EXERCISES,
   KIT_KEYS,
   LIBRARY_LEVEL_NAMES,
+  hasAuthoredContent,
   patternsOf,
   libraryNamesOf,
   libraryByPattern,
 } from '../lib/exercise-library.ts';
+import { parseReps } from '../lib/rep-scheme.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DOC_PATH =
@@ -539,6 +547,85 @@ check(
   'no conditioning exercise is also a strength record',
   condInStrength.length === 0,
   condInStrength.map((e) => e.libraryName).join(', ')
+);
+
+// ─── 8. Every record is written, not merely listed ───────────────────────────
+console.log('\n[8] Every exercise in the document has a prescription behind it');
+
+/**
+ * What a record is still missing, asked by running the real readers.
+ *
+ * The rep text goes to parseReps, which is the function double progression
+ * itself uses, rather than to a regular expression written here that could
+ * agree with a spelling while the engine chokes on it. A fixed dose has to
+ * state a number and a unit, because "a hold" with no seconds on it is the
+ * same empty card as no prescription at all.
+ *
+ * The floor on the cue is deliberately low. It is not a style rule; it is the
+ * difference between a coaching line and the word "Press", and a card with
+ * nothing on it is the app admitting it has nothing to say about the exercise
+ * it just asked somebody to do.
+ */
+const FIXED_DOSE = {
+  time: /^\d+\s*(s|min)\b/,
+  distance: /^\d+\s*m\b/,
+  quality: /^\d+\s+\S+/,
+};
+
+function whatIsMissing(e) {
+  const missing = [];
+  if (!hasAuthoredContent(e)) missing.push('no cue, so nothing is written at all');
+  if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > 6) missing.push(`sets "${e.sets}"`);
+  if (!e.dose) missing.push('no dose, so nothing says what kind of prescription this is');
+  else if (e.dose === 'reps') {
+    if (!parseReps(e.reps)) missing.push(`reps "${e.reps}" that the app cannot count`);
+  } else if (!FIXED_DOSE[e.dose].test(e.reps)) {
+    missing.push(`a ${e.dose} dose of "${e.reps}", which states no number and unit`);
+  }
+  const cue = (e.cue ?? '').trim();
+  if (cue.length < 60) missing.push(`a cue of only ${cue.length} characters`);
+  if (cue.toLowerCase() === e.name.toLowerCase()) missing.push('a cue that repeats the name');
+  if (!e.suggestedLoad) missing.push('no starting load');
+  if (!e.primaryMuscle) missing.push('no muscle worked');
+  if (!(e.secondaryMuscles ?? []).length) missing.push('no supporting muscles');
+  if (!(e.targetRegions ?? []).length) missing.push('no target regions');
+  if (!Array.isArray(e.stress)) missing.push('no stress list, so nothing says what it asks of the body');
+  return missing;
+}
+
+// The reader has to be able to say no. One that has quietly stopped rejecting
+// anything passes every record in the library and reports a clean library.
+const blank = {
+  name: 'Nothing At All',
+  sets: 0,
+  reps: '',
+  cue: '',
+  suggestedLoad: '',
+  primaryMuscle: '',
+  secondaryMuscles: [],
+  targetRegions: [],
+};
+check(
+  'a record with nothing on it is recognised as incomplete',
+  whatIsMissing(blank).length >= 8,
+  `an empty record was called short of only ${whatIsMissing(blank).length} things`
+);
+
+const everyRecord = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
+const unwritten = everyRecord.filter((e) => !hasAuthoredContent(e));
+check(
+  `all ${everyRecord.length} records have their prescription written`,
+  unwritten.length === 0,
+  `${unwritten.length} still blank: ${unwritten.map((e) => e.name).join(', ')}`
+);
+
+const incomplete = everyRecord
+  .map((e) => ({ e, missing: whatIsMissing(e) }))
+  .filter((r) => r.missing.length);
+check(
+  'the number of incomplete records is zero',
+  incomplete.length === 0,
+  incomplete.map((r) => `${r.e.name}: ${r.missing.join('; ')}`).join(' | ')
 );
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

@@ -1,7 +1,6 @@
 import type { ExerciseTemplate } from './exercise-db';
 import type { StressTag } from './exercise-safety';
 import { videoUrlFor } from './exercise-videos';
-import type { PainRegion } from './store';
 
 /**
  * THE EXERCISE LIBRARY, AS RECORDS.
@@ -64,22 +63,28 @@ import type { PainRegion } from './store';
  * detection, swap suggestions and session diversity all read. A carry and a
  * plank are both `core` to the library and are not the same movement at all.
  *
- * CONTENT IS AUTHORED FOR THE 122 RECORDS THAT HAD A TEMPLATE TO START FROM
- * ────────────────────────────────────────────────────────────────────────
- * Sets, reps, cue, load, muscles, regions, video and stress tags are written
- * out on every record the app already had in some form: the scope document's
- * exact matches, its "only a rename is needed" matches, and its "the nearest
- * template uses different kit or lacks the modifier" matches, plus all nine
- * conditioning exercises. Each was seeded from the template it matched and then
- * corrected where that template described the wrong implement: Kettlebell
- * Goblet Squats is cued with a bell rather than a dumbbell, Barbell Jump Squats
- * takes the barbell jump-squat video that was sitting on a dumbbell template,
- * and the kettlebell carries are cued as kettlebells.
+ * EVERY RECORD IS WRITTEN
+ * ───────────────────────
+ * Sets, reps, cue, load, muscles, regions, video and stress tags are on all
+ * 169 of them, and the count of records with nothing on them is zero.
  *
- * The 38 records with no template behind them at all still spread
- * PLACEHOLDER_CONTENT and are written in the next step, from drafts the owner
- * has approved. `hasAuthoredContent` is how anything tells the two apart, and
- * nothing may serve a record that has not been written yet.
+ * The 122 that matched something the app already had were seeded from that
+ * template and then corrected where it described the wrong implement:
+ * Kettlebell Goblet Squats is cued with a bell rather than a dumbbell, Barbell
+ * Jump Squats takes the barbell jump-squat video that was sitting on a dumbbell
+ * template, and the kettlebell carries are cued as kettlebells.
+ *
+ * The other 38 are movements the app has never carried in any form, so there
+ * was nothing to seed them from and every word of them is new: the
+ * prescription, the coaching line, the muscles and what the movement asks of
+ * the body. They were written a pattern at a time, and listed in plain English
+ * in the rebuild notes so the owner can read them and change what he disagrees
+ * with. None of them carries footage yet, which decision 15 allows.
+ *
+ * `hasAuthoredContent` stays, because it is what would notice a row added to
+ * the document without a prescription behind it. Nothing may serve a record
+ * that has not been written, and tests/exercise-library.check.mjs holds the
+ * number of incomplete records at zero.
  *
  * REPS ARE A DOSE THE APP EITHER COUNTS OR REFUSES TO
  * ───────────────────────────────────────────────────
@@ -229,7 +234,7 @@ export interface LibraryExercise extends ExerciseTemplate {
   level: LibraryLevel;
   kit: KitRequirement;
   role: LibraryRole;
-  /** Absent until the record's content is written. See `hasAuthoredContent`. */
+  /** On every record. Optional only so an unwritten one cannot fake having one. */
   dose?: LibraryDose;
   /**
    * What this movement asks of the body, written down rather than read off the
@@ -255,33 +260,11 @@ export interface ConditioningExercise extends ExerciseTemplate {
    */
   optionalKit?: readonly KitKey[];
   role: 'conditioning';
-  /** Absent until the record's content is written. See `hasAuthoredContent`. */
+  /** On every record. Optional only so an unwritten one cannot fake having one. */
   dose?: LibraryDose;
   /** As on a movement record. Never a level ladder: conditioning has no level. */
   stress?: readonly StressTag[];
 }
-
-/**
- * Stand-in content for the 38 records the app has never had in any form.
- *
- * Their prescriptions are written in the next step, from drafts the owner has
- * approved. Until then `hasAuthoredContent` returns false for them and nothing
- * may put one in a session.
- *
- * A function, not a shared object, so no two records end up pointing at the
- * same targetRegions array.
- */
-const PLACEHOLDER_CONTENT = (): Pick<
-  ExerciseTemplate,
-  'sets' | 'reps' | 'cue' | 'suggestedLoad' | 'targetRegions' | 'videoId'
-> => ({
-  sets: 3,
-  reps: '',
-  cue: '',
-  suggestedLoad: '',
-  targetRegions: [] as PainRegion[],
-  videoId: '',
-});
 
 /**
  * True once a record's prescription has actually been written.
@@ -3493,8 +3476,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'isometric',
     equipmentRequired: 'fullgym',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'time',
+    sets: 3,
+    reps: '30s each side',
+    cue: 'One heavy dumbbell in one hand, stand tall and simply hold it there without leaning towards it - the side you are not holding is doing the work, and the grip decides when it ends',
+    suggestedLoad: '20-32 kg',
+    primaryMuscle: 'Obliques',
+    secondaryMuscles: ['Grip/Forearms', 'Trapezius', 'Core'],
+    targetRegions: ['core_ribs', 'upper_back', 'wrist'],
+    videoId: '',
+    stress: ['grip_load'],
   },
   {
     id: 'lib-core-kettlebell-halos',
@@ -3506,8 +3498,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'rotation',
     equipmentRequired: 'fullgym',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'reps',
+    sets: 3,
+    reps: '8-10 each way',
+    cue: 'Hold the bell upside down by the handle at chest height and circle it slowly around your head, then go back the other way - keep the ribs down and the neck relaxed',
+    suggestedLoad: '8-16 kg',
+    primaryMuscle: 'Anterior deltoid',
+    secondaryMuscles: ['Shoulder stabilisers', 'Core', 'Trapezius'],
+    targetRegions: ['front_shoulder', 'rear_shoulder', 'upper_back', 'neck'],
+    videoId: '',
+    stress: ['overhead', 'shoulder_end_range'],
   },
   {
     id: 'lib-core-kneeling-cable-rotations',
@@ -3519,8 +3520,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'rotation',
     equipmentRequired: 'fullgym',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'reps',
+    sets: 3,
+    reps: '10-12 each side',
+    cue: 'Kneel side on to the cable with both hands on the handle, brace and turn your ribs away from the machine, then come back under control - the hips stay still and square',
+    suggestedLoad: '10-20 kg',
+    primaryMuscle: 'Obliques',
+    secondaryMuscles: ['Core', 'Rectus abdominis'],
+    targetRegions: ['core_ribs'],
+    videoId: '',
+    stress: [],
   },
   {
     id: 'dl-acc-fg-3',
@@ -3576,8 +3586,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'isometric',
     equipmentRequired: 'bodyweight',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'time',
+    sets: 3,
+    reps: '45s',
+    cue: 'On your hands and toes with the body in one line, reach one arm straight forward and lift the opposite leg, and swap halfway - keep the hips level rather than letting them twist',
+    suggestedLoad: 'Bodyweight',
+    primaryMuscle: 'Transversus abdominis',
+    secondaryMuscles: ['Glutes', 'Erector spinae', 'Core'],
+    targetRegions: ['core_ribs', 'lower_back', 'wrist'],
+    videoId: '',
+    stress: ['wrist_load'],
   },
   {
     id: 'lib-core-side-plank-reach-throughs',
@@ -3589,8 +3608,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'rotation',
     equipmentRequired: 'bodyweight',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'reps',
+    sets: 3,
+    reps: '10-12 each side',
+    cue: 'In a side plank on your forearm, reach the top hand up, then thread it under your body and back - move slowly and keep the hips lifted the whole time',
+    suggestedLoad: 'Bodyweight',
+    primaryMuscle: 'Obliques',
+    secondaryMuscles: ['Core', 'Rhomboids'],
+    targetRegions: ['core_ribs', 'upper_back'],
+    videoId: '',
+    stress: ['wrist_load'],
   },
   {
     id: 'cond-fg-e-3b',
@@ -3668,8 +3696,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'isometric',
     equipmentRequired: 'bodyweight',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'time',
+    sets: 3,
+    reps: '60s each side',
+    cue: 'In a side plank on your forearm with the hips lifted, raise the top leg and hold it there - keep the hips stacked rather than rolling backwards, and lower the leg if they drop',
+    suggestedLoad: 'Bodyweight',
+    primaryMuscle: 'Glute medius',
+    secondaryMuscles: ['Obliques', 'Core'],
+    targetRegions: ['core_ribs', 'hip_groin', 'glutes'],
+    videoId: '',
+    stress: ['wrist_load'],
   },
   {
     id: 'sq-acc-fg-13',
@@ -3769,8 +3806,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'rotation',
     equipmentRequired: 'fullgym',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'reps',
+    sets: 3,
+    reps: '8-10 each side',
+    cue: 'Hold the end of the bar in both hands at chest height, turn your hips and ribs together and sweep it across to one side, then the other - let the back foot turn rather than the knee',
+    suggestedLoad: '20-30 kg',
+    primaryMuscle: 'Obliques',
+    secondaryMuscles: ['Core', 'Anterior deltoid', 'Glutes'],
+    targetRegions: ['core_ribs', 'front_shoulder'],
+    videoId: '',
+    stress: [],
   },
   {
     id: 'lib-core-earthquake-carry',
@@ -3782,8 +3828,17 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     role: 'accessory',
     movementPattern: 'carry',
     equipmentRequired: 'fullgym',
-    ...PLACEHOLDER_CONTENT(),
     category: 'accessory',
+    dose: 'distance',
+    sets: 3,
+    reps: '40 m',
+    cue: 'Hang a kettlebell from a band in each hand and walk - the bells bounce and wobble as you go, so move slowly, brace hard and keep the shoulders steady',
+    suggestedLoad: '12-20 kg per hand',
+    primaryMuscle: 'Grip/Forearms',
+    secondaryMuscles: ['Obliques', 'Trapezius', 'Core'],
+    targetRegions: ['wrist', 'core_ribs', 'upper_back'],
+    videoId: '',
+    stress: ['grip_load'],
   },
 ];
 
