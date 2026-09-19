@@ -714,23 +714,65 @@ check(
   notCarried.join(', ')
 );
 
-// The headline case, worked through the real generator the way the pulldown is
-// above. The bench pool builds "Barbell Bent-Over Row" as an accessory, and the
-// record that will serve it keeps the main pools' id. Somebody who only ever
-// trained bench days has every row they have done under the first of those.
+/**
+ * THE HEADLINE CASE, WORKED RIGHT THROUGH THE WAY THE PULLDOWN IS ABOVE.
+ *
+ * The old bench pool built "Barbell Bent-Over Row" as an accessory under
+ * `bn-acc-fg-1`, so somebody who only ever trained bench days has every row
+ * they have done under that id. The library keeps `wub-fg-row` for the record
+ * that serves it, and now that Upper Body is built from the library, the id on
+ * the card is the survivor rather than the duplicate. That is exactly the
+ * change this table exists for, so the check asks for it that way round: the
+ * session has to build the row under the id the library kept, and the weight it
+ * prescribes has to be the one the person actually lifted.
+ *
+ * The Barbell Row is a level 3 record, so the lifter here is an advanced one
+ * with a barbell. A beginner is not given it at all, which is the ceiling doing
+ * its job rather than a duplicate going missing.
+ */
 const ROW_DUP = 'bn-acc-fg-1';
 const ROW_KEPT = 'wub-fg-row';
 const ROW_LOGGED = 65;
-const rowEstimate = loadOf(buildBench({}), ROW_DUP);
+const ADVANCED = { ...PROFILE, experienceLevel: 'advanced' };
+const buildAdvancedBench = (weights) =>
+  generateWorkout(
+    'bench',
+    'fullgym',
+    { hasAches: false, energy: 'normal', timeAvailable: '60' },
+    ADVANCED,
+    undefined,
+    undefined,
+    0,
+    weights,
+    undefined,
+    undefined,
+    0
+  );
+const rowEstimate = loadOf(buildAdvancedBench({}), ROW_KEPT);
+const rowWithoutMerge = loadOf(buildAdvancedBench({ [ROW_DUP]: ROW_LOGGED }), ROW_KEPT);
+const rowWithMerge = loadOf(
+  buildAdvancedBench(carryProgressForward({ [ROW_DUP]: ROW_LOGGED })),
+  ROW_KEPT
+);
 check(
-  'a bench session really does build the barbell row',
+  'an upper body session really does build the barbell row, under the id the library kept',
   rowEstimate !== null,
   'if the engine stopped serving it, this worked example stops meaning anything'
 );
 check(
-  'and a bench-day row history is readable under the id the library kept',
+  'and a bench-day row history is readable under that id',
   carryProgressForward({ [ROW_DUP]: ROW_LOGGED })[ROW_KEPT] === ROW_LOGGED,
   `${ROW_DUP} -> ${ID_MERGE[ROW_DUP] ?? 'nothing'} — without it those rows are orphaned`
+);
+check(
+  'without the merge the engine cannot see the 65 kg of bench-day rows',
+  rowWithoutMerge === rowEstimate && rowWithoutMerge < ROW_LOGGED,
+  `it prescribed ${rowWithoutMerge} kg, the same first-timer's estimate as somebody with no history`
+);
+check(
+  'with it, the next row is at least the weight they last rowed',
+  rowWithMerge !== null && rowWithMerge >= ROW_LOGGED,
+  `it prescribed ${rowWithMerge} kg — expected something built on ${ROW_LOGGED} kg`
 );
 
 // The last line of scope 1.4: the library document itself listed Squat Jump

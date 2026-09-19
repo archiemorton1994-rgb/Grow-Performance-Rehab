@@ -93,19 +93,17 @@ const profile = {
  * this sweep did exactly that and reported a single machine per session type
  * with perfect confidence.
  */
+const SWEPT_TYPES = ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body'];
+const SWEPT_TIERS = ['bodyweight', 'bands', 'dumbbells', 'fullgym'];
+const SWEPT_TIMES = ['30', '45', '60'];
+const SWEPT_SEEDS = 12;
+
 function openings() {
   const rows = [];
-  for (const sessionType of [
-    'squat',
-    'bench',
-    'deadlift',
-    'upper_body',
-    'lower_body',
-    'full_body',
-  ]) {
-    for (const tier of ['bodyweight', 'bands', 'dumbbells', 'fullgym']) {
-      for (const timeAvailable of ['30', '45', '60']) {
-        for (let seed = 0; seed < 12; seed++) {
+  for (const sessionType of SWEPT_TYPES) {
+    for (const tier of SWEPT_TIERS) {
+      for (const timeAvailable of SWEPT_TIMES) {
+        for (let seed = 0; seed < SWEPT_SEEDS; seed++) {
           let w;
           try {
             w = generateWorkout(
@@ -145,10 +143,23 @@ const home = oldEngine.filter((r) => r.tier !== 'fullgym');
 
 console.log('\n[1] The sessions were really generated');
 
+/**
+ * THE GYM FLOOR IS DERIVED, NOT A NUMBER THAT GETS LOWERED EACH PHASE.
+ *
+ * Every session type switched over to the library leaves the old engine, and a
+ * written-down floor would have to come down with it - which is the same as not
+ * checking. So the floor is every combination the old engine still builds: one
+ * row per remaining type, per session length, per seed, at the gym tier. If a
+ * single one of those stops opening on a warm-up the count falls short and this
+ * fails, and when the last type switches the count is zero and it says so.
+ */
+const oldEngineTypes = [...new Set(oldEngine.map((r) => r.sessionType))];
+const expectedGym = oldEngineTypes.length * SWEPT_TIMES.length * SWEPT_SEEDS;
+
 check(
-  `${rows.length} sessions opened, ${gym.length} of them in a gym on the old engine`,
-  rows.length > 500 && gym.length > 100,
-  'everything below measures nothing if this is small'
+  `${rows.length} sessions opened, ${gym.length} of them in a gym on the old engine (${oldEngineTypes.join(', ') || 'none left'})`,
+  rows.length > 500 && oldEngineTypes.length > 0 && gym.length === expectedGym,
+  `expected ${expectedGym} gym openings from ${oldEngineTypes.length} old-engine types, got ${gym.length} - everything below measures nothing if this is small`
 );
 
 check(

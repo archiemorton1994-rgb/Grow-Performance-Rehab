@@ -416,7 +416,7 @@ const eHigh = mainLiftOf(buildSession({ energy: 'high' }));
  * the promise now live on different session types: the library picks its
  * finisher off the conditioning list by rotation, so energy does not move it,
  * and instead energy moves the sets on every exercise in the session. The old
- * engine, which still builds Upper and Full Body, is the other way round. Both
+ * engine, which still builds Full Body, is the other way round. Both
  * halves are measured below, each on a session type that really does it, so the
  * card cannot promise something no session does.
  */
@@ -529,16 +529,16 @@ for (const [mins, plus] of [
  * SESSION TYPE THE CARD SPEAKS FOR.
  *
  * Everything above this point was measured on ONE session type, and while two
- * engines are running that is half the sessions. The card said 60 "adds a
- * Finisher on top", which is true of a library session and false of an Upper or
- * Full Body one: those end 45 with Prehab and Cool Down, and 60 with Finisher
+ * engines are running that is not all of the sessions. The card said 60 "adds a
+ * Finisher on top", which is true of a library session and false of one the old
+ * engine builds: those end 45 with Prehab and Cool Down, and 60 with Finisher
  * and Cool Down, the Prehab gone. Somebody who chose the longer session for the
  * joint work it promised loses exactly that.
  *
  * So the clause is held to both directions - every block a duration adds AND
- * every block it drops has to be named in it - across a library type and the
- * two still on the old engine. A card that mentions a block only to say it goes
- * in is not describing a session where something comes out.
+ * every block it drops has to be named in it - across all three session types,
+ * whichever engine each of them is on today. A card that mentions a block only
+ * to say it goes in is not describing a session where something comes out.
  */
 const CARD_TYPES = ['lower_body', 'upper_body', 'full_body'];
 const blockMoves = (shorter, longer) => {

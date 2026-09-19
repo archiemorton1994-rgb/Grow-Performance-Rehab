@@ -41,6 +41,10 @@
  *   [12] sets, and the first-time load's age factor
  *   [13] a progression round trip: reps climb, then the weight goes up, a stall
  *        deloads on the third failure, and time away eases the weight back
+ *   [14] the same rules re-asked through the real generateWorkout door, for
+ *        every session type that has actually been switched over
+ *   [15] where a session cannot fill its slots from Archie's list, written down
+ *        exactly so it can neither creep nor be absorbed in silence
  *
  * Run:  npx tsx tests/train-library.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -72,6 +76,7 @@ import {
 import {
   MIN_SLOT_POOL,
   NO_KIT_PULL,
+  SLOT_COUNTS,
   ageLoadFactor,
   generateLibrarySession,
   levelCeilingFor,
@@ -1095,7 +1100,7 @@ console.log('\n[13] Reps climb, then the weight goes up; a stall deloads; time a
  * stays a promise the app has to keep rather than one it gets to withdraw.
  */
 /** Switched over, one line per phase, and never taken out again. */
-const ALREADY_SWITCHED = ['lower_body'];
+const ALREADY_SWITCHED = ['lower_body', 'upper_body'];
 console.log('\n[14] generateWorkout serves the library for every live type');
 {
   const offList = [];
@@ -1245,6 +1250,109 @@ console.log('\n[14] generateWorkout serves the library for every live type');
     'and what comes through the door is what the builder built',
     differsFromBuilder.length === 0,
     differsFromBuilder[0]
+  );
+}
+
+/**
+ * [15] WHERE A SESSION RUNS SHORT OF WHAT IT ASKED FOR, PINNED BOTH WAYS.
+ *
+ * An Upper Body session asks for push, pull, core, push, pull, and the two
+ * repeats are where Archie's list runs out at home: below Intermediate on no
+ * kit there is one beginner push (Kneeling Press Ups) and one beginner pull
+ * (Door Frame Rows), so the fourth and fifth slots come up with nothing left to
+ * give and are dropped. The session is honest - it contains a push, a pull and
+ * a core piece, all at the right level and all with the kit the person owns -
+ * but somebody who chose 60 minutes gets three pieces of work rather than five.
+ * A bench buys one more, bands buy the rest: once there is a second pull in
+ * reach, every kit set fills every slot at every level.
+ *
+ * That is a fact about the LIST, not a fault in the builder, and the two wrong
+ * ways to make it go away are both worse: widening the level window upward
+ * hands a beginner work they are not ready for, and filling the slot from
+ * another pattern gives them a second core piece captioned as a press.
+ *
+ * So it is measured and written down instead, exactly, in both directions. A
+ * combination that starts running short is a regression - something stopped
+ * being reachable. One that stops running short means the library gained a
+ * record, which is good news and should be recorded here rather than absorbed
+ * silently. Lower Body appears nowhere in the list, and that is the point of
+ * sweeping it too: it never runs short at any kit or level.
+ */
+console.log('\n[15] What a session runs short of, and where');
+{
+  /** Written down, one line per combination that cannot fill its slots. */
+  const EXPECTED_SHORTFALL = [
+    'upper_body / nothing / beginner / 45 min: 3 of 4',
+    'upper_body / nothing / beginner / 60 min: 3 of 5',
+    'upper_body / nothing / intermediate / 60 min: 4 of 5',
+    'upper_body / nothing / advanced / 60 min: 4 of 5',
+    'upper_body / nothing / athlete / 60 min: 4 of 5',
+    'upper_body / bodyweight / beginner / 45 min: 3 of 4',
+    'upper_body / bodyweight / beginner / 60 min: 3 of 5',
+    'upper_body / bodyweight / intermediate / 60 min: 4 of 5',
+    'upper_body / bodyweight / advanced / 60 min: 4 of 5',
+    'upper_body / bodyweight / athlete / 60 min: 4 of 5',
+    'upper_body / bodyweight+bench / beginner / 60 min: 4 of 5',
+    'upper_body / bodyweight+bench / intermediate / 60 min: 4 of 5',
+    'upper_body / bodyweight+bench / advanced / 60 min: 4 of 5',
+    'upper_body / bodyweight+bench / athlete / 60 min: 4 of 5',
+  ];
+
+  const shortfall = [];
+  const noWork = [];
+  for (const sessionType of [...new Set([...ALREADY_SWITCHED, ...LIBRARY_LIVE_TYPES])]) {
+    for (const equipment of KITS) {
+      for (const level of EXPERIENCE_LEVELS) {
+        for (const duration of DURATIONS) {
+          const asked = SLOT_COUNTS[sessionType][duration];
+          let fewest = Infinity;
+          for (const seed of SEEDS) {
+            const { exercises } = generateLibrarySession({
+              sessionType,
+              equipment,
+              readiness: readinessFor(SITUATIONS[0], duration, 'normal'),
+              profile: profileFor(level, SITUATIONS[0]),
+              sessionTypeCount: seed,
+              strengthSessionCount: seed,
+              daysSinceLastSession: null,
+            });
+            const work = exercises.filter(
+              (e) => e.category === 'main' || e.category === 'accessory'
+            ).length;
+            if (work < fewest) fewest = work;
+          }
+          const where = `${sessionType} / ${equipment.join('+') || 'nothing'} / ${level} / ${duration} min`;
+          if (fewest < asked) shortfall.push(`${where}: ${fewest} of ${asked}`);
+          if (fewest < 3) noWork.push(`${where}: ${fewest}`);
+        }
+      }
+    }
+  }
+
+  check(
+    `the sessions that cannot fill their slots are exactly the ${EXPECTED_SHORTFALL.length} written down`,
+    shortfall.join('\n') === EXPECTED_SHORTFALL.join('\n'),
+    `got:\n      ${shortfall.join('\n      ') || '(none)'}\n      expected:\n      ${EXPECTED_SHORTFALL.join('\n      ')}`
+  );
+  check(
+    // The floor under the floor: however thin the list gets, nobody is handed a
+    // session with fewer than three things to do in it.
+    'and nobody, on any kit at any level, gets fewer than three pieces of work',
+    noWork.length === 0,
+    noWork[0]
+  );
+  check(
+    'every shortfall is an Upper Body one, so the pull and push repeats are what runs out',
+    shortfall.every((line) => line.startsWith('upper_body /')),
+    shortfall.filter((line) => !line.startsWith('upper_body /'))[0]
+  );
+  check(
+    // A bench earns a beginner one more push, which is why that row reads 4 of
+    // 5 rather than 3. Bands are what actually fill the session, because they
+    // bring a second pull.
+    'and only where the kit is bodyweight, with or without a bench',
+    shortfall.every((line) => /\/ (nothing|bodyweight|bodyweight\+bench) \//.test(line)),
+    shortfall.filter((line) => !/\/ (nothing|bodyweight|bodyweight\+bench) \//.test(line))[0]
   );
 }
 

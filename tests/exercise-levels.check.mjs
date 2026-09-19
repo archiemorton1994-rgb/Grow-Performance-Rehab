@@ -44,6 +44,8 @@ import {
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
 import { LADDER_PATTERNS as ALL_PATTERNS } from '../lib/exercise-levels.ts';
 import { generateWorkout } from '../lib/workout-engine.ts';
+import { LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import { levelCeilingFor as libraryCeilingFor } from '../lib/library-session.ts';
 import {
   DIFFICULTY_LABELS,
   MAX_EXERCISE_LEVEL,
@@ -456,17 +458,33 @@ console.log('\n[7] A rung earned is a rung prescribed');
     opened.length > 0,
     'a button that writes a number nothing reads is a badge, not progression'
   );
+  /**
+   * HARDER ON WHICHEVER LADDER THE EXERCISE IS ON.
+   *
+   * Two of the three session types swept above are built from Archie's library
+   * now, so most of what a rung opens is a library record, and a library record
+   * carries its own level 1-4 rather than sitting on the old catalogue's five
+   * rungs. Asking `levelOf` for it returns nothing, and a question that cannot
+   * be answered reads as "not harder", which is how this assertion would go
+   * quiet while the rung still worked.
+   *
+   * So each opened name is asked of the list it actually belongs to, against
+   * the ceiling that list uses for a beginner who has earned nothing. Both
+   * halves are still here, because Full Body is still the old catalogue.
+   */
+  const libraryLevels = new Map(LIBRARY_EXERCISES.map((r) => [r.name.toLowerCase(), r.level]));
+  const beginnerProfile = profile(0);
+  const harderThanBefore = (name) => {
+    const fromLibrary = libraryLevels.get(name.toLowerCase());
+    if (fromLibrary !== undefined) return fromLibrary > libraryCeilingFor(beginnerProfile);
+    const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
+    const lv = levelOf(name, byName.get(name.toLowerCase())?.movementPattern);
+    return lv !== null && lv > levelCeilingFor('beginner');
+  };
+
   check(
     'and what it opens is genuinely harder work, not just different work',
-    (() => {
-      const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
-      const ceiling = levelCeilingFor('beginner');
-      return opened.some((n) => {
-        const t = byName.get(n.toLowerCase());
-        const lv = levelOf(n, t?.movementPattern);
-        return lv !== null && lv > ceiling;
-      });
-    })(),
+    opened.some(harderThanBefore),
     opened.slice(0, 6).join(' | ')
   );
   check(

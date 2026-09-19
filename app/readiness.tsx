@@ -149,15 +149,17 @@ const READINESS_TUTORIAL = [
      *
      * COUNTED AGAIN when Lower Body moved to Archie's library, which ends its
      * 45 with a Cool Down rather than with Prehab: it only puts Prehab in when
-     * there is an area to look after. Both are named, because during the switch
-     * both are true - a Lower Body session gets the Cool Down and an Upper or
-     * Full Body one gets the Prehab - and neither is promised as the only one.
+     * there is an area to look after. Both are named, because while the switch
+     * is half done both are true - a session off the library gets the Cool Down
+     * and one the old engine still builds gets the Prehab - and neither is
+     * promised as the only one. Upper Body has since moved across too, so Full
+     * Body is the one that still ends its 45 on Prehab.
      *
-     * AND THE LAST SENTENCE WAS AN OVER-PROMISE FOR HALF THE SESSIONS. It said
-     * 60 "adds a Finisher on top", which is true of a library session and false
-     * of an Upper or Full Body one, where the Finisher goes in and the Prehab
-     * comes out. Counted at every tier: upper_body and full_body at 45 end
-     * Prehab then Cool Down, and at 60 they end Finisher then Cool Down with no
+     * AND THE LAST SENTENCE WAS AN OVER-PROMISE FOR THE SESSIONS THE OLD ENGINE
+     * BUILDS. It said 60 "adds a Finisher on top", which is true of a library
+     * session and false of one of those, where the Finisher goes in and the
+     * Prehab comes out. Counted at every tier: a full_body session at 45 ends
+     * Prehab then Cool Down, and at 60 ends Finisher then Cool Down with no
      * Prehab at all. So the sentence says what happens to the block it replaces
      * rather than implying nothing is lost. The 30 and 45 clauses are unchanged.
      *

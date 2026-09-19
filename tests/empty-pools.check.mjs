@@ -111,18 +111,18 @@ function arraysIn(value, out = []) {
  *     ACCESSORIES, PREHAB, FINISHERS and COOLDOWN, which are all still live and
  *     still tested in section 2.
  *
- *   WEEKLY_LOWER_BODY - the old Lower Body main lifts. Lower Body sessions are
- *     built from Archie's library now (LIBRARY_LIVE_TYPES in
- *     lib/workout-engine.ts), and 'squat' maps to Lower Body, so nothing reads
- *     this table. WEEKLY_UPPER_BODY and WEEKLY_FULL_BODY are still live and
- *     still tested in section 2; they move down here as their own types are
+ *   WEEKLY_LOWER_BODY and WEEKLY_UPPER_BODY - the old Lower Body and Upper Body
+ *     main lifts. Both types are built from Archie's library now
+ *     (LIBRARY_LIVE_TYPES in lib/workout-engine.ts), and 'squat' and 'bench'
+ *     map to them, so no session reads either table. WEEKLY_FULL_BODY is still
+ *     live and still tested in section 2; it moves down here when Full Body is
  *     switched over.
  *
  * Listed here rather than quietly dropped, so section 5 can ASSERT the
  * unreachability instead of leaving it as a thing this file stopped looking at.
- * For WEEKLY_LOWER_BODY that assertion is the whole point: emptying the old
- * lower body lifts has to change nothing, because no Lower Body session may be
- * built out of them any more.
+ * For the two weekly tables that assertion is the whole point: emptying the old
+ * lower body or upper body lifts has to change nothing, because no session of
+ * either type may be built out of them any more.
  */
 const UNREACHED_NAMES = [
   'ORM_TEST',
@@ -131,6 +131,7 @@ const UNREACHED_NAMES = [
   'NEURO',
   'GOAL_CONDITIONING_BLOCKS',
   'WEEKLY_LOWER_BODY',
+  'WEEKLY_UPPER_BODY',
 ];
 const UNREACHED_POOLS = UNREACHED_NAMES.map((name) => ({
   name,

@@ -50,11 +50,12 @@ import {
 /**
  * THE STRENGTH SESSION, BUILT FROM ARCHIE'S LIBRARY.
  *
- * LOWER BODY IS BUILT HERE. It was built beside the old engine and is switched
- * on one session type at a time, so that each switch can be read, argued with
- * and corrected on its own. `generateWorkout` in lib/workout-engine.ts holds
- * the list of types that are live (LIBRARY_LIVE_TYPES) and does the routing;
- * everything else still comes from the old catalogue.
+ * LOWER BODY AND UPPER BODY ARE BUILT HERE. This was built beside the old
+ * engine and is switched on one session type at a time, so that each switch can
+ * be read, argued with and corrected on its own. `generateWorkout` in
+ * lib/workout-engine.ts holds the list of types that are live
+ * (LIBRARY_LIVE_TYPES) and does the routing; everything else still comes from
+ * the old catalogue.
  *
  * WHAT IT BUILDS, IN ORDER (plan section 1; decisions 7 to 10)
  * ───────────────────────────────────────────────────────────
@@ -270,8 +271,15 @@ const SLOT_PATTERNS: Record<LibrarySessionType, readonly (readonly LibraryPatter
   ],
 };
 
-/** How many of those slots the clock allows. */
-const SLOT_COUNTS: Record<LibrarySessionType, Record<TimeAvailable, number>> = {
+/**
+ * How many of those slots the clock allows.
+ *
+ * Exported so a check can ask what a session ASKED for before counting what it
+ * got. A slot the library cannot fill is dropped rather than padded, so the two
+ * numbers come apart at home, and the gap between them is a fact about Archie's
+ * list rather than a bug: see tests/train-library.check.mjs section 15.
+ */
+export const SLOT_COUNTS: Record<LibrarySessionType, Record<TimeAvailable, number>> = {
   full_body: { '30': 4, '45': 5, '60': 6 },
   upper_body: { '30': 3, '45': 4, '60': 5 },
   lower_body: { '30': 3, '45': 4, '60': 5 },

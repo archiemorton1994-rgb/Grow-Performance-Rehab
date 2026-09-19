@@ -59,6 +59,8 @@ globalThis.__DEV__ = false;
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const db = await import('../lib/exercise-db.ts');
 const sb = await import('../lib/session-builder.ts');
+const lib = await import('../lib/exercise-library.ts');
+const libSession = await import('../lib/library-session.ts');
 
 let failures = 0;
 let total = 0;
@@ -482,28 +484,118 @@ check(
   thin.slice(0, 8).join(' | ')
 );
 
-// A bodyweight upper body session is the one that broke, and the movement that
-// broke it was the pull. It has to still contain one.
+/**
+ * A BODYWEIGHT UPPER BODY SESSION IS THE ONE THAT BROKE, AND THE MOVEMENT THAT
+ * BROKE IT WAS THE PULL. IT HAS TO CONTAIN ONE, OR SAY WHY NOT.
+ *
+ * Two things changed under this assertion.
+ *
+ * The first is what counts as a pull. It used to be a regex over the card's
+ * name, /row|pull|curl/, and Upper Body is built from Archie's library now:
+ * the one pulling exercise somebody with no kit at all is given is called
+ * Door Frame Rows, and "Rows" does not match \brow\b. The rule would have gone
+ * quiet the day the session it is about started being built properly. So a card
+ * counts as a pull when the library record of that name is filed as one, and
+ * the old regex is kept only for the names the old catalogue still serves,
+ * which is what Full Body is built from until its own phase.
+ *
+ * The second is the honest answer when there genuinely is not one. The library
+ * builder declares a gap naming the pattern and the kit that would open it up,
+ * rather than filling a pull slot with something that is not a pull, so the
+ * promise is "a pull, or a gap that says so". Below, which of the two it is gets
+ * written down per kit set rather than left as a disjunction that both branches
+ * of could rot.
+ *
+ * The gap is a fact the builder returns; `generateWorkout` still drops it,
+ * because it hands back a list of exercises and no screen reads a gap yet. The
+ * plan sheet is wired to it in a later phase. Asserted here all the same, so
+ * that when the sentence does reach a screen it is one the builder has been
+ * producing correctly all along.
+ */
 const PULLING = /\brow\b|\bpull\b|\bcurl\b/i;
+const libraryPulls = new Set(
+  lib.LIBRARY_EXERCISES.filter((r) => lib.patternsOf(r).includes('pull')).map((r) =>
+    r.name.toLowerCase()
+  )
+);
+const isPull = (name) => libraryPulls.has(name.toLowerCase()) || PULLING.test(name);
+
 const missingPull = [];
 for (const type of ['upper_body', 'full_body']) {
-  for (let n = 0; n < 8; n++) {
-    const w = generateWorkout(
-      type,
-      'bodyweight',
-      { energy: 'normal', timeAvailable: '60', hasAches: false },
-      PROFILE,
-      {},
-      undefined,
-      n
-    );
-    if (!w.some((e) => PULLING.test(e.name))) missingPull.push(`${type} #${n}`);
+  for (const tier of TIERS) {
+    for (let n = 0; n < 8; n++) {
+      const w = generateWorkout(
+        type,
+        tier,
+        { energy: 'normal', timeAvailable: '60', hasAches: false },
+        PROFILE,
+        {},
+        undefined,
+        n
+      );
+      if (!w.some((e) => isPull(e.name))) missingPull.push(`${type} at ${tier} #${n}`);
+    }
   }
 }
 check(
-  'a bodyweight upper body and full body session still contains a pull',
+  'every upper body and full body session contains a pull, at every tier there is',
   missingPull.length === 0,
-  `no pulling movement in ${missingPull.join(', ')}`
+  `no pulling movement in ${missingPull.slice(0, 6).join(', ')}`
+);
+
+/**
+ * AND THE KIT SETS THAT STILL RUN OUT OF PULLS ARE THE ONES THAT SAY SO.
+ *
+ * Nobody is short of a pull for want of equipment any more: Door Frame Rows
+ * needs a door frame, which lib/kit.ts counts as owned by everybody, so the
+ * sweep above finds one at every tier. What can still empty the slot is a sore
+ * area, because every pull in the library bends an elbow and loads a grip. The
+ * kit sets where that happens are pinned here, both ways round: one that starts
+ * declaring a gap it did not declare before is a regression in reach, and one
+ * that stops declaring it without gaining a pull is a silently short session.
+ */
+const PULL_GAP_EXPECTED = [
+  'bodyweight / bicep',
+  'bodyweight / wrist',
+  'dumbbells / bicep',
+  'dumbbells / wrist',
+  'kettlebells / bicep',
+  'kettlebells / wrist',
+];
+const pullGaps = [];
+const silentlyShort = [];
+for (const tier of TIERS) {
+  for (const region of ['bicep', 'elbow', 'wrist', 'front_shoulder', 'lat_mid_back', 'chest']) {
+    const s = libSession.generateLibrarySession({
+      sessionType: 'upper_body',
+      equipment: [tier],
+      readiness: {
+        hasAches: true,
+        painRegion: region,
+        painSeverity: 'moderate',
+        energy: 'normal',
+        timeAvailable: '60',
+      },
+      profile: PROFILE,
+      sessionTypeCount: 0,
+      strengthSessionCount: 0,
+      daysSinceLastSession: null,
+    });
+    const gotPull = s.exercises.some((e) => isPull(e.name));
+    const declared = s.gaps.some((g) => g.pattern === 'pull');
+    if (!gotPull && declared) pullGaps.push(`${tier} / ${region}`);
+    if (!gotPull && !declared) silentlyShort.push(`${tier} / ${region}`);
+  }
+}
+check(
+  'nothing loses its pull without the session saying so',
+  silentlyShort.length === 0,
+  `${silentlyShort.join(', ')} - a slot that empties quietly is the failure the gap line exists to stop`
+);
+check(
+  `a declared gap is rare and named: ${PULL_GAP_EXPECTED.length} kit-and-area pairs, all of them a sore bicep or wrist`,
+  pullGaps.join(' | ') === PULL_GAP_EXPECTED.join(' | '),
+  `expected ${PULL_GAP_EXPECTED.join(', ')}, got ${pullGaps.join(', ') || 'none'}`
 );
 
 // ─── The app must not offer a barbell feature to someone with no barbell ─────

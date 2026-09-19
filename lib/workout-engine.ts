@@ -1810,12 +1810,14 @@ export function easeForDeloadWeek(
  * reviewable line and a session type that turns out to read badly can be taken
  * back out again without unpicking anything else. Lower Body first, because it
  * is the type whose library rows are complete at every level from Beginner up.
+ * Upper Body second, once Door Frame Rows meant somebody with no kit at all had
+ * a pull to be given.
  *
  * Anything not on this list is still built from the old catalogue below.
  * Exported so a check can ask the app which types have been switched, rather
  * than holding its own copy that says Lower Body for ever.
  */
-export const LIBRARY_LIVE_TYPES: readonly LibrarySessionType[] = ['lower_body'];
+export const LIBRARY_LIVE_TYPES: readonly LibrarySessionType[] = ['lower_body', 'upper_body'];
 
 /** What the library builder needs and `generateWorkout`'s arguments cannot say. */
 export interface LibraryFacts {
@@ -2008,8 +2010,9 @@ export function generateWorkout(
    * conditioning records and Restore, and nothing else.
    *
    * The whole switch is this one early return, and it is done at the SAME door
-   * the lift-named ids are mapped at, so a 'squat' day out of somebody's
-   * history gets the new Lower Body session rather than the old squat one.
+   * the lift-named ids are mapped at, so a 'squat' or 'bench' day out of
+   * somebody's history gets today's Lower Body or Upper Body session rather
+   * than the old lift day it was named after.
    *
    * WHAT THE LIBRARY BUILDER DOES FOR ITSELF, and why nothing below runs.
    * `generateLibrarySession` screens for pain BEFORE it picks, then runs the

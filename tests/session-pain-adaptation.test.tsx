@@ -1098,8 +1098,9 @@ describe('[5] Swap-exercise flow — comfort badge cleared after swap', () => {
 //   c) ReadinessScreen → router.push: same for body-diagram-region-tricep (back,
 //      muscles mode).
 //   d) End-to-end (bicep): captured router.push params feed directly into the
-//      real generateWorkout; output session contains ≥1 badge='comfort' exercise.
-//   e) End-to-end (tricep): same for tricep.
+//      real generateWorkout; nothing that loads the reported area passes unflagged.
+//   e) End-to-end (tricep): same, and the complaint is shown to have changed the
+//      session rather than been noted and ignored.
 //   f) Negative control: ReadinessScreen with hasAches=false → router.push
 //      passes hasAches='false' → generateWorkout produces 0 comfort exercises.
 //
@@ -1314,11 +1315,67 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
       >[2]['timeAvailable'],
     });
 
-    // The upper body session DOES load a tricep, so here the original,
-    // stronger promise still holds and is still asserted: something in the
-    // session is visibly changed for the person who reported it.
-    const { changed } = assertPainHandled(exercises, 'tricep');
-    expect(changed).toBeGreaterThanOrEqual(1);
+    assertPainHandled(exercises, 'tricep');
+
+    /**
+     * "NOT MERELY LEFT ALONE", ASKED OF THE SESSION RATHER THAN OF A BADGE.
+     *
+     * This used to count comfort badges, and one was always there because the
+     * old lift-day generator picked first and softened afterwards. Upper Body
+     * is built from Archie's library now, which screens BEFORE it picks: on the
+     * kit this flow lands on, the exercises it would have chosen anyway do not
+     * load a tricep, so nothing needs softening and no badge appears. Counting
+     * badges would have reported that as neglect, and insisting on one would be
+     * asking the app to change an exercise that was never a problem.
+     *
+     * The clinical promise is the same one either way, so it is measured that
+     * way: the session somebody with a sore tricep is given is not the session
+     * they would have been given with nothing sore, and wherever the pain-free
+     * session WOULD have loaded the tricep, the sore one does not and the card
+     * that took its place says why.
+     */
+    const shapeOf = (list: ReturnType<typeof generateWorkout>) =>
+      list.map((e) => e.name).join(' | ');
+    const painFree = generateWorkout('bench', equipment as Parameters<typeof generateWorkout>[1], {
+      hasAches: false,
+      painRegion: undefined,
+      energy: (energy ?? 'normal') as Parameters<typeof generateWorkout>[2]['energy'],
+      timeAvailable: (timeAvailable ?? '60') as Parameters<
+        typeof generateWorkout
+      >[2]['timeAvailable'],
+    });
+    expect(shapeOf(exercises)).not.toEqual(shapeOf(painFree));
+
+    const bannedByTricep = new Set(RESTRICTED_BY_REGION.tricep ?? []);
+    const loadsTricep = (list: ReturnType<typeof generateWorkout>) =>
+      list.filter((e) => restrictedTagsOn(e.name, bannedByTricep, undefined, e.cue).length > 0);
+
+    let tiersWhereItBit = 0;
+    for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
+      const ask = (hasAches: boolean) =>
+        generateWorkout('bench', tier as Parameters<typeof generateWorkout>[1], {
+          hasAches,
+          painRegion: hasAches ? ('tricep' as PainRegion) : undefined,
+          energy: 'normal',
+          timeAvailable: '60',
+        });
+      const free = ask(false);
+      const sore = ask(true);
+      // The rule itself, at every tier: nothing loading the area passes unflagged.
+      expect(
+        loadsTricep(sore)
+          .filter((e) => e.badge !== 'comfort' && !e.safetyNote)
+          .map((e) => e.name)
+      ).toEqual([]);
+      if (loadsTricep(free).length > 0) {
+        tiersWhereItBit++;
+        // It was there, it is gone, and the person can see that it moved.
+        expect(loadsTricep(sore).map((e) => e.name)).toEqual([]);
+        expect(sore.some((e) => e.badge === 'comfort' || !!e.safetyNote)).toBe(true);
+      }
+    }
+    // And the rule is not vacuous: there is kit on which it really does bite.
+    expect(tiersWhereItBit).toBeGreaterThanOrEqual(1);
   });
 
   // ── f) Negative control: no aches → router.push has hasAches='false' → no comfort
