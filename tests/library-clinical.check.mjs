@@ -99,13 +99,13 @@ check(
 // 122 movement records matched a template the app already had and were written
 // first. The other 38 are movements the app has never carried in any form, and
 // they are being authored one pattern at a time so that each set can be read
-// and argued with on its own. Push (8) and Pull (4) are written, so 134 of the
-// 160. The number rises with each pattern and reaches 160 when the last lands.
+// and argued with on its own. Push (8), Pull (4) and Hinge (6) are written, so
+// 140 of the 160. The number rises with each pattern and reaches 160 at the end.
 const authoredMovement = LIBRARY_EXERCISES.filter(hasAuthoredContent);
 const authoredConditioning = CONDITIONING_EXERCISES.filter(hasAuthoredContent);
 check(
-  `134 of the 160 movement records are written (${authoredMovement.length})`,
-  authoredMovement.length === 134,
+  `140 of the 160 movement records are written (${authoredMovement.length})`,
+  authoredMovement.length === 140,
   'either a record lost its content or one was written before its pattern was due'
 );
 check(
