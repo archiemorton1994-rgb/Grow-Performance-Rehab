@@ -70,16 +70,32 @@ const libraryNames = new Set(RECORDS.map((e) => e.name));
 console.log('\n[1] Each movement appears once');
 
 /**
- * The one pair the picker still shows twice, and why it is allowed to.
+ * The pairs the picker still shows twice, and why they are allowed to.
  *
- * The KPI pool calls the standing dumbbell press "Standing Overhead Press" and
- * the weekly pools call it "DB Shoulder Press". They are the same movement, so
- * both read as one name here and both sets of history count together - but the
- * picker de-dupes on the raw name, so it lists them separately. That is the old
- * engine's own duplicate, and the library retires it by having one record for
- * the two of them. Anything else landing in this list is a new fault.
+ * Each of these is ONE movement the old catalogue entered under two spellings,
+ * once per pool it appears in. They read as one name here, so both sets of
+ * history count together - but the picker de-dupes on the raw name, so it lists
+ * them separately. Both rows were already there before any of this; the alias
+ * is what makes their charts agree. The library retires each pair by having a
+ * single record for the two of them.
+ *
+ * Listing a pair here is a deliberate, reviewed admission, not a waiver:
+ * the loop below re-checks that every pair named is still genuinely one
+ * movement, so a pair that stops meaning one thing fails rather than hides.
+ * Anything landing in the duplicate list that is NOT named here is a new fault.
  */
-const KNOWN_PICKER_DUPLICATES = [['Standing Overhead Press', 'DB Shoulder Press']];
+const KNOWN_PICKER_DUPLICATES = [
+  // The KPI pool's name for the standing dumbbell press, and the weekly pools'.
+  ['Standing Overhead Press', 'DB Shoulder Press'],
+  // The main-lift pools' barbell row, and the bench pool's accessory spelling.
+  ['Barbell Row', 'Barbell Bent-Over Row'],
+  // The same hinged two-handed dumbbell row, abbreviated and written out.
+  ['DB Bent-Over Row', 'Standing Dumbbell Row'],
+  // One letter between them, same light band.
+  ['Band Pull-Apart', 'Banded Pull-Apart'],
+  // The bench pool drops the "Cable" but still prescribes a cable load.
+  ['Cable Face Pull', 'Face Pull'],
+];
 const allowedDuplicate = (group) =>
   KNOWN_PICKER_DUPLICATES.some(
     (known) => known.length === group.length && known.every((n) => group.includes(n))

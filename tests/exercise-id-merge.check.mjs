@@ -38,6 +38,14 @@
  *   7. The engine actually prescribes off the carried weight.
  *   8. Every library record is shown under exactly one name, and no two
  *      records share one.
+ *   9. Every duplicate set pivot-scope 1.4 names BY HAND is accounted for,
+ *      each id either merged onto that set's survivor or excluded with a
+ *      written reason. Rules 1-3 can only keep a wrong pair out; they cannot
+ *      pull a right one in, because rule 2 reads EXERCISE_ALIASES and this
+ *      work writes EXERCISE_ALIASES. A duplicate spelled differently enough
+ *      that nobody aliased it - "Barbell Bent-Over Row" against "Barbell Row"
+ *      - is invisible to every automatic rule there is. So the hand list is
+ *      pinned, and forgetting one fails instead of passing quietly.
  *
  * Run:  npx tsx tests/exercise-id-merge.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -559,6 +567,181 @@ check(
   'the dumbbell one is the one the dumbbell history goes to',
   canonicalExerciseName('DB Single-Leg RDL') === recordById.get('dl-acc-db-5')?.name,
   `"${canonicalExerciseName('DB Single-Leg RDL')}"`
+);
+
+// ─── 9. The duplicates somebody had to find by hand ──────────────────────────
+console.log('\n[9] Every named duplicate set is accounted for');
+
+/**
+ * rebuild/reference/pivot-scope.md section 1.4, "The library counts these as
+ * one exercise, but the catalogue has duplicates", transcribed into ids.
+ *
+ * This is the only guard that can catch a duplicate nobody merged. Everything
+ * above constrains entries that are already in ID_MERGE; a set left out of the
+ * table entirely is invisible to all of it, and a reviewer found four missing
+ * that way. So each id the scope names is written down here with a verdict:
+ *
+ *   merged   - must be in ID_MERGE, pointing at this set's survivor
+ *   excluded - must NOT be in ID_MERGE, and must say why in one sentence
+ *
+ * Dropping a line from ID_MERGE now fails. Adding a new catalogue template
+ * under one of these names and forgetting it also fails, because the last
+ * assertion sweeps the real catalogue for every id sharing a name with the set.
+ */
+const PIVOT_SCOPE_1_4 = [
+  {
+    set: 'the bent-over dumbbell row',
+    survivor: 'dl-acc-db-2',
+    merged: ['cond-db-e-4a', 'wub-db-row', 'wfb-db-row', 'ch-standing-dumbbell-row'],
+    excluded: {},
+  },
+  {
+    set: 'the barbell row',
+    survivor: 'wub-fg-row',
+    merged: ['wfb-fg-row', 'bn-acc-fg-1'],
+    excluded: {},
+  },
+  {
+    set: 'the band pull-apart',
+    survivor: 'bn-mech-bw-1',
+    merged: ['bn-mech-db-1', 'bn-mech-fg-1', 'dl-acc-bw-6'],
+    excluded: {
+      'bn-prep-fg-3': 'prescription variant: a warm-up dose, and a warm-up rep target is not a working set\'s',
+      'bn-pwr-mech-bw-1': 'prescription variant: the same band pulled apart fast, for a different job',
+      'bn-pwr-mech-db-1': 'prescription variant: the same band pulled apart fast, for a different job',
+      'bn-pwr-mech-fg-1': 'prescription variant: the same band pulled apart fast, for a different job',
+      'ph-s-4': 'Restore: served under its own dose, and a rehab set is not training',
+      'ph-r-rs-1': 'Restore: served under its own dose, and a rehab set is not training',
+      'ph-r-fs-3': 'Restore: served under its own dose, and a rehab set is not training',
+      'ph-r-ub-1': 'Restore: served under its own dose, and a rehab set is not training',
+      'ph-r-ch-4': 'Restore: served under its own dose, and a rehab set is not training',
+      'ph-r-lm-3': 'Restore: served under its own dose, and a rehab set is not training',
+    },
+  },
+  {
+    set: 'the cable face pull',
+    survivor: 'dl-acc-fg-9',
+    merged: ['bn-mech-fg-2'],
+    excluded: {},
+  },
+  {
+    set: 'the lateral lunge',
+    survivor: 'sq-acc-bw-10',
+    merged: ['wlb-bw-lateral-lunge'],
+    excluded: {
+      'sq-acc-db-10':
+        'a different implement: the dumbbell lateral lunge is loaded, and 8-14 kg per hand is not a bodyweight anchor',
+    },
+  },
+  {
+    set: 'the dumbbell Bulgarian split squat',
+    survivor: 'sq-acc-db-1',
+    merged: ['wlb-db-split'],
+    excluded: {},
+  },
+  {
+    set: 'the squat jump',
+    survivor: 'sq-neuro-bw',
+    merged: ['sq-neuro-db-2', 'gcond-bw-n-2'],
+    excluded: {},
+  },
+];
+
+for (const { set, survivor, merged, excluded } of PIVOT_SCOPE_1_4) {
+  const named = [survivor, ...merged, ...Object.keys(excluded)];
+  const ghosts = named.filter((id) => !templateNames[id]);
+  check(
+    `${set}: all ${named.length} ids the scope names are real catalogue ids`,
+    ghosts.length === 0,
+    ghosts.join(', ') + ' — an id that has drifted pins nothing'
+  );
+  check(
+    `${set}: the survivor "${templateNames[survivor] ?? survivor}" is a live library record`,
+    recordById.has(survivor),
+    `${survivor} — progress copied onto an id nothing serves is progress thrown away`
+  );
+
+  const notMerged = merged.filter((id) => ID_MERGE[id] !== survivor);
+  check(
+    `${set}: every named duplicate (${merged.length}) carries forward onto it`,
+    notMerged.length === 0,
+    notMerged.map((id) => `${id} ("${templateNames[id]}") -> ${ID_MERGE[id] ?? 'nothing'}`).join(', ') +
+      ' — this is the one that catches a duplicate nobody merged'
+  );
+
+  const excludedIds = Object.keys(excluded);
+  if (excludedIds.length > 0) {
+    const contradicted = excludedIds.filter((id) => ID_MERGE[id]);
+    check(
+      `${set}: everything it leaves out (${excludedIds.length}) really is left out`,
+      contradicted.length === 0,
+      contradicted.join(', ') + ' — listed as excluded and merged at the same time'
+    );
+    const unexplained = excludedIds.filter((id) => !excluded[id] || excluded[id].length < 20);
+    check(
+      `${set}: and each one says why`,
+      unexplained.length === 0,
+      unexplained.join(', ') + ' — an exclusion without a reason is an omission'
+    );
+  }
+
+  // The catalogue swept for anything else sharing one of these names. A new
+  // template added under "Squat Jump" tomorrow lands here rather than nowhere.
+  const setNames = new Set(named.map((id) => templateNames[id]).filter(Boolean));
+  const accounted = new Set(named);
+  const strays = Object.entries(templateNames)
+    .filter(([id, name]) => setNames.has(name) && !accounted.has(id))
+    .map(([id, name]) => `${id} ("${name}")`);
+  check(
+    `${set}: no other catalogue id answers to any of its names`,
+    strays.length === 0,
+    strays.join(', ') + ' — a duplicate that arrived after this list was written'
+  );
+}
+
+// Said once more as behaviour rather than membership: a weight logged against
+// any named duplicate has to come out readable under that set's survivor. The
+// loop above would still pass if ID_MERGE were a table nothing ever consulted.
+const notCarried = [];
+for (const { survivor, merged } of PIVOT_SCOPE_1_4) {
+  for (const id of merged) {
+    if (carryProgressForward({ [id]: 42 })[survivor] !== 42) notCarried.push(`${id} -> ${survivor}`);
+  }
+}
+check(
+  `a weight logged against any of the ${PIVOT_SCOPE_1_4.reduce((n, s) => n + s.merged.length, 0)} named duplicates reads back under its survivor`,
+  notCarried.length === 0,
+  notCarried.join(', ')
+);
+
+// The headline case, worked through the real generator the way the pulldown is
+// above. The bench pool builds "Barbell Bent-Over Row" as an accessory, and the
+// record that will serve it keeps the main pools' id. Somebody who only ever
+// trained bench days has every row they have done under the first of those.
+const ROW_DUP = 'bn-acc-fg-1';
+const ROW_KEPT = 'wub-fg-row';
+const ROW_LOGGED = 65;
+const rowEstimate = loadOf(buildBench({}), ROW_DUP);
+check(
+  'a bench session really does build the barbell row',
+  rowEstimate !== null,
+  'if the engine stopped serving it, this worked example stops meaning anything'
+);
+check(
+  'and a bench-day row history is readable under the id the library kept',
+  carryProgressForward({ [ROW_DUP]: ROW_LOGGED })[ROW_KEPT] === ROW_LOGGED,
+  `${ROW_DUP} -> ${ID_MERGE[ROW_DUP] ?? 'nothing'} — without it those rows are orphaned`
+);
+
+// The last line of scope 1.4: the library document itself listed Squat Jump
+// twice, under Squat and again as "Squat Jumps" under Lunge. One record is the
+// right answer; two would have split the chart the same way a missed duplicate
+// does.
+const squatJumpRecords = RECORDS.filter((e) => /^squat jumps?$/i.test(e.libraryName ?? e.name));
+check(
+  'the document\'s own double listing of the Squat Jump became one record',
+  squatJumpRecords.length === 1,
+  squatJumpRecords.map((e) => `${e.id} "${e.name}"`).join(', ')
 );
 
 console.log('');

@@ -46,6 +46,15 @@
  * resolve, through EXERCISE_ALIASES, to the same library record name. A pair
  * that does not is not a duplicate, it is two exercises.
  *
+ * That rule keeps a WRONG pair out. It cannot, on its own, pull a right one IN,
+ * because it reads EXERCISE_ALIASES and this work writes EXERCISE_ALIASES: a
+ * duplicate spelled differently enough that nobody ever aliased it is invisible
+ * to it. "Barbell Bent-Over Row" and "Barbell Row" are the same barbell row and
+ * no amount of normalising gets from one string to the other. So the named
+ * duplicate sets in rebuild/reference/pivot-scope.md section 1.4 are pinned BY
+ * ID in the check, each one marked either merged or excluded-with-a-reason, and
+ * a named duplicate can no longer be dropped by being forgotten.
+ *
  * NOT: a dumbbell exercise merged into a barbell one, or the other way round.
  * A Dumbbell Romanian Deadlift is 20 kg in each hand and a barbell one is 70 kg
  * on the bar; handing one the other's anchor is not a convenience, it is an
@@ -89,19 +98,34 @@ export const ID_MERGE: Readonly<Record<string, string>> = {
   // lists all three ids under one library row.
   'wub-db-shoulder-press': 'bn-acc-db-13',
   'wfb-db-ohp': 'bn-acc-db-13',
-  // Band Pull Aparts
+  // Band Pull Aparts. The fourth is the accessory pool's own spelling, "Banded
+  // Pull-Apart": same light band, same movement, one letter of difference.
   'bn-mech-db-1': 'bn-mech-bw-1',
   'bn-mech-fg-1': 'bn-mech-bw-1',
+  'dl-acc-bw-6': 'bn-mech-bw-1',
+  // Cable Face Pulls. The bench pool calls it plain "Face Pull" and tags it
+  // resistance bands, but it prescribes a "Light cable", it is in the fullgym
+  // pool only, and its cue names no band or anchor while the band face pull
+  // (bn-acc-bw-8) says "anchor band at face height". pivot-scope 1.4 lists that
+  // tag under "tagged with the wrong equipment" and the pair under one library
+  // record. Both sides are a cable face pull, so this is not an implement swap.
+  'bn-mech-fg-2': 'dl-acc-fg-9',
   // Lat Pulldowns
   'dl-acc-fg-7': 'bn-acc-fg-4',
   'wub-fg-pulldown': 'bn-acc-fg-4',
   'wfb-fg-pulldown': 'bn-acc-fg-4',
-  // Bent Over Dumbbell Rows
+  // Bent Over Dumbbell Rows. The fourth is "Standing Dumbbell Row", the same
+  // hinged two-handed dumbbell row at the same load, written out in full.
   'cond-db-e-4a': 'dl-acc-db-2',
   'wub-db-row': 'dl-acc-db-2',
   'wfb-db-row': 'dl-acc-db-2',
-  // Barbell Row
+  'ch-standing-dumbbell-row': 'dl-acc-db-2',
+  // Barbell Row. "Barbell Bent-Over Row" is the bench pool's name for it: same
+  // bar, same pull to the sternum, filed as an accessory instead of a main
+  // lift. The generator serves it on bench days, so a bench-day user's row
+  // history is exactly as orphaned as a leg-day user's squat history.
   'wfb-fg-row': 'wub-fg-row',
+  'bn-acc-fg-1': 'wub-fg-row',
   // Pull Ups
   'dl-acc-bw-5': 'bn-acc-bw-5',
   // Wall Hip Hinge

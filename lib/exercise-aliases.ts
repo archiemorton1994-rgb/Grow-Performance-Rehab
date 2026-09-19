@@ -53,6 +53,17 @@
  *     Squat" while the session screen still says "Back Squat". That is the
  *     right way round - the chart is whole, and the label is where the app is
  *     going - but it is visible, so it is written here rather than discovered.
+ *   - A few lines below are not library renames at all. They are a SECOND
+ *     CATALOGUE SPELLING of a movement the catalogue already had: Standing
+ *     Overhead Press beside DB Shoulder Press, Barbell Bent-Over Row beside
+ *     Barbell Row, Standing Dumbbell Row beside DB Bent-Over Row, Banded
+ *     Pull-Apart beside Band Pull-Apart, Face Pull beside Cable Face Pull.
+ *     Those five pairs are each one movement the old engine filed twice, so
+ *     folding them MERGES two Exercise Progress rows into one and makes a note
+ *     written against either surface on both. That is the correct answer - they
+ *     were always one exercise - but it is a change somebody will see, and the
+ *     picker still lists both rows until the library is wired up, which is why
+ *     tests/exercise-aliases.check.mjs names them one by one.
  *
  * NEVER ACROSS IMPLEMENTS. A dumbbell Romanian deadlift does not inherit a
  * barbell one's history. The only crossing in the table is dumbbell to
@@ -121,10 +132,22 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   // Pull
   'Band Face Pull': 'Banded Face Pulls',
   'Band Pull-Apart': 'Band Pull Aparts',
+  // The accessory pool's own spelling of that same light-band pull-apart.
+  'Banded Pull-Apart': 'Band Pull Aparts',
+  // "Barbell Row" was not renamed, so it has no line of its own here. This is
+  // the bench pool's second spelling of it, kept so a row logged on bench day
+  // counts towards the same chart as one logged on pull day.
+  'Barbell Bent-Over Row': 'Barbell Row',
   'Cable Face Pull': 'Cable Face Pulls',
+  // The bench pool's name for the same cable face pull. See the note on
+  // 'bn-mech-fg-2' in lib/exercise-id-merge.ts for why the band tag on it is
+  // the catalogue being wrong rather than a second, banded exercise.
+  'Face Pull': 'Cable Face Pulls',
   'Chest Supported Row': 'Chest Supported Dumbbell Row',
   'Chin-Up': 'Chin Ups',
   'DB Bent-Over Row': 'Bent Over Dumbbell Rows',
+  // The conditioning pool writes that dumbbell row out in full.
+  'Standing Dumbbell Row': 'Bent Over Dumbbell Rows',
   'DB Single-Arm Row': 'Single Arm Dumbbell Rows',
   'Gorilla Row': 'Gorilla Rows',
   'Landmine Single-Arm Row': 'Landmine Single Arm Rows',
