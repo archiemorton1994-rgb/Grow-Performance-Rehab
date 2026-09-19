@@ -28,6 +28,17 @@
  * The first section generates sessions rather than reading the catalogue. The
  * catalogue said the warm-up rotated daily for years while it did not.
  *
+ * THE SESSIONS BUILT FROM ARCHIE'S LIBRARY OPEN DIFFERENTLY, ON PURPOSE.
+ * ─────────────────────────────────────────────────────────────────────
+ * A library session opens on one of the nine conditioning exercises at an easy
+ * pace (plan section 1), which is a pulse raiser rather than a machine chosen
+ * to prime a half of the body: two of the nine are not machines at all, and
+ * Archie's list is what a session is allowed to draw on. So the machine rules
+ * below are asked of the session types the old engine still builds, and the
+ * types that have been switched over are held to their own rule in section 2b.
+ * Which types those are is read from the app (LIBRARY_LIVE_TYPES) rather than
+ * listed here, so this file follows the switch instead of pinning it.
+ *
  * Run:  npx tsx tests/cardio-machine.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -35,7 +46,11 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 
-const { generateWorkout } = await import('../lib/workout-engine.ts');
+const { generateWorkout, LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
+const { trainTypeOf } = await import('../lib/session-type.ts');
+const { CONDITIONING_EXERCISES } = await import('../lib/exercise-library.ts');
+const { canPerformWith } = await import('../lib/kit.ts');
+const { getStandalonePrehabWorkout } = await import('../lib/exercise-db.ts');
 const {
   CARDIO_MACHINES,
   CARDIO_MACHINE_IDS,
@@ -106,7 +121,14 @@ function openings() {
             continue;
           }
           if (!w[0]) continue;
-          rows.push({ sessionType, tier, seed, first: w[0] });
+          rows.push({
+            sessionType,
+            tier,
+            seed,
+            first: w[0],
+            // Which builder made it, asked of the app rather than listed here.
+            library: LIBRARY_LIVE_TYPES.includes(trainTypeOf(sessionType)),
+          });
         }
       }
     }
@@ -115,15 +137,24 @@ function openings() {
 }
 
 const rows = openings();
-const gym = rows.filter((r) => r.tier === 'fullgym');
-const home = rows.filter((r) => r.tier !== 'fullgym');
+/** The sessions the machine rules are about: the ones the old engine builds. */
+const oldEngine = rows.filter((r) => !r.library);
+const fromLibrary = rows.filter((r) => r.library);
+const gym = oldEngine.filter((r) => r.tier === 'fullgym');
+const home = oldEngine.filter((r) => r.tier !== 'fullgym');
 
 console.log('\n[1] The sessions were really generated');
 
 check(
-  `${rows.length} sessions opened, ${gym.length} of them in a gym`,
+  `${rows.length} sessions opened, ${gym.length} of them in a gym on the old engine`,
   rows.length > 500 && gym.length > 100,
   'everything below measures nothing if this is small'
+);
+
+check(
+  `and ${fromLibrary.length} of them came from the library`,
+  fromLibrary.length > 100,
+  `LIBRARY_LIVE_TYPES is ${LIBRARY_LIVE_TYPES.join(', ') || 'empty'}, so section 2b measures nothing`
 );
 
 check(
@@ -151,23 +182,23 @@ check(
     .join('; ')
 );
 
-const lowerDays = gym.filter((r) => r.sessionType === 'squat' || r.sessionType === 'lower_body');
+/**
+ * Every day the old engine still builds, against the half it loads.
+ *
+ * Asked per row through `cardioFocusForSession` rather than by naming leg days
+ * and pressing days, so that a session type moving to the library takes its
+ * rows out of here without leaving an assertion pinned to a type nothing
+ * generates. A session whose focus is 'both' has no wrong machine to open on.
+ */
+const FOCUS_MACHINES = { lower: LOWER, upper: UPPER };
+const misprimed = gym.filter((r) => {
+  const suits = FOCUS_MACHINES[cardioFocusForSession(r.sessionType)];
+  return suits ? !suits.has(r.first.id) : false;
+});
 check(
-  `leg days open on a leg machine (${lowerDays.length} checked)`,
-  lowerDays.length > 0 && lowerDays.every((r) => LOWER.has(r.first.id)),
-  lowerDays
-    .filter((r) => !LOWER.has(r.first.id))
-    .slice(0, 3)
-    .map((r) => `${r.sessionType} opened on ${r.first.name}`)
-    .join('; ')
-);
-
-const upperDays = gym.filter((r) => r.sessionType === 'bench' || r.sessionType === 'upper_body');
-check(
-  `pressing and pulling days open on an upper-body machine (${upperDays.length} checked)`,
-  upperDays.length > 0 && upperDays.every((r) => UPPER.has(r.first.id)),
-  upperDays
-    .filter((r) => !UPPER.has(r.first.id))
+  `every gym day opens on a machine that primes what it loads (${gym.length} checked)`,
+  gym.length > 0 && misprimed.length === 0,
+  misprimed
     .slice(0, 3)
     .map((r) => `${r.sessionType} opened on ${r.first.name}`)
     .join('; ')
@@ -180,7 +211,7 @@ check(
  * effectively did, and the comment in the catalogue claimed otherwise for
  * years. If this ever drops to one, the rotation has quietly died again.
  */
-for (const type of ['squat', 'bench']) {
+for (const type of [...new Set(gym.map((r) => r.sessionType))]) {
   const seen = new Set(gym.filter((r) => r.sessionType === type).map((r) => r.first.name));
   check(
     `${type} days rotate between machines rather than always naming one`,
@@ -188,6 +219,59 @@ for (const type of ['squat', 'bench']) {
     `only ever saw: ${[...seen].join(', ')}`
   );
 }
+
+console.log('\n[2b] A library session opens on one of the nine, at an easy pace');
+
+const conditioningByName = new Map(CONDITIONING_EXERCISES.map((e) => [e.name, e]));
+/** The one thing that stands in when nothing on the nine fits: Restore's walk. */
+const restorePrep = new Set(
+  getStandalonePrehabWorkout()
+    .filter((t) => t.category === 'prep')
+    .map((t) => t.name)
+);
+
+const offTheList = fromLibrary.filter(
+  (r) => !conditioningByName.has(r.first.name) && !restorePrep.has(r.first.name)
+);
+check(
+  `every library session opens on the conditioning list or Restore (${fromLibrary.length} checked)`,
+  fromLibrary.length > 0 && offTheList.length === 0,
+  offTheList
+    .slice(0, 3)
+    .map((r) => `${r.sessionType}/${r.tier} opened on ${r.first.name}`)
+    .join('; ')
+);
+
+const notEasy = fromLibrary.filter(
+  (r) => conditioningByName.has(r.first.name) && r.first.suggestedLoad !== 'Easy pace'
+);
+check(
+  'and it is prescribed as a pulse raiser rather than as work',
+  notEasy.length === 0,
+  notEasy
+    .slice(0, 3)
+    .map((r) => `${r.sessionType}/${r.tier}: ${r.first.name} at ${r.first.suggestedLoad}`)
+    .join('; ')
+);
+
+/**
+ * The honesty rule this file already holds for the old engine, asked of the
+ * new one: a machine is gym kit, so nobody at home is opened on one. Asked of
+ * the record's own kit requirement rather than of a list of machine names, so
+ * it covers the sled as well as the rower.
+ */
+const unownedOpener = fromLibrary.filter((r) => {
+  const record = conditioningByName.get(r.first.name);
+  return record ? !canPerformWith(record, [r.tier]) : false;
+});
+check(
+  'and never on kit they have not got',
+  unownedOpener.length === 0,
+  unownedOpener
+    .slice(0, 3)
+    .map((r) => `${r.tier} was given ${r.first.name}`)
+    .join('; ')
+);
 
 console.log('\n[3] Nothing changed for somebody without a gym');
 

@@ -50,9 +50,11 @@ import {
 /**
  * THE STRENGTH SESSION, BUILT FROM ARCHIE'S LIBRARY.
  *
- * NOTHING CALLS THIS YET. It is built beside the old engine and switched on one
- * session type at a time in a later phase, so it can be read, argued with and
- * corrected before anybody's session changes.
+ * LOWER BODY IS BUILT HERE. It was built beside the old engine and is switched
+ * on one session type at a time, so that each switch can be read, argued with
+ * and corrected on its own. `generateWorkout` in lib/workout-engine.ts holds
+ * the list of types that are live (LIBRARY_LIVE_TYPES) and does the routing;
+ * everything else still comes from the old catalogue.
  *
  * WHAT IT BUILDS, IN ORDER (plan section 1; decisions 7 to 10)
  * ───────────────────────────────────────────────────────────

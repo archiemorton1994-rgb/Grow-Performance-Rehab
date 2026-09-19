@@ -22,6 +22,17 @@
  *   WIRING — the Stats tab actually consults the name map, everywhere it reads
  *          regions off a log
  *
+ * WIDENED when Lower Body moved to Archie's library. The library does not
+ * rotate a main lift into a `-variation` id at all: every record has its own
+ * id and its own history. What it does do is serve exercises no collection in
+ * lib/exercise-db.ts had ever held, which is the same failure wearing different
+ * clothes - measured before the fix, 29 of the 36 exercises a Lower Body
+ * session can serve were unknown to the by-name map and 10 to the by-id map, so
+ * training legs all month left the legs grey. So section 1 still holds the
+ * rotated ids while any session type is still built by the old engine, and
+ * section 2 now asks the question that matters for both engines: can the map
+ * credit every exercise a session actually serves?
+ *
  * Run:  npx tsx tests/muscle-map-variation.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -64,6 +75,8 @@ console.log('\n[1] A rotated main lift trains under an id no region map knows');
 
 const readiness = { energy: 'normal', timeAvailable: '60', hadAches: false, painRegions: [] };
 const rotated = [];
+/** Every exercise of real work any session serves, whichever builder made it. */
+const served = [];
 for (const sessionType of ['upper_body', 'lower_body', 'full_body']) {
   for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
     for (let done = 0; done < 12; done++) {
@@ -82,14 +95,25 @@ for (const sessionType of ['upper_body', 'lower_body', 'full_body']) {
       );
       const main = exercises.find((e) => e.category === 'main');
       if (main?.id.endsWith('-variation')) rotated.push({ sessionType, tier, main });
+      for (const ex of exercises) {
+        if (ex.category === 'main' || ex.category === 'accessory') {
+          served.push({ sessionType, tier, main: ex });
+        }
+      }
     }
   }
 }
 
 check(
-  `every weekly session type rotates its main lift (${rotated.length} found)`,
-  new Set(rotated.map((r) => r.sessionType)).size === 3,
-  'nothing rotated, so the rest of this test proves nothing'
+  `the sweep really built sessions (${served.length} exercises of work over 108)`,
+  served.length > 300 && new Set(served.map((r) => r.sessionType)).size === 3,
+  'nothing was generated, so the rest of this test proves nothing'
+);
+
+check(
+  `the old engine still rotates its main lift into a derived id (${rotated.length} found)`,
+  rotated.length > 0,
+  'no -variation id anywhere: if every session type is built from the library now, this half has retired and section 2 is the whole test'
 );
 
 check(
@@ -126,6 +150,26 @@ check(
   'and each one names at least one muscle the figure can shade',
   unshaded.length === 0,
   `${[...new Set(unshaded)].join(', ')} — joints only, so the map would still look empty`
+);
+
+/**
+ * THE PROMISE ITSELF: nothing anybody trains is left off the map.
+ *
+ * Asked of every exercise of work in every session, by the two lookups in the
+ * order the Stats tab uses them, so it holds whichever builder made the
+ * session. This is what caught the library going live with 29 of its 36 lower
+ * body exercises unknown to both maps.
+ */
+const unlit = served
+  .filter((r) => {
+    const regions = byId[r.main.id]?.length > 0 ? byId[r.main.id] : (byName[r.main.name] ?? []);
+    return !regions.some((region) => MUSCLE_SET.has(region));
+  })
+  .map((r) => `${r.sessionType}/${r.tier}: ${r.main.name} (${r.main.id})`);
+check(
+  `every exercise a session serves lights a muscle the figure can shade (${served.length} checked)`,
+  unlit.length === 0,
+  `${[...new Set(unlit)].slice(0, 5).join(', ')} — trained, and shaded nothing`
 );
 
 // ─── 3. The Stats tab actually uses it ───────────────────────────────────────

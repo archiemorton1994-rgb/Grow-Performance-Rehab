@@ -22,6 +22,22 @@
  *              curated choices must still lead, and the main lift must stay put
  *              most of the time because it is the thing being progressed
  *
+ * WHAT THE LIBRARY CHANGED. The session types built from Archie's library
+ * (LIBRARY_LIVE_TYPES) do not draw on the curated weekly lists at all, so the
+ * coverage and duplicate rules below, which are written against those lists,
+ * are asked only of the types the old engine still builds. Their own coverage
+ * rule - every pattern the session asked for is in it or the gap is declared -
+ * is held by tests/train-library.check.mjs, which is where it belongs, because
+ * the patterns a library session asks for are the library's own.
+ *
+ * The main lift still has to stay put, and that IS asked of both, because it is
+ * the same promise about progression whoever built the session. A library
+ * session alternates which pattern leads - squat, then hinge, then squat - and
+ * steps along the pattern's pool every fourth session of its type, so the same
+ * main comes back every other session and changes every fourth. That is more
+ * faces over eight sessions than the old engine's one-in-four, and still a main
+ * that repeats rather than one that is new every time.
+ *
  * Run:  npx tsx tests/session-variety.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
@@ -108,23 +124,40 @@ const gen = (type, tier, time, n) =>
     n
   );
 
+const { LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
+const builtFromLibrary = (type) => LIBRARY_LIVE_TYPES.includes(type);
+
 for (const type of ['upper_body', 'lower_body']) {
   const accessories = new Set();
   const mains = new Set();
+  const mainCounts = new Map();
   for (let n = 0; n < 8; n++) {
     const w = gen(type, 'fullgym', '60', n);
     w.filter((e) => e.category === 'accessory').forEach((e) => accessories.add(e.name));
-    w.filter((e) => e.category === 'main').forEach((e) => mains.add(e.name));
+    w.filter((e) => e.category === 'main').forEach((e) => {
+      mains.add(e.name);
+      mainCounts.set(e.name, (mainCounts.get(e.name) ?? 0) + 1);
+    });
   }
   check(
     `${type}: accessories vary across 8 sessions (${accessories.size} distinct)`,
     accessories.size >= 6,
     `only ${accessories.size} — the whole point is that these rotate`
   );
+  /**
+   * A main that is never repeated is a main nobody can progress. The library
+   * alternates two patterns and steps each pool every fourth session, so eight
+   * sessions show at most four mains and every one of them comes round again.
+   */
+  const onceOnly = [...mainCounts].filter(([, n]) => n < 2).map(([name]) => name);
   check(
     `${type}: the main lift stays put (${mains.size} distinct across 8)`,
-    mains.size >= 1 && mains.size <= 3,
-    `${mains.size} distinct mains — progression needs the same movement most weeks`
+    builtFromLibrary(type)
+      ? mains.size >= 1 && mains.size <= 4 && onceOnly.length === 0
+      : mains.size >= 1 && mains.size <= 3,
+    onceOnly.length > 0
+      ? `never repeated: ${onceOnly.join(', ')} — progression needs the same movement more than once`
+      : `${mains.size} distinct mains — progression needs the same movement most weeks`
   );
 }
 
@@ -162,7 +195,15 @@ const patternOf = (name) =>
 
 let coverageOk = true;
 const coverageDetail = [];
+/** The types these curated-list rules can still be asked of. See the header. */
+const oldEngineTypes = Object.keys(CURATED).filter((type) => !builtFromLibrary(type));
+check(
+  `the curated weekly lists still build ${oldEngineTypes.length} session type(s)`,
+  oldEngineTypes.length > 0,
+  'every type is built from the library now, so the coverage and duplicate rules below measure nothing and this section has retired'
+);
 for (const [type, getter] of Object.entries(CURATED)) {
+  if (builtFromLibrary(type)) continue;
   for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
     // Slot 0 is the main lift, which has its own alternative and is checked by
     // the "main stays put" assertion above.
@@ -223,6 +264,7 @@ const sameMovement = (x, y) => {
 
 let introduced = 0;
 for (const [type, getter] of Object.entries(CURATED)) {
+  if (builtFromLibrary(type)) continue;
   for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
     const curated = new Set(getter(tier).map((e) => e.name));
     for (const time of ['30', '45', '60']) {

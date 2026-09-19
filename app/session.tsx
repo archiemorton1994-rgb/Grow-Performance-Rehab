@@ -86,7 +86,8 @@ import {
   TIER_ORDER,
   FitnessGoal,
 } from '@/lib/store';
-import { countLiftingSessions } from '@/lib/session-type';
+import { countLiftingSessions, countSessionsOfType, trainTypeOf } from '@/lib/session-type';
+import { withKeptSupplies } from '@/lib/kit';
 import {
   effortHint,
   parseReps,
@@ -2878,6 +2879,7 @@ export default function SessionScreen() {
   const sessionAccent = C.primaryDark;
   const {
     getEffectiveTier,
+    equipmentTiers,
     completeSession,
     userProfile,
     exerciseFeedback,
@@ -2932,9 +2934,40 @@ export default function SessionScreen() {
    * body day it means and today's lower body day counts too.
    */
   const strengthCount = countLiftingSessions(completedSessions);
+  /**
+   * AND HOW MANY TIMES THEY HAVE DONE THIS PARTICULAR SESSION.
+   *
+   * The library builder walks its pools by this rather than by the count above:
+   * the main exercise holds for four sessions of its own type, so that there is
+   * something to progress, while the rest turn over every three. Counted through
+   * `trainTypeOf`, so a squat day out of an old history counts as the lower body
+   * day it now means. Custom sessions never reach the builder, so the count is
+   * asked for only when the type is one it builds.
+   */
+  const sessionTypeCount = countSessionsOfType(completedSessions, trainTypeOf(sessionType));
   const equipmentTier: EquipmentTier = TIER_ORDER.includes(params.equipment as EquipmentTier)
     ? (params.equipment as EquipmentTier)
     : getEffectiveTier();
+  /**
+   * EVERYTHING THEY CAN REACH TODAY, not the single best rung.
+   *
+   * The library asks for kit an item at a time - "Box or Bench", "Barbell and
+   * Plates" - so one tier cannot answer it: somebody who ticked bands and
+   * dumbbells owns both, and the best rung alone would lose them every banded
+   * exercise they have. The old engine keeps taking the single tier, which is
+   * the answer its pools are indexed by.
+   *
+   * When the readiness screen named the kit for today, that choice wins, and
+   * the bench or box they own is carried across it rather than disappearing for
+   * the session: a bench in the spare room is still there on a dumbbell day.
+   */
+  const ownedEquipment: EquipmentTier[] = useMemo(
+    () =>
+      TIER_ORDER.includes(params.equipment as EquipmentTier)
+        ? withKeptSupplies([params.equipment as EquipmentTier], equipmentTiers)
+        : equipmentTiers,
+    [params.equipment, equipmentTiers]
+  );
 
   const isDumbbellSession = equipmentTier === 'dumbbells' || equipmentTier === 'kettlebells';
 
@@ -3067,11 +3100,16 @@ export default function SessionScreen() {
       // How much of that count was trained on a different exercise library.
       // The rotation above uses the whole count; the first-time weight estimate
       // counts from here. See libraryEpochSessionCount in lib/store.ts.
-      libraryEpochSessionCount
+      libraryEpochSessionCount,
+      // The two facts the library builder needs that the fifteen above cannot
+      // say. Ignored by every session type still built from the old catalogue.
+      { equipment: ownedEquipment, sessionTypeCount }
     );
   }, [
     sessionType,
     equipmentTier,
+    ownedEquipment,
+    sessionTypeCount,
     hasAches,
     painRegion,
     painSeverity,

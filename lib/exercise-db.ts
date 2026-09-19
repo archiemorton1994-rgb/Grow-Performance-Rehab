@@ -8,6 +8,16 @@ import { CHANNEL_EXERCISES } from './channel-exercises';
 // answers are supplies rather than rungs. lib/kit.ts has no runtime imports
 // from here, so there is no cycle.
 import { isSupplyTier } from './kit';
+/**
+ * Archie's library and his nine conditioning exercises, so that the two region
+ * lookups below know the exercises people are now given. Sessions built from
+ * the library serve records that are not in any collection in this file, and a
+ * muscle map that has never heard of what somebody trained shades nothing: a
+ * lower body session of Trapbar Deadlifts and Kettlebell Box Squats left the
+ * legs grey on the Stats tab. lib/exercise-library.ts imports only a TYPE from
+ * here, so this adds no runtime cycle.
+ */
+import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from './exercise-library';
 
 export { ACUTE_PREHAB_BY_REGION, ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from './acute-rehab';
 export type { AcuteProtocolNotes } from './acute-rehab';
@@ -20973,6 +20983,13 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
   };
 
   walk([
+    // FIRST, so that anything this file already knew keeps the answer it had.
+    // The library is here to cover the records nothing else in the app holds,
+    // not to restate the ones it shares an id with. A later write wins in this
+    // walk, so listing the library last would have quietly re-pointed every
+    // matched record's regions at the library's copy of them.
+    LIBRARY_EXERCISES,
+    CONDITIONING_EXERCISES,
     CARDIO_WARMUPS,
     PREP,
     MECHANICAL,
@@ -21076,6 +21093,10 @@ export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
   };
 
   walk([
+    // First, for the reason given in getExerciseTargetRegionsMap above: a name
+    // this file already indexes keeps the regions this file gave it.
+    LIBRARY_EXERCISES,
+    CONDITIONING_EXERCISES,
     CARDIO_WARMUPS,
     PREP,
     MECHANICAL,

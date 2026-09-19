@@ -412,12 +412,24 @@ console.log('\n[4] The kilogram user sees exactly what they saw before');
   // The one card/box disagreement section 3 skips, pinned here so it is on the
   // record rather than quietly excluded. If this ever passes, the exclusion in
   // section 3 should go with it.
+  /**
+   * Swept over every session type rather than asked of a Lower Body one.
+   *
+   * `applyKettlebellNaming` belongs to the old engine, and Lower Body is built
+   * from Archie's library now, so the session this probe used to build cannot
+   * show the gap any more. That is not the bug being fixed - every other
+   * session type still goes through the renaming - and a probe that reported
+   * "fixed" because it was pointed at the one session that had moved would have
+   * taken the exclusion out of section 3 while the gap was still there.
+   */
   const kbMismatch = (unit) => {
-    for (const ex of build('lower_body', 'kettlebells', unit)) {
-      const box = boxTargetsKg(ex, unit).filter((k) => k > 0);
-      const card = cardNumbers(ex, unit);
-      if (card.length > 0 && box.length > 0 && !card.includes(kgToDisplayUnit(box[0], unit))) {
-        return `${ex.name}: card [${card.join(', ')}] vs box [${box.map((k) => kgToDisplayUnit(k, unit)).join(', ')}]`;
+    for (const type of SESSION_TYPES) {
+      for (const ex of build(type, 'kettlebells', unit)) {
+        const box = boxTargetsKg(ex, unit).filter((k) => k > 0);
+        const card = cardNumbers(ex, unit);
+        if (card.length > 0 && box.length > 0 && !card.includes(kgToDisplayUnit(box[0], unit))) {
+          return `${type} ${ex.name}: card [${card.join(', ')}] vs box [${box.map((k) => kgToDisplayUnit(k, unit)).join(', ')}]`;
+        }
       }
     }
     return null;

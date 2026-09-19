@@ -110,10 +110,17 @@ const READINESS_TUTORIAL = [
      * answer really moves now is which finisher you get, and on a Full Body
      * session, how many sets everything in it carries.
      *
+     * AND REWRITTEN AGAIN when Lower Body moved to Archie's library, where the
+     * two halves swap over: a library session takes a set off EVERY exercise
+     * when you say low and adds one when you say high, and its finisher comes
+     * off the conditioning list by rotation rather than by how you feel. So the
+     * card names both and promises neither everywhere, because which one you
+     * get depends on the session.
+     *
      * tests/guided-tour.check.mjs generates all three at each answer and fails
      * if any of that stops matching, which is the signal to re-read this.
      */
-    body: 'Low gives you an easier finisher, high a harder one, and on a Full Body session low takes sets off as well. It does not change the weight on the bar, which comes from what you lifted last time.',
+    body: 'Low gives you an easier session and high a harder one: fewer or more sets where the session can move them, and an easier or harder finisher. It does not change the weight on the bar, which comes from what you lifted last time.',
   },
   {
     iconName: 'time-outline',
@@ -133,11 +140,17 @@ const READINESS_TUTORIAL = [
      * which put a Power Primer and an Activation drill in and reached its
      * finisher at 45. No session the app builds has any of that.
      *
+     * COUNTED AGAIN when Lower Body moved to Archie's library, which ends its
+     * 45 with a Cool Down rather than with Prehab: it only puts Prehab in when
+     * there is an area to look after. Both are named, because during the switch
+     * both are true - a Lower Body session gets the Cool Down and an Upper or
+     * Full Body one gets the Prehab - and neither is promised as the only one.
+     *
      * The block names are capitalised because they are the badges printed on
      * the cards themselves - see components/SessionPlanList.tsx - so the words
      * here are the words the user is about to read.
      */
-    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and ends with Prehab, gentle work for the joints you have just loaded. 60 ends with a Finisher instead.',
+    body: '30 is your Warm-Up, your main lift and the Accessories that fit. 45 keeps all of that and eases you out of it, with a Cool Down or some Prehab for the joints you have just loaded. 60 adds a Finisher on top.',
   },
 ] as const;
 

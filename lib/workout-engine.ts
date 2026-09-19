@@ -25,6 +25,17 @@ import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 // Same reasoning as session-type above: lib/kit.ts imports nothing from the
 // store at runtime, so reading the supply-tier rule from it adds no edge back.
 import { isSupplyTier } from './kit';
+/**
+ * The library builder, which this module also supplies with its own helpers.
+ *
+ * The two modules import each other on purpose. `generateWorkout` is the one
+ * door every session in the app comes through, so the switch to the library has
+ * to be made here; and the library builder reuses this module's personalisation
+ * rather than growing a second copy of double progression. Neither module reads
+ * anything from the other while it is being loaded - every reference is inside a
+ * function body - so the cycle never has a half-built module to resolve.
+ */
+import { generateLibrarySession, type LibrarySessionType } from './library-session';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -1793,6 +1804,39 @@ export function easeForDeloadWeek(
 }
 
 /**
+ * THE SESSION TYPES THAT ARE BUILT FROM ARCHIE'S LIBRARY TODAY.
+ *
+ * One entry per type, added one at a time, so that every switch is a single
+ * reviewable line and a session type that turns out to read badly can be taken
+ * back out again without unpicking anything else. Lower Body first, because it
+ * is the type whose library rows are complete at every level from Beginner up.
+ *
+ * Anything not on this list is still built from the old catalogue below.
+ * Exported so a check can ask the app which types have been switched, rather
+ * than holding its own copy that says Lower Body for ever.
+ */
+export const LIBRARY_LIVE_TYPES: readonly LibrarySessionType[] = ['lower_body'];
+
+/** What the library builder needs and `generateWorkout`'s arguments cannot say. */
+export interface LibraryFacts {
+  /**
+   * EVERY EQUIPMENT ANSWER THEY TICKED, not the single best rung.
+   *
+   * Absent means "use the one tier you were given", which is what every caller
+   * written before the library passes.
+   */
+  equipment?: readonly EquipmentTier[];
+  /**
+   * Completed sessions OF THIS TYPE, all time, counted through `trainTypeOf`.
+   *
+   * It is the only thing the library's variety turns on, and it is per type so
+   * that a Lower Body session moves along its own pools whether or not Upper
+   * Body days happen in between. Absent means "use the all-time lifting count".
+   */
+  sessionTypeCount?: number;
+}
+
+/**
  * Every generation path, then the injury screen.
  *
  * The screen runs LAST, over the finished list, rather than being threaded
@@ -1875,7 +1919,18 @@ export function generateWorkout(
    * that does not track an epoch already expects. See
    * `libraryEpochSessionCount` in lib/store.ts for where the number comes from.
    */
-  libraryEpochSessionCount: number = 0
+  libraryEpochSessionCount: number = 0,
+  /**
+   * The two facts the library builder needs that the arguments above cannot say.
+   *
+   * ONE OBJECT RATHER THAN TWO MORE POSITIONAL ARGUMENTS. There are fifteen
+   * above this line, appended one at a time, and the rotation seed has already
+   * been lost once by a caller counting slots. A named field cannot be passed
+   * in the wrong place, and both of these are silent when wrong: the wrong
+   * equipment list quietly shortens somebody's session, and the wrong count
+   * quietly changes their main exercise every session instead of every fourth.
+   */
+  libraryFacts: LibraryFacts = {}
 ): Exercise[] {
   /**
    * A squat day is a lower body day, a bench day an upper body day and a
@@ -1887,6 +1942,87 @@ export function generateWorkout(
    * seed - rather than a near miss that drifts apart later.
    */
   const buildType = trainTypeOf(sessionType);
+
+  /**
+   * AND THE SESSIONS THAT HAVE BEEN SWITCHED OVER ARE BUILT FROM THE LIBRARY.
+   *
+   * Everything below this line is the old catalogue. A session type listed in
+   * LIBRARY_LIVE_TYPES never reaches it: its exercises, its warm-up, its
+   * finisher and its cool-down all come from Archie's list, the nine
+   * conditioning records and Restore, and nothing else.
+   *
+   * The whole switch is this one early return, and it is done at the SAME door
+   * the lift-named ids are mapped at, so a 'squat' day out of somebody's
+   * history gets the new Lower Body session rather than the old squat one.
+   *
+   * WHAT THE LIBRARY BUILDER DOES FOR ITSELF, and why nothing below runs.
+   * `generateLibrarySession` screens for pain BEFORE it picks, then runs the
+   * same closing passes this function runs - the injury screen as a backstop,
+   * the earned rep target, the easier week and the kit ceiling - so routing it
+   * through them a second time would apply each of them twice.
+   *
+   * WHAT IT DOES NOT DO IS FILL THE SWAP SLOTS, so that is done here, with the
+   * same picker every other session uses. Archie's rule about the button is
+   * plain: "EVERYthing should be swappable at least once, sometimes twice", and
+   * a session where no card has anything behind the button is the complaint
+   * that rule came from. The alternatives still come out of the old catalogue,
+   * which is a wart this phase does not fix: a library session can be swapped
+   * into an exercise that is not on Archie's list. Re-pointing the swap sheet
+   * at the library is phase 30's work, and until then a button that offers
+   * something sensible beats a button that does nothing. The builder's own
+   * same-pattern substitutions are left alone, because their swap slot holds
+   * the exercise they replaced and that is the way back.
+   *
+   * The gaps it reports are dropped here, because `generateWorkout` returns a
+   * list of exercises and no screen reads a gap yet. Nothing is hidden by that:
+   * a pattern with nothing safe or nothing owned is left out of the session
+   * either way, and the sentence explaining it is wired to the plan sheet in a
+   * later phase. Callers that want it call `generateLibrarySession` directly.
+   */
+  if (LIBRARY_LIVE_TYPES.includes(buildType as LibrarySessionType)) {
+    const libraryRotation = libraryFacts.sessionTypeCount ?? strengthSessionCount;
+    const librarySession = generateLibrarySession({
+      sessionType: buildType as LibrarySessionType,
+      /**
+       * Everything they own, not the single best rung. Kit is an AND of ORs in
+       * the library ("Box or Bench", "Barbell and Plates"), so the tier alone
+       * cannot answer it: somebody who ticked bands and dumbbells owns both,
+       * and reading only 'dumbbells' loses every banded exercise they have.
+       * The fallback is the one tier we were given, which is what every caller
+       * that predates the library passes and is never wrong, only narrow.
+       */
+      equipment: libraryFacts.equipment ?? [equipmentTier],
+      readiness,
+      profile,
+      /**
+       * Sessions OF THIS TYPE, which is what variety turns on. Falling back to
+       * the all-time lifting count keeps a caller that does not track the split
+       * rotating rather than frozen on one seed; it turns over faster than it
+       * should, which is a worse rotation and not a broken session.
+       */
+      sessionTypeCount: libraryRotation,
+      strengthSessionCount,
+      libraryEpochSessionCount,
+      exerciseFeedback,
+      lastLoggedWeights,
+      exerciseNormalStreak,
+      exerciseStuckStreak,
+      lastSessionPerformance,
+      exerciseRepTarget,
+      daysSinceLastSession,
+      loadUnit,
+    });
+    return fillSwapAlternatives(
+      librarySession.exercises,
+      readiness,
+      equipmentTier,
+      profile,
+      // The same seed the old path uses, so which alternative comes up first
+      // moves with the training and the day rather than sitting still.
+      libraryRotation + getLocalDayIndex()
+    );
+  }
+
   const layoff = getLayoff(daysSinceLastSession);
 
   /**

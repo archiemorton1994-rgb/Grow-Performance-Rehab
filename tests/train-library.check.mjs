@@ -78,7 +78,11 @@ import {
   mobilityCountFor,
   slotPool,
 } from '../lib/library-session.ts';
-import { LAYOFF_GRACE_DAYS } from '../lib/workout-engine.ts';
+import {
+  LAYOFF_GRACE_DAYS,
+  LIBRARY_LIVE_TYPES,
+  generateWorkout,
+} from '../lib/workout-engine.ts';
 import { nextAnchorKg } from '../lib/auto-regulation.ts';
 import { parseReps } from '../lib/rep-scheme.ts';
 
@@ -165,6 +169,18 @@ const SITUATIONS = [
   },
 ];
 const SEEDS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+/**
+ * The stored id that means each of these sessions, for section [14].
+ *
+ * Years of history, everything the server has synced and every frozen programme
+ * cycle are tagged with these three, and they arrive at the same door. Written
+ * as a table so that a type with no lift-named ancestor simply has none.
+ */
+const LEGACY_FOR_TRAIN_TYPE = {
+  lower_body: 'squat',
+  upper_body: 'bench',
+  full_body: 'deadlift',
+};
 
 function profileFor(level, situation, extra = {}) {
   return {
@@ -1052,6 +1068,184 @@ console.log('\n[13] Reps climb, then the weight goes up; a stall deloads; time a
     returning.progressionNote
   );
   useAppStore.getState().resetProgress();
+}
+
+// ── [14] Through the door the app actually uses ──────────────────────────────
+/**
+ * EVERYTHING ABOVE CALLS `generateLibrarySession`. NOBODY IN THE APP DOES.
+ *
+ * The session screen calls `generateWorkout`, which is where the switch is
+ * made, so a session type can be built perfectly by the library and still be
+ * served out of the old catalogue because the routing was never made or was
+ * made for a different id. That is the one failure the twelve sections above
+ * cannot see, and it is silent: the session looks like a session.
+ *
+ * So this section re-asks the four rules that matter through the real door, for
+ * every type the app says is live (LIBRARY_LIVE_TYPES, imported rather than
+ * written down here, so the next type to be switched is swept the day it is),
+ * and for the lift-named id that maps onto it. A stored 'squat' day out of
+ * somebody's history has to come back as today's Lower Body session, not as a
+ * near miss.
+ *
+ * AND FOR THE TYPES THAT HAVE ALREADY BEEN SWITCHED, WHICH ARE WRITTEN DOWN.
+ * Reading the list from the app alone would make this section agree with it:
+ * take Lower Body out of LIBRARY_LIVE_TYPES and every assertion below passes,
+ * because nothing is swept. Each type is added to ALREADY_SWITCHED as its own
+ * phase lands, so "a Lower Body session cannot contain an off-library name"
+ * stays a promise the app has to keep rather than one it gets to withdraw.
+ */
+/** Switched over, one line per phase, and never taken out again. */
+const ALREADY_SWITCHED = ['lower_body'];
+console.log('\n[14] generateWorkout serves the library for every live type');
+{
+  const offList = [];
+  const aboveCeiling = [];
+  const wrongKit = [];
+  const bannedTagged = [];
+  const legacyDiffers = [];
+  const differsFromBuilder = [];
+  let built = 0;
+
+  /** What the card says it is, ignoring the swap slots the engine fills after. */
+  const shapeOf = (list) =>
+    list
+      .map((e) => `${e.category}|${e.name}|${e.sets}|${e.reps}|${e.suggestedLoad ?? ''}`)
+      .join('\n');
+
+  const sweepTypes = [...new Set([...ALREADY_SWITCHED, ...LIBRARY_LIVE_TYPES])];
+  for (const sessionType of sweepTypes) {
+    const legacyFor = LEGACY_FOR_TRAIN_TYPE[sessionType];
+    for (const equipment of KITS) {
+      for (const level of EXPERIENCE_LEVELS) {
+        for (const duration of DURATIONS) {
+          for (const situation of SITUATIONS) {
+            const profile = profileFor(level, situation);
+            const readiness = readinessFor(situation, duration, 'normal');
+            const ceiling = levelCeilingFor(profile);
+            const banned = restrictedTagsFor(
+              [
+                ...new Set([
+                  ...(readiness.painRegion ?? []),
+                  ...profile.standingSoreRegions,
+                  ...profile.clinicalAvoid,
+                ]),
+              ],
+              level,
+              situation.severity
+            );
+            for (const seed of [0, 1, 5, 11]) {
+              const where = `${sessionType} / ${equipment.join('+') || 'nothing'} / ${level} / ${duration} min / ${situation.label} / session ${seed}`;
+              // Exactly as app/session.tsx calls it: the single tier it resolved
+              // for today, plus the whole owned set and the per-type count.
+              const args = [
+                equipment.length > 0 ? equipment[equipment.length - 1] : 'bodyweight',
+                readiness,
+                profile,
+                undefined,
+                undefined,
+                seed,
+                undefined,
+                undefined,
+                undefined,
+                null,
+                'kg',
+                undefined,
+                undefined,
+                0,
+                { equipment, sessionTypeCount: seed },
+              ];
+              const session = generateWorkout(sessionType, ...args);
+              built++;
+
+              for (const ex of session) {
+                const k = key(ex.name);
+                const lib = libraryByKey.get(k);
+                const cond = conditioningByKey.get(k);
+                const restore = restoreByKey.get(k);
+                if (!lib && !cond && !restore) {
+                  offList.push(`${where}: ${ex.name}`);
+                  continue;
+                }
+                if (lib && lib.level > ceiling) {
+                  aboveCeiling.push(`${where}: ${ex.name} is level ${lib.level}`);
+                }
+                const possible = lib || cond
+                  ? canPerformWith(lib ?? cond, equipment)
+                  : possibleFor([restore], equipment.length > 0 ? equipment : ['bodyweight'])
+                      .length === 1;
+                if (!possible) wrongKit.push(`${where}: ${ex.name}`);
+                if (ex.category !== 'prehab' && banned.size > 0) {
+                  const hits = new Set([
+                    ...restrictedTagsOn(ex.name, banned, undefined, ex.cue),
+                    ...(lib || cond ? restrictedTagsOnRecord(lib ?? cond, banned) : []),
+                  ]);
+                  if (hits.size > 0) {
+                    bannedTagged.push(`${where}: ${ex.name} carries ${[...hits].join(', ')}`);
+                  }
+                }
+              }
+
+              // The lift-named id builds the same session, card for card.
+              if (legacyFor) {
+                const legacy = generateWorkout(legacyFor, ...args);
+                if (shapeOf(legacy) !== shapeOf(session)) legacyDiffers.push(where);
+              }
+
+              // And it is the builder's session, not a rebuilt near-copy.
+              const direct = generateLibrarySession({
+                sessionType,
+                equipment,
+                readiness,
+                profile,
+                sessionTypeCount: seed,
+                strengthSessionCount: seed,
+                daysSinceLastSession: null,
+              });
+              if (shapeOf(direct.exercises) !== shapeOf(session)) differsFromBuilder.push(where);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  console.log(`      ${built.toLocaleString('en-GB')} sessions built through generateWorkout`);
+  check(
+    `every switched type really was swept (${sweepTypes.join(', ') || 'none'})`,
+    sweepTypes.length > 0 && built > 1000,
+    `${built} sessions built - nothing was generated, so this whole section proves nothing`
+  );
+  check(
+    `and the app still says every one of them is live (${LIBRARY_LIVE_TYPES.join(', ') || 'none'})`,
+    ALREADY_SWITCHED.every((t) => LIBRARY_LIVE_TYPES.includes(t)),
+    `${ALREADY_SWITCHED.filter((t) => !LIBRARY_LIVE_TYPES.includes(t)).join(', ')} left LIBRARY_LIVE_TYPES, so the old catalogue is building a session that was switched over`
+  );
+  check(
+    'nothing the app serves comes from anywhere but the library, the nine or Restore',
+    offList.length === 0,
+    `${offList.length} of ${built} sessions, e.g. ${offList[0]} — the switch in generateWorkout is what this catches`
+  );
+  check(
+    'nothing above the level ceiling reaches the session screen',
+    aboveCeiling.length === 0,
+    aboveCeiling[0]
+  );
+  check('nothing the person has not got the kit for does either', wrongKit.length === 0, wrongKit[0]);
+  check(
+    'and nothing carrying a stress today’s sore areas rule out',
+    bannedTagged.length === 0,
+    bannedTagged[0]
+  );
+  check(
+    'a stored squat, bench or deadlift day builds the same session as the type it means',
+    legacyDiffers.length === 0,
+    legacyDiffers[0]
+  );
+  check(
+    'and what comes through the door is what the builder built',
+    differsFromBuilder.length === 0,
+    differsFromBuilder[0]
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

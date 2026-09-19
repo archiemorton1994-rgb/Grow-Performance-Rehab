@@ -100,6 +100,30 @@ export function countLiftingSessions(sessions: { sessionType: SessionType }[]): 
 }
 
 /**
+ * How many of these completed sessions were THIS kind of session.
+ *
+ * The library builder walks its pools by the number of sessions of the type it
+ * is building, not by the number of sessions altogether: somebody training
+ * lower body twice a week does not want their squat changing because two upper
+ * body days happened in between, and the main exercise is the one being
+ * progressed, so it has to stay put for a few sessions at a time.
+ *
+ * Counted through `trainTypeOf`, exactly as `countLiftingSessions` above is, so
+ * a squat day logged three years ago counts as the lower body day it now means.
+ * Anything whose type this build has never met is not counted.
+ */
+export function countSessionsOfType(
+  sessions: { sessionType: SessionType }[],
+  type: TrainSessionType
+): number {
+  let n = 0;
+  for (const session of sessions) {
+    if (session && TRAIN_TYPE[session.sessionType] === type) n++;
+  }
+  return n;
+}
+
+/**
  * DOES THIS PERSON ROTATE THEIR SESSIONS, OR GET FULL BODY EVERY TIME?
  *
  * Archie's second decision: "Beginners are offered Full Body every session

@@ -42,6 +42,9 @@ globalThis.__DEV__ = false;
 
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
+// The blocks "moderate" removes, read from the rule rather than copied, so this
+// follows a change to it instead of quietly testing last year's version.
+import { HIGH_INTENSITY_CATEGORIES } from '../lib/exercise-safety.ts';
 
 let failures = 0;
 let total = 0;
@@ -253,6 +256,25 @@ check(
 console.log('\n[2] All three answers to "how bad is it?" do something');
 
 const sameAsPrevious = { moderate: [], severe: [] };
+/**
+ * WHAT "MODERATE" ACTUALLY DOES, and why the question had to be asked this way.
+ *
+ * Moderate and above take the explosive and finisher blocks out of the session
+ * (HIGH_INTENSITY_CATEGORIES, imported rather than listed here so this follows
+ * the rule instead of a copy of it). A session that has neither is already as
+ * gentle as that rule can make it, and comes back unchanged.
+ *
+ * That was never reachable on the old engine, which gave every session an
+ * activation block and a finisher. It is reachable now: a knee at home is
+ * served bodyweight squats, a glute bridge and a plank, with the pulse raiser
+ * the only conditioning card in it, so there is nothing for moderate to remove
+ * and the answer is the same session. Asking "is moderate different from mild"
+ * everywhere would demand a change the rule does not make; asking it where
+ * there is something to take keeps the rule itself under test.
+ */
+const changedWhereItCould = [];
+const shuffledForNothing = [];
+let couldDrop = 0;
 const notGentler = [];
 let combos = 0;
 const shapeOf = (ex) => ex.map((e) => `${e.name}×${e.sets}`).join(' | ');
@@ -269,6 +291,16 @@ for (const region of REGIONS) {
       );
       combos++;
       const where = `${region}/${type}/${tier}`;
+      const hadIntensity = at.mild.some((e) => HIGH_INTENSITY_CATEGORIES.includes(e.category));
+      if (hadIntensity) {
+        couldDrop++;
+        if (shapeOf(at.mild) === shapeOf(at.moderate)) changedWhereItCould.push(where);
+        if (at.moderate.some((e) => HIGH_INTENSITY_CATEGORIES.includes(e.category))) {
+          changedWhereItCould.push(`${where}: the intensity block survived moderate`);
+        }
+      } else if (shapeOf(at.mild) !== shapeOf(at.moderate)) {
+        shuffledForNothing.push(where);
+      }
       if (shapeOf(at.mild) === shapeOf(at.moderate)) sameAsPrevious.moderate.push(where);
       if (shapeOf(at.moderate) === shapeOf(at.severe)) sameAsPrevious.severe.push(where);
       if (workingSets(at.severe) >= workingSets(at.moderate)) {
@@ -279,9 +311,16 @@ for (const region of REGIONS) {
 }
 
 check(
-  `Moderate is not Mild (${combos} region × session type × tier combinations)`,
-  sameAsPrevious.moderate.length === 0,
-  sameAsPrevious.moderate.slice(0, 6).join(', ')
+  `Moderate takes the explosive and finisher work out wherever there is any (${couldDrop} of ${combos} region × session type × tier combinations have some)`,
+  couldDrop > 0 && changedWhereItCould.length === 0,
+  couldDrop === 0
+    ? 'no session in the whole sweep had an explosive or finisher block, so this proves nothing'
+    : changedWhereItCould.slice(0, 6).join(', ')
+);
+check(
+  'and where there was none to take, it is the same session rather than a reshuffled one',
+  shuffledForNothing.length === 0,
+  `${shuffledForNothing.length}/${combos - couldDrop}: ${shuffledForNothing.slice(0, 6).join(', ')}`
 );
 check(
   'and Severe is not Moderate — the two used to be byte-identical in all of them',

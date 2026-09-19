@@ -94,8 +94,14 @@ const LEGACY_HISTORY = historyOf(['squat', 'bench', 'deadlift'], 300);
  * which is "no time off", and there is no logged weight for any exercise, which
  * is what makes every weight below a FIRST-TIME estimate - the only path the
  * session-count multiplier is applied on.
+ *
+ * `rotation` is the count of sessions OF THIS TYPE, which is what walks the
+ * library's pools. It defaults to the lifting count, which is what the app
+ * passes for somebody who only trains one type, and section 3 pins it so that
+ * the history can be changed without the exercises changing underneath the
+ * comparison.
  */
-const gen = (type, liftingCount, epoch) =>
+const gen = (type, liftingCount, epoch, rotation = liftingCount) =>
   generateWorkout(
     type,
     'fullgym',
@@ -111,7 +117,8 @@ const gen = (type, liftingCount, epoch) =>
     'kg',
     undefined,
     undefined,
-    epoch
+    epoch,
+    { sessionTypeCount: rotation }
   );
 
 const kgOf = (ex) => (Array.isArray(ex.loadKg) ? ex.loadKg[0] : ex.loadKg);
@@ -251,12 +258,25 @@ check(
  * What this person was quoted BEFORE: their count was pinned at zero, so the
  * multiplier was 1.0 and the estimate was the plain bodyweight one.
  * What they are quoted AFTER: their real count of 300, with the mark at 300.
- * The exercises differ, because the rotation has been unfrozen and is meant to
- * differ. Every exercise that appears in both must carry the same weight.
+ * Every exercise must carry the same weight.
+ *
+ * THE ROTATION IS HELD STILL while the history changes, so that the two
+ * sessions contain the same exercises and every weight is comparable. It used
+ * to be left to move, and the two sessions overlapped by enough to compare;
+ * they do not overlap at all now that the library walks its pools by the count,
+ * and a comparison of nothing passes very quietly. Holding it also makes the
+ * experiment the right one: the only thing that differs between these two
+ * sessions is the history behind them.
  */
-const beforeWeekly = weights(gen('lower_body', 0, 0));
+const ROTATION = 4;
+const beforeWeekly = weights(gen('lower_body', 0, 0, ROTATION));
 const afterWeekly = weights(
-  gen('lower_body', countLiftingSessions(WEEKLY_HISTORY), migratedWeekly.libraryEpochSessionCount)
+  gen(
+    'lower_body',
+    countLiftingSessions(WEEKLY_HISTORY),
+    migratedWeekly.libraryEpochSessionCount,
+    ROTATION
+  )
 );
 const sharedWeekly = [...afterWeekly.keys()].filter((id) => beforeWeekly.has(id));
 check(
@@ -273,12 +293,28 @@ check(
     .join(', ')
 );
 
-const noMark = weights(gen('lower_body', countLiftingSessions(WEEKLY_HISTORY), 0));
+const noMark = weights(gen('lower_body', countLiftingSessions(WEEKLY_HISTORY), 0, ROTATION));
 const sharedNoMark = [...noMark.keys()].filter((id) => beforeWeekly.has(id));
+/**
+ * WITHOUT THE MARK THE SAME PERSON IS QUOTED MORE.
+ *
+ * Not every card, and it never was about every card: a fifth added to a 7.5 kg
+ * dumbbell does not reach the next one on the rack, so the multiplier is
+ * applied and the grid puts it back. What must hold is that nothing gets
+ * LIGHTER without the mark, and that most of the session really does move -
+ * if none of it moved, the mark would be doing nothing and the assertion above
+ * would be vacuous.
+ */
+const heavierNoMark = sharedNoMark.filter((id) => noMark.get(id) > beforeWeekly.get(id));
+const lighterNoMark = sharedNoMark.filter((id) => noMark.get(id) < beforeWeekly.get(id));
 check(
-  'and without the mark every one of them would be heavier',
-  sharedNoMark.length >= 3 && sharedNoMark.every((id) => noMark.get(id) > beforeWeekly.get(id)),
-  'if this passes without the mark too, the mark is doing nothing and the assertion above is vacuous'
+  `and without the mark they would be heavier (${heavierNoMark.length} of ${sharedNoMark.length} move; the rest are too light for a fifth to reach the next weight)`,
+  sharedNoMark.length >= 3 &&
+    lighterNoMark.length === 0 &&
+    heavierNoMark.length >= Math.ceil(sharedNoMark.length / 2),
+  lighterNoMark.length > 0
+    ? `lighter without the mark: ${lighterNoMark.map((id) => `${id}: ${beforeWeekly.get(id)} -> ${noMark.get(id)}`).join(', ')}`
+    : 'if this passes without the mark too, the mark is doing nothing and the assertion above is vacuous'
 );
 check(
   'by up to a fifth, which is the ceiling the multiplier reaches',
@@ -305,7 +341,12 @@ check(
 );
 const beforeLegacy = noMark; // what the old code gave them: 300 counted, no mark
 const afterLegacy = weights(
-  gen('lower_body', countLiftingSessions(LEGACY_HISTORY), migratedLegacy.libraryEpochSessionCount)
+  gen(
+    'lower_body',
+    countLiftingSessions(LEGACY_HISTORY),
+    migratedLegacy.libraryEpochSessionCount,
+    ROTATION
+  )
 );
 const sharedLegacy = [...afterLegacy.keys()].filter((id) => beforeLegacy.has(id));
 check(

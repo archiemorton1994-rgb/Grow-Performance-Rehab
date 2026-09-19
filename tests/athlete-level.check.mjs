@@ -27,14 +27,23 @@
  *
  * WHAT ATHLETE IS PROMISED TO BE
  * ──────────────────────────────
- * The top of the list, and the same prescription as Advanced. It opens on the
- * same weights, climbs no faster, reads the same difficulty label, is offered
- * the same movements and gets the same finisher. What it is NOT is a way to
- * unlock harder movements by picking a bigger word: the ladders stop at level 5
- * and Advanced already reaches it, which is the earn-the-barbell rule in
- * PROGRESSION-LADDERS.md. Athlete has its own rows so that it CAN be given its
- * own numbers the day there is a clinical reason to, without a silent fallback
- * deciding first.
+ * The top of the list, and the same NUMBERS as Advanced. Every exercise the two
+ * are both given opens on the same weight, climbs no faster, reads the same
+ * difficulty label and gets the same finisher. What it is NOT is a way to
+ * unlock harder movements on the old ladders by picking a bigger word: those
+ * stop at level 5 and Advanced already reaches it, which is the earn-the-barbell
+ * rule in PROGRESSION-LADDERS.md. Athlete has its own rows so that it CAN be
+ * given its own numbers the day there is a clinical reason to, without a silent
+ * fallback deciding first.
+ *
+ * WHERE THE TWO NOW DIFFER ON PURPOSE, and why this file stopped comparing the
+ * two sessions card for card. Archie's library files every jump and throw at
+ * level 4 and the plan's decisions 8 and 9 put power work at Athlete alone, so
+ * a session built from the library gives an athlete a power block and level 4
+ * movements that an advanced lifter is not offered. That is a decision somebody
+ * made, unlike the four failures above, which were a missing row. So the
+ * comparison is made where the failures were: on the prescription of every
+ * exercise the two lifters are BOTH given.
  *
  * NOTHING HERE READS THE SOURCE. Every assertion runs the shipped function. The
  * list of levels is imported from the store rather than copied into this file,
@@ -140,9 +149,9 @@ const profileFor = (experienceLevel, goals = ['strength']) => ({
 const TYPES = ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body'];
 const TIERS = ['dumbbells', 'fullgym'];
 
-/** Every card of a first session, with what it prescribes on it. */
-function firstSession(level, type, tier, goals) {
-  const list = generateWorkout(
+/** A first session, as a list of cards. */
+function firstSessionCards(level, type, tier, goals) {
+  return generateWorkout(
     type,
     tier,
     { hasAches: false, energy: 'normal', timeAvailable: '60' },
@@ -155,11 +164,16 @@ function firstSession(level, type, tier, goals) {
     undefined,
     0
   );
-  return list
-    .map(
-      (e) =>
-        `${e.name}|${e.sets}|${e.reps}|${e.suggestedLoad ?? ''}|${(e.loadKg ?? []).join('/')}`
-    )
+}
+
+/** What a card prescribes: how much of it, and how heavy. Never its name. */
+const prescriptionOf = (e) =>
+  `${e.sets}|${e.reps}|${e.suggestedLoad ?? ''}|${(e.loadKg ?? []).join('/')}`;
+
+/** Every card of a first session, with what it prescribes on it. */
+function firstSession(level, type, tier, goals) {
+  return firstSessionCards(level, type, tier, goals)
+    .map((e) => `${e.name}|${prescriptionOf(e)}`)
     .join('\n');
 }
 
@@ -172,10 +186,47 @@ function allFirstSessions(level) {
 
 const sessionsByLevel = new Map(EXPERIENCE_LEVELS.map((l) => [l, allFirstSessions(l)]));
 
+/**
+ * Every exercise an athlete and an advanced lifter are BOTH given, compared.
+ *
+ * Matched by name rather than by position, because the two sessions are no
+ * longer the same length: the library gives an athlete a power block and level
+ * 4 movements on purpose. What must not differ is the prescription on a
+ * movement they are both doing, which is where the missing row showed up as an
+ * athlete opening 30% light.
+ */
+const sharedDiffs = [];
+let sharedLoaded = 0;
+for (const goals of [['strength'], ['muscle']]) {
+  for (const type of TYPES) {
+    for (const tier of TIERS) {
+      const top = new Map(
+        firstSessionCards(TOP, type, tier, goals).map((e) => [e.name, prescriptionOf(e)])
+      );
+      for (const card of firstSessionCards(BELOW_TOP, type, tier, goals)) {
+        const mine = top.get(card.name);
+        if (mine === undefined) continue;
+        if (mine !== prescriptionOf(card)) {
+          sharedDiffs.push(`${type}/${tier}/${goals.join('+')} ${card.name}: ${mine} vs ${prescriptionOf(card)}`);
+        }
+        // A card carrying a weight is the one the missing row was found on.
+        if ((card.loadKg ?? []).some((kg) => kg > 0)) sharedLoaded++;
+      }
+    }
+  }
+}
+
 check(
-  `${TYPES.length * TIERS.length * 2} first sessions are card for card the same at ${TOP} as at ${BELOW_TOP}`,
-  sessionsByLevel.get(TOP) === sessionsByLevel.get(BELOW_TOP),
-  'an athlete is being prescribed something different from an advanced lifter, which nothing has decided'
+  `every exercise an ${TOP} and an ${BELOW_TOP} lifter are both given opens on the same prescription`,
+  sharedDiffs.length === 0,
+  sharedDiffs.slice(0, 4).join('; ')
+);
+check(
+  // Without this the check above would pass on two sessions with nothing in
+  // common, which is the shape the old card-for-card comparison could not take.
+  'and enough of those shared cards carry a real weight for that to mean anything',
+  sharedLoaded >= TYPES.length * TIERS.length,
+  `${sharedLoaded} loaded cards in common across ${TYPES.length * TIERS.length * 2} session pairs`
 );
 check(
   // Without this, the check above would pass just as happily on a function that

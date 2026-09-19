@@ -411,16 +411,38 @@ const eHigh = mainLiftOf(buildSession({ energy: 'high' }));
  * So the card is held to what a weekly session really does with the answer: it
  * picks an easier or harder finisher, and on a Full Body session, saying low
  * takes sets off every exercise in it.
+ *
+ * MEASURED AGAIN when Lower Body moved to Archie's library. The two halves of
+ * the promise now live on different session types: the library picks its
+ * finisher off the conditioning list by rotation, so energy does not move it,
+ * and instead energy moves the sets on every exercise in the session. The old
+ * engine, which still builds Upper and Full Body, is the other way round. Both
+ * halves are measured below, each on a session type that really does it, so the
+ * card cannot promise something no session does.
  */
 const finisherOf = (w) =>
   w
     .filter((e) => e.category === 'finisher')
     .map((e) => e.name)
     .join('/');
+const finishers = ['low', 'normal', 'high'].map((e) =>
+  finisherOf(buildSession({ energy: e }, 'full_body'))
+);
 check(
-  `energy changes the finisher (${['low', 'normal', 'high'].map((e) => finisherOf(buildSession({ energy: e }))).join(' / ')})`,
-  new Set(['low', 'normal', 'high'].map((e) => finisherOf(buildSession({ energy: e })))).size === 3,
+  `energy changes the finisher on a Full Body session (${finishers.join(' / ')})`,
+  new Set(finishers).size === 3,
   'if this stops being true the card describing it has to change with it'
+);
+/** Every set of work in the session, which is what "an easier session" means. */
+const workSetsAt = (energy, type) =>
+  buildSession({ energy }, type)
+    .filter((e) => e.category === 'main' || e.category === 'accessory')
+    .reduce((n, e) => n + e.sets, 0);
+const lowerSets = ['low', 'normal', 'high'].map((e) => workSetsAt(e, 'lower_body'));
+check(
+  `and on a Lower Body session it moves the sets (${lowerSets.join(' / ')})`,
+  lowerSets[0] < lowerSets[1] && lowerSets[1] < lowerSets[2],
+  'saying you are flat has to take work off somewhere, or the question is decoration'
 );
 const fullMain = (energy) => mainLiftOf(buildSession({ energy }, 'full_body'));
 check(
