@@ -763,6 +763,59 @@ export function disclaimsLengthening(text: string): boolean {
   return LENGTHEN_DISCLAIMED.test(text);
 }
 
+/**
+ * A record that carries its own answer about what it asks of the body.
+ *
+ * Structural rather than an import of LibraryExercise, so the safety module
+ * keeps its single direction of dependency: everything imports safety, safety
+ * imports nothing back.
+ */
+export interface StressBearingRecord {
+  name: string;
+  movementPattern?: string;
+  reps: string;
+  cue: string;
+  stress?: readonly StressTag[];
+}
+
+/**
+ * Everything a LIBRARY RECORD asks of the body: its own tags and its name's.
+ *
+ * WHY BOTH, RATHER THAN THE AUTHORED LIST ALONE
+ * ─────────────────────────────────────────────
+ * Reading the name is what the screen has always done, and it has one failure
+ * mode: a name no pattern recognises carries no tags, so it is safe for every
+ * complaint at once. Writing the tags on the record fixes that, and introduces
+ * the opposite failure mode: a tag somebody forgot to write down is a movement
+ * that has quietly lost its protection, with nothing on screen to say so.
+ *
+ * The union has neither. A record can be MORE protected than its name says and
+ * never less, so forgetting to author a tag costs nothing and renaming a record
+ * costs nothing either. tests/library-clinical.check.mjs holds the authored
+ * list to being a superset of the name's on top of that, so the two cannot
+ * drift apart silently.
+ *
+ * The record's own reps and cue are read as its prescription, because that is
+ * where a library record keeps the words the catalogue keeps in its own table.
+ */
+export function stressTagsForRecord(record: StressBearingRecord): StressTag[] {
+  return [
+    ...new Set<StressTag>([
+      ...(record.stress ?? []),
+      ...stressTagsFor(record.name, record.movementPattern, `${record.reps} ${record.cue}`),
+    ]),
+  ];
+}
+
+/** The restricted tags a library record carries. Empty means it is fine. */
+export function restrictedTagsOnRecord(
+  record: StressBearingRecord,
+  banned: Set<StressTag>
+): StressTag[] {
+  if (banned.size === 0) return [];
+  return stressTagsForRecord(record).filter((t) => banned.has(t));
+}
+
 /** The restricted tags a given movement carries. Empty means it is fine. */
 export function restrictedTagsOn(
   name: string,
