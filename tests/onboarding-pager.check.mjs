@@ -54,7 +54,6 @@ import {
   EMPTY_SIGN_UP,
   LAST_SIGN_UP_PAGE,
   SIGN_UP_PAGES,
-  allowedTiersFor,
   answersToDraft,
   canContinue,
   draftToAnswers,
@@ -360,44 +359,54 @@ check(
   'three copies of these words is three chances for them to disagree'
 );
 
-// ─── 7. Kit, and the beginner lock as it stands today ────────────────────────
-console.log('\n[7] The kit page offers what the level allows');
+// ─── 7. Kit, asked of everybody the same way ─────────────────────────────────
+/*
+ * THE BEGINNER EQUIPMENT LOCK USED TO BE ASSERTED HERE, AND IT IS GONE.
+ *
+ * Three assertions stood in its place: a beginner is offered bodyweight and
+ * bands, everybody else all five, and a locked tile cannot be ticked even if
+ * something tries. They are replaced rather than deleted, because the rule they
+ * were protecting has been turned over rather than dropped: the level ceiling
+ * in the exercise library is what keeps a beginner safe now, so the kit page
+ * asks one question of everybody. tests/beginner-equipment.check.mjs runs the
+ * other half - a beginner at a full gym is still given only Beginner records.
+ */
+console.log('\n[7] The kit page asks everybody the same question');
 
 check(
-  'a beginner is offered their own bodyweight and bands',
-  allowedTiersFor('beginner').join(',') === 'bodyweight,bands',
-  allowedTiersFor('beginner').join(',')
+  'every tile can be ticked at every level, a beginner included',
+  EXPERIENCE_LEVELS.every((l) => {
+    const answers = full({ experience: l, equipment: [] });
+    return ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'].every(
+      (tier) => toggleTier(answers.equipment, tier).includes(tier)
+    );
+  }),
+  'being new to lifting is not the same as not owning a kettlebell'
 );
 check(
-  'everybody else is offered all five',
-  EXPERIENCE_LEVELS.filter((l) => l !== 'beginner').every(
-    (l) => allowedTiersFor(l).length === 5
-  ),
-  ''
-);
-check(
-  'a locked tile cannot be ticked even if something tries',
-  toggleTier([], 'fullgym', 'beginner').length === 0,
-  'the lock has to be in the rule, not only in the drawing of it'
+  'a beginner ticking full gym really gets a full gym',
+  toggleTier([], 'fullgym').join(',') === 'bodyweight,bands,dumbbells,kettlebells,fullgym',
+  toggleTier([], 'fullgym').join(',')
 );
 check(
   'a full gym means everything, and picking something else means it is not one',
-  toggleTier([], 'fullgym', 'advanced').length === 5 &&
-    !toggleTier(['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'], 'dumbbells', 'advanced').includes(
-      'fullgym'
-    ),
+  toggleTier([], 'fullgym').length === 5 &&
+    !toggleTier(
+      ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'],
+      'dumbbells'
+    ).includes('fullgym'),
   ''
 );
 check(
-  'changing the experience answer clears the kit chosen under the old one',
+  'changing the experience answer leaves the kit answer alone',
   (() => {
     const advanced = full({ experience: 'advanced', equipment: ['fullgym'] });
-    return pickExperience(advanced, 'beginner').equipment.length === 0;
+    return pickExperience(advanced, 'beginner').equipment.join(',') === 'fullgym';
   })(),
-  'a beginner left holding "full gym" is offered exercises the page would not let them pick'
+  'it used to clear the kit, so going back a page to correct your level unticked your gym'
 );
 check(
-  'but answering the same level again changes nothing',
+  'and answering the same level again changes nothing either',
   (() => {
     const same = full({ experience: 'advanced', equipment: ['dumbbells'] });
     return pickExperience(same, 'advanced').equipment.join(',') === 'dumbbells';

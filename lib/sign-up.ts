@@ -45,7 +45,7 @@ import {
   type SignUpAnswers,
   type WeightUnit,
 } from './store';
-import { isSupplyTier, withKeptSupplies } from './kit';
+import { withKeptSupplies } from './kit';
 
 /**
  * The pages, in the order they are put to somebody.
@@ -194,34 +194,41 @@ export function canContinue(
 }
 
 /**
- * The kit tiles a person at this level may pick from.
+ * THE BEGINNER EQUIPMENT LOCK IS GONE, AND THIS IS WHERE IT LIVED.
  *
- * KEPT AS IT IS FOR NOW, and it is a real restriction rather than a display
- * choice: somebody brand new to working out is offered their own bodyweight and
- * bands, because the first weeks are about whether a movement is being done
- * well rather than about how much is on the bar. The Profile edit sheet holds
- * the same rule (app/(tabs)/profile.tsx), so the two agree while it stands.
+ * It read `experience === 'beginner' ? ['bodyweight', 'bands'] : TIER_ORDER`,
+ * and it was a real restriction rather than a padlock drawn on a tile: a
+ * beginner could not tick dumbbells here, in the readiness picker, on Home, on
+ * Recover or in the Profile sheet, and answering "beginner" after ticking a
+ * full gym deleted the other tiers.
+ *
+ * What it was protecting against was the old weekly pools, which were not
+ * levelled: kit was the only thing standing between somebody on their first
+ * session and a barbell back squat. Every strength session is built from the
+ * library now, and the library's own level ceiling does that job properly - a
+ * beginner is given Beginner records whatever they own, so the lock was costing
+ * them 18 of the 36 Beginner exercises (all four cable rows, both kettlebell
+ * deadlifts, both plate presses, the carries, everything using a bench or box)
+ * and telling them a gym membership was something to grow into.
+ *
+ * So the kit question and the level question are separate questions now: what
+ * have you got, and how much have you done. tests/beginner-equipment.check.mjs
+ * holds both halves - every level is offered every tile here, and a beginner at
+ * a full gym is still given nothing above Beginner.
  */
-export function allowedTiersFor(experience: ExperienceLevel | null): EquipmentTier[] {
-  return experience === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
-}
 
 /**
  * Ticking a tile, with the two rules the old pager had.
  *
  * A full gym means everything, so picking it picks the lot; picking anything
- * else means it is NOT a full gym, so the full-gym tile comes back off. A tile
- * this level may not have is refused rather than silently accepted.
+ * else means it is NOT a full gym, so the full-gym tile comes back off.
+ *
+ * NO EXPERIENCE ARGUMENT. It used to take one, purely so it could refuse a
+ * tile the lock did not allow, and the parameter is deliberately removed rather
+ * than left unused: a spare `experience` sitting in this signature is an
+ * invitation to filter by it again.
  */
-export function toggleTier(
-  tiers: EquipmentTier[],
-  tier: EquipmentTier,
-  experience: ExperienceLevel | null
-): EquipmentTier[] {
-  // A supply tier (a bench) is kit rather than a rung, so no level bars it and
-  // it is never refused here. It has no tile yet, so today this only matters
-  // for what the full-gym branch below keeps.
-  if (!isSupplyTier(tier) && !allowedTiersFor(experience).includes(tier)) return tiers;
+export function toggleTier(tiers: EquipmentTier[], tier: EquipmentTier): EquipmentTier[] {
   if (tier === 'fullgym') {
     return tiers.includes('fullgym')
       ? tiers.filter((t) => t !== 'fullgym')
@@ -232,19 +239,23 @@ export function toggleTier(
 }
 
 /**
- * Answering the experience question again clears the kit chosen under the old
- * answer, because the old answer is what decided which tiles were on offer.
+ * Answering the experience question, which no longer touches the kit answer.
  *
- * It runs when the ANSWER CHANGES, never on mount. The pager this restores
- * cleared equipment from an effect that also fired on the first render, so
- * restoring a half-finished sign-up wiped the kit it had just restored.
+ * It used to clear it whenever the answer CHANGED, and that was the lock again:
+ * the old answer decided which tiles were on offer, so a kit answer given under
+ * it could not be trusted under a new one. Nothing decides the tiles now, so
+ * clearing would only mean somebody who went back a page to correct "beginner"
+ * to "intermediate" came forward to find their gym unticked.
+ *
+ * Kept as a named rule rather than folded into the screen so that the two
+ * answers staying independent is something a check can run.
  */
 export function pickExperience(
   answers: SignUpDraftAnswers,
   level: ExperienceLevel
 ): SignUpDraftAnswers {
   if (answers.experience === level) return answers;
-  return { ...answers, experience: level, equipment: [] };
+  return { ...answers, experience: level };
 }
 
 /**

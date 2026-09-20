@@ -63,9 +63,11 @@ export const ALWAYS_OWNED_KIT: readonly KitKey[] = ['corner', 'blocks', 'doorfra
  *
  * A supply tier is never offered as a tile, never becomes the effective tier
  * of a session, and is never quietly thrown away: anything that filters a
- * person's stored equipment against what their experience level may choose has
- * to keep these, or the bench somebody ticked disappears the next time they
- * edit their profile.
+ * person's stored equipment against the list of tiles has to keep these, or the
+ * bench somebody ticked disappears the next time they edit their profile. The
+ * filter that used to matter most here was the beginner equipment lock, which
+ * has gone; the readiness screen's sanity filter on its route param is the last
+ * one left.
  */
 export const SUPPLY_TIERS: readonly EquipmentTier[] = ['bench'];
 

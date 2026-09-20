@@ -74,7 +74,6 @@ import {
   EMPTY_SIGN_UP,
   LAST_SIGN_UP_PAGE,
   SIGN_UP_PAGES,
-  allowedTiersFor,
   answersToDraft,
   canContinue,
   draftToAnswers,
@@ -321,7 +320,6 @@ function SignUpFlow() {
   }, [answers, weightUnit, completeOnboarding, haptic]);
 
   const enter = reduceMotion ? undefined : FadeInDown.duration(320);
-  const allowed = allowedTiersFor(answers.experience);
   const firstName = answers.name.trim().split(' ')[0];
 
   const pageStyle = [styles.page, { width: SCREEN_WIDTH }];
@@ -672,27 +670,35 @@ function SignUpFlow() {
                 Pick everything you can get to. You are asked again before every session, so a day
                 without the gym just builds a different one.
               </Text>
+              {/*
+                EVERY TILE IS OFFERED TO EVERYBODY.
+
+                A beginner used to find three of the five padlocked, captioned
+                "Comes with a bit more experience". The session is built from
+                the library now and the library has its own level, so somebody
+                on their first week at a full gym gets Beginner exercises with
+                the kit in front of them - cable rows, kettlebell deadlifts,
+                plate presses, box squats - rather than being told the gym they
+                pay for is something to grow into. See lib/sign-up.ts.
+              */}
               <View style={[styles.optionList, styles.optionListCompact]}>
                 {EQUIPMENT_OPTIONS.map((opt) => {
                   const selected = answers.equipment.includes(opt.value);
-                  const locked = !allowed.includes(opt.value);
                   return (
                     <Pressable
                       key={opt.value}
                       onPress={() => {
-                        if (locked) return;
                         haptic();
                         setAnswers((a) => ({
                           ...a,
-                          equipment: toggleTier(a.equipment, opt.value, a.experience),
+                          equipment: toggleTier(a.equipment, opt.value),
                         }));
                       }}
                       style={({ pressed }) => [
                         styles.optionCard,
                         styles.optionCardCompact,
                         selected && styles.optionCardSelected,
-                        locked && styles.optionCardLocked,
-                        pressed && !locked && styles.optionCardPressed,
+                        pressed && styles.optionCardPressed,
                       ]}
                       testID={`equipment-${opt.value}`}
                     >
@@ -702,11 +708,6 @@ function SignUpFlow() {
                           style={styles.equipImage}
                           resizeMode="contain"
                         />
-                        {locked && (
-                          <View style={styles.equipLockVeil}>
-                            <Ionicons name="lock-closed" size={16} color="rgba(255,255,255,0.85)" />
-                          </View>
-                        )}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text
@@ -719,14 +720,12 @@ function SignUpFlow() {
                           {opt.label}
                         </Text>
                         <Text style={[styles.optionDesc, styles.optionDescCompact]}>
-                          {locked ? 'Comes with a bit more experience' : opt.description}
+                          {opt.description}
                         </Text>
                       </View>
-                      {!locked && (
-                        <View style={[styles.checkBox, selected && styles.checkBoxSelected]}>
-                          {selected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
-                        </View>
-                      )}
+                      <View style={[styles.checkBox, selected && styles.checkBoxSelected]}>
+                        {selected && <Ionicons name="checkmark" size={14} color={C.textInverse} />}
+                      </View>
                     </Pressable>
                   );
                 })}
@@ -1142,7 +1141,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     optionCardCompact: { paddingVertical: 9, paddingHorizontal: 12, gap: 10 },
     optionCardSelected: { borderColor: C.primary, backgroundColor: C.primarySurface },
     optionCardPressed: { opacity: 0.88 },
-    optionCardLocked: { opacity: 0.5 },
     optionLabel: { fontSize: 16, fontFamily: 'Inter_600SemiBold', color: C.text },
     optionLabelCompact: { fontSize: 15, lineHeight: 19 },
     optionLabelSelected: { color: C.primaryText },
@@ -1166,16 +1164,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
     equipImage: { width: 62, height: 62 },
-    equipLockVeil: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.35)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     checkBox: {
       width: 22,
       height: 22,

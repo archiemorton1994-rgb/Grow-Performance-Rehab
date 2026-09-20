@@ -181,6 +181,18 @@ function collector(register) {
   };
 }
 
+/**
+ * A beginner, swept across all five equipment answers.
+ *
+ * That combination used to be unreachable: a beginner was held to bodyweight
+ * and bands on every screen that asked, so "a beginner at a full gym" was a
+ * person the app would not let exist. The lock has gone, the level ceiling in
+ * the exercise library protects them instead, and the sweep below is now a real
+ * user rather than a hypothetical one. What that person is actually given is
+ * asserted in tests/beginner-equipment.check.mjs; what this file asks is the
+ * question it has always asked, of every tier: is anything here kit they have
+ * not got.
+ */
 const PROFILE = {
   name: 'A',
   sex: 'male',
@@ -762,6 +774,65 @@ check(
   'and the readiness screen really does pass the day-of answer to the generator',
   /equipmentOverride/.test(readiness) && /getEffectiveTier\(selectedEquipments\)/.test(readiness),
   'a sentence promising the session adapts, above a control that does not reach the generator'
+);
+
+// ─── And the picker is the same picker for everybody ─────────────────────────
+//
+// "Untick anything you have not got and the session is rebuilt around what is
+// left" was not true for a beginner. Three of the five tiles were padlocked and
+// captioned "Unlock in profile" on the readiness screen, on Train, on Home and
+// on Recover; the sign-up page said "Comes with a bit more experience"; and
+// saving the Profile Edit Details sheet as a beginner DELETED the other tiers
+// from stored state. Somebody new standing in a gym was told, four screens
+// running, that the gym was not for them.
+//
+// THE ASSERTION THAT MATTERS IS NOT HERE. What a beginner at a full gym is
+// actually given runs through the real generator in
+// tests/beginner-equipment.check.mjs, and so does the tile rule itself. These
+// five are a regression guard on the screens, which cannot be imported and run:
+// they say that no screen has grown a padlock back.
+console.log('\n[No screen locks a tier by experience level]');
+
+const recover = stripComments(src('app/(tabs)/recover.tsx'));
+const KIT_SCREENS = [
+  ['the readiness picker', readiness],
+  ['the sign-up kit page', signUp],
+  ['Train', train],
+  ['Home', home],
+  ['Recover', recover],
+  ['Profile', profile],
+];
+/**
+ * The lock's fingerprint, not the word "beginner".
+ *
+ * Three shapes, all of them specific to this rule: the two-tier allowance
+ * written out as a list, and the two names the filter went by. Deliberately NOT
+ * "experienceLevel === 'beginner'", which these screens have every right to ask
+ * for other reasons - the level-step card is coming to Home and Profile - and
+ * which would turn this from a guard into the kind of assertion that fails on
+ * an innocent change and gets deleted.
+ */
+const LOCK_SHAPES = [/\['bodyweight',\s*'bands'\]/, /allowedTiersFor/, /availableTiers/];
+const relocked = KIT_SCREENS.filter(([, code]) => LOCK_SHAPES.some((re) => re.test(code))).map(
+  ([name]) => name
+);
+check(
+  'no equipment screen decides which tiles you may have from your experience level',
+  relocked.length === 0,
+  `${relocked.join(', ')} filters kit by level again`
+);
+const stillPromising = KIT_SCREENS.filter(([, code]) =>
+  /Unlock in profile|Comes with a bit more experience|unlock more in profile/i.test(code)
+).map(([name]) => name);
+check(
+  'and none of them offers to unlock equipment somebody already owns',
+  stillPromising.length === 0,
+  stillPromising.join(', ')
+);
+check(
+  'saving Edit Details no longer deletes the equipment somebody has stored',
+  !/allowedTiers/.test(profile) && !/setEquipmentTiers\(equipmentTiers\.filter/.test(profile),
+  'it filtered the stored tiers against the new experience level, silently, on save'
 );
 
 // ─── Result ──────────────────────────────────────────────────────────────────

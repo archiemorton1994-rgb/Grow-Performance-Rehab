@@ -139,9 +139,15 @@ export default function HomeScreen() {
   const [coachOpen, setCoachOpen] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
 
-  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
+  /*
+   * THE BEGINNER EQUIPMENT LOCK IS GONE FROM THIS SHEET TOO.
+   *
+   * A beginner used to see dumbbells, kettlebells and the gym greyed out with a
+   * padlock beside each. The library builds the strength sessions and carries
+   * its own level, so the level decides the exercise and the kit answer decides
+   * only what it may be done with. See lib/sign-up.ts.
+   */
   const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
-  const availableTiers = isBeginnerExperience ? (['bodyweight', 'bands'] as const) : ALL_TIERS;
 
   const profileEquipment =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
@@ -171,7 +177,6 @@ export default function HomeScreen() {
   };
 
   const handleDraftToggle = (tier: EquipmentTier) => {
-    if (!(availableTiers as readonly string[]).includes(tier)) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
@@ -1553,43 +1558,35 @@ export default function HomeScreen() {
             </View>
           )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-            {(['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const).map(
-              (tier) => {
-                const locked = !(availableTiers as readonly string[]).includes(tier);
-                const selected = sheetDraft.includes(tier);
-                return (
-                  <Pressable
-                    key={tier}
-                    onPress={() => handleDraftToggle(tier)}
-                    disabled={locked}
-                    style={({ pressed }) => [
-                      modalStyles.tierRow,
-                      { borderBottomColor: C.borderLight },
-                      selected && { backgroundColor: C.primaryMuted },
-                      locked && { opacity: 0.4 },
-                      pressed && !locked && { opacity: 0.7 },
-                    ]}
-                  >
-                    <EquipmentIcon
-                      tier={tier}
-                      size={20}
-                      color={selected ? C.primaryText : C.textSecondary}
-                    />
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={[modalStyles.tierLabel, { color: selected ? C.primaryText : C.text }]}
-                      >
-                        {getEquipmentLabel(tier)}
-                      </Text>
-                    </View>
-                    {selected && <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />}
-                    {locked && (
-                      <Ionicons name="lock-closed-outline" size={16} color={C.textTertiary} />
-                    )}
-                  </Pressable>
-                );
-              }
-            )}
+            {ALL_TIERS.map((tier) => {
+              const selected = sheetDraft.includes(tier);
+              return (
+                <Pressable
+                  key={tier}
+                  onPress={() => handleDraftToggle(tier)}
+                  style={({ pressed }) => [
+                    modalStyles.tierRow,
+                    { borderBottomColor: C.borderLight },
+                    selected && { backgroundColor: C.primaryMuted },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <EquipmentIcon
+                    tier={tier}
+                    size={20}
+                    color={selected ? C.primaryText : C.textSecondary}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={[modalStyles.tierLabel, { color: selected ? C.primaryText : C.text }]}
+                    >
+                      {getEquipmentLabel(tier)}
+                    </Text>
+                  </View>
+                  {selected && <Ionicons name="checkmark-circle" size={20} color={C.primaryText} />}
+                </Pressable>
+              );
+            })}
           </ScrollView>
           <Pressable
             onPress={confirmEquipment}

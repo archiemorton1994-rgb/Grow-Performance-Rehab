@@ -42,7 +42,7 @@ import {
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
-import { isSupplyTier, withKeptSupplies } from '@/lib/kit';
+import { withKeptSupplies } from '@/lib/kit';
 import { THEME_OPTIONS } from '@/lib/theme-options';
 import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS, experienceNote } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
@@ -572,19 +572,24 @@ export default function ProfileScreen() {
     });
   };
 
+  /*
+   * THE BEGINNER EQUIPMENT LOCK IS GONE FROM THIS SHEET.
+   *
+   * A beginner could tick two of the five tiles here; the other three were
+   * padlocked, and saving the Edit Details sheet as a beginner DELETED any
+   * others that were already stored. Strength sessions come from the exercise
+   * library now and the library carries its own level, so being new is no
+   * longer a reason to be told you have not got the kit in front of you. See
+   * lib/sign-up.ts.
+   */
   const toggleEditTier = (tier: EquipmentTier) => {
-    const isLocked =
-      userProfile.experienceLevel === 'beginner' && !['bodyweight', 'bands'].includes(tier);
-    if (isLocked) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditTiers((prev) => {
       if (tier === 'fullgym') {
         if (prev.includes('fullgym')) {
           return prev.filter((t) => t !== 'fullgym');
         } else {
-          const available =
-            userProfile.experienceLevel === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
-          return withKeptSupplies(available as EquipmentTier[], prev);
+          return withKeptSupplies([...TIER_ORDER], prev);
         }
       }
       if (prev.includes(tier)) {
@@ -615,13 +620,15 @@ export default function ProfileScreen() {
 
   const saveEdit = () => {
     if (!editWeightValid || !editNameValid) return;
-    // Downgrading experience can make previously-selected equipment tiers
-    // invalid (e.g. dumbbells while now Beginner) — filter them out so they
-    // don't stay stuck in stored state with no UI path to remove them.
-    // Kit that is not a tier at all (a bench) is kept: no level is barred from
-    // one, so dropping it here would quietly delete something the person owns.
-    const allowedTiers = editExp === 'beginner' ? ['bodyweight', 'bands'] : [...TIER_ORDER];
-    setEquipmentTiers(equipmentTiers.filter((t) => allowedTiers.includes(t) || isSupplyTier(t)));
+    /*
+     * SAVING THIS SHEET NO LONGER TOUCHES THE EQUIPMENT ANSWER.
+     *
+     * It used to filter the stored tiers against what the new experience level
+     * was allowed to own, so answering "beginner" here deleted a gym somebody
+     * had ticked, with nothing said and no way to notice until a session came
+     * out lighter. Experience and equipment are two separate answers now: this
+     * sheet owns one of them and the Equipment sheet owns the other.
+     */
     setUserProfile({
       name: editName.trim(),
       bodyweightKg: displayUnitToKg(editWeightParsed, weightUnit),
@@ -1562,10 +1569,10 @@ export default function ProfileScreen() {
         onRequestClose={dismissModal}
       >
         <View style={styles.sheetOverlay}>
-          {/* Capped and scrollable, same as Edit Details. A beginner account on a
-              4.7-inch phone overflowed by ~40pt, and the thing that tipped it
-              over was the beginner explainer — so the people who most need to
-              read it were the ones it pushed off the screen. */}
+          {/* Capped and scrollable, same as Edit Details. Five tiles and a
+              badge overflowed a 4.7-inch phone by about 40pt once the beginner
+              explainer was above them; the explainer has gone with the lock,
+              and the cap stays because the tiles alone are still tall. */}
           <View style={[styles.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '88%' }]}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Equipment</Text>
@@ -1577,15 +1584,6 @@ export default function ProfileScreen() {
             <Text style={styles.sheetSub}>
               Select everything available to you - we use the best match for each session
             </Text>
-            {userProfile.experienceLevel === 'beginner' && (
-              <View style={styles.upgradeNote}>
-                <Ionicons name="information-circle-outline" size={15} color={C.primaryText} />
-                <Text style={styles.upgradeNoteText}>
-                  Beginner mode: No Equipment and bands only. Update your experience level in Edit
-                  Details to unlock all equipment.
-                </Text>
-              </View>
-            )}
             {editTiers.length > 0 && (
               <View style={styles.effectiveBadge}>
                 <Text style={styles.effectiveBadgeText}>
@@ -1598,18 +1596,11 @@ export default function ProfileScreen() {
             )}
             {TIER_ORDER.map((tier) => {
               const isActive = editTiers.includes(tier);
-              const isLocked =
-                userProfile.experienceLevel === 'beginner' &&
-                !['bodyweight', 'bands'].includes(tier);
               return (
                 <Pressable
                   key={tier}
                   onPress={() => toggleEditTier(tier)}
-                  style={[
-                    styles.equipRow,
-                    isActive && styles.equipRowActive,
-                    isLocked && styles.equipRowLocked,
-                  ]}
+                  style={[styles.equipRow, isActive && styles.equipRowActive]}
                   testID={`tier-${tier}`}
                 >
                   <View
@@ -1619,7 +1610,6 @@ export default function ProfileScreen() {
                       borderRadius: 12,
                       overflow: 'hidden',
                       backgroundColor: C.surfaceTertiary,
-                      opacity: isLocked ? 0.4 : 1,
                     }}
                   >
                     <Image
@@ -1628,22 +1618,12 @@ export default function ProfileScreen() {
                       resizeMode="contain"
                     />
                   </View>
-                  <Text
-                    style={[
-                      styles.equipLabel,
-                      isActive && styles.equipLabelActive,
-                      isLocked && styles.equipLabelLocked,
-                    ]}
-                  >
+                  <Text style={[styles.equipLabel, isActive && styles.equipLabelActive]}>
                     {getEquipmentLabel(tier)}
                   </Text>
-                  {isLocked ? (
-                    <Ionicons name="lock-closed-outline" size={18} color={C.textTertiary} />
-                  ) : (
-                    <View style={[styles.equipCheckbox, isActive && styles.equipCheckboxActive]}>
-                      {isActive && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
-                    </View>
-                  )}
+                  <View style={[styles.equipCheckbox, isActive && styles.equipCheckboxActive]}>
+                    {isActive && <Ionicons name="checkmark" size={13} color={C.textInverse} />}
+                  </View>
                 </Pressable>
               );
             })}
@@ -2734,21 +2714,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     cancelBtn: { paddingVertical: 14, alignItems: 'center' },
     cancelBtnText: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
 
-    upgradeNote: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-      backgroundColor: C.surfaceSecondary,
-      borderRadius: 8,
-      padding: 10,
-      marginBottom: 12,
-    },
-    upgradeNoteText: {
-      flex: 1,
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-    },
     effectiveBadge: {
       backgroundColor: C.surfaceSecondary,
       borderRadius: 8,
@@ -2768,10 +2733,8 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderBottomColor: C.borderLight,
     },
     equipRowActive: {},
-    equipRowLocked: { opacity: 0.5 },
     equipLabel: { flex: 1, fontSize: 15, fontFamily: 'Inter_500Medium', color: C.textSecondary },
     equipLabelActive: { color: C.primaryText, fontFamily: 'Inter_600SemiBold' },
-    equipLabelLocked: { color: C.textTertiary },
     equipCheckbox: {
       width: 22,
       height: 22,

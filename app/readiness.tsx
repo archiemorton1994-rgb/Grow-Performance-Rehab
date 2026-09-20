@@ -196,7 +196,6 @@ export default function ReadinessScreen() {
 
   const {
     equipmentTiers,
-    userProfile,
     lastReadinessEnergy,
     lastReadinessTime,
     lastPainRegion,
@@ -233,21 +232,21 @@ export default function ReadinessScreen() {
    * is no value any screen can pass that turns today into a max-effort attempt.
    * Everyone gets the same readiness questions now.
    */
-  const isBeginnerExperience = userProfile.experienceLevel === 'beginner';
-  const availableTiers: EquipmentTier[] = isBeginnerExperience
-    ? ['bodyweight', 'bands']
-    : TIER_ORDER;
-
   /**
-   * Kit somebody owns that is not one of the tiles is carried through both of
-   * these filters rather than dropped.
+   * EVERY TILE IS TICKABLE, WHATEVER LEVEL SOMEBODY IS.
    *
-   * The filters exist to stop a tier a beginner may not choose being applied
-   * behind their back. A bench is not a tier and no level is barred from one,
-   * so filtering it out would silently take away kit the session is entitled
-   * to use, with no tile to put it back on.
+   * A beginner used to arrive here with three of the five padlocked and the
+   * line "No Equipment & bands - great for building safe foundations". The
+   * session is built from the exercise library now and the library carries its
+   * own level, so what keeps a first-week lifter off a barbell back squat is
+   * the level ceiling rather than pretending they have not got a gym. See
+   * lib/sign-up.ts for the whole story.
+   *
+   * What survives is a sanity filter on the route param below: a value that is
+   * not a tile and not a supply (a bench) is not kit at all, so it is dropped
+   * rather than passed to the generator.
    */
-  const keepsTier = (t: EquipmentTier) => availableTiers.includes(t) || isSupplyTier(t);
+  const keepsTier = (t: EquipmentTier) => TIER_ORDER.includes(t) || isSupplyTier(t);
 
   const overrideTiers: EquipmentTier[] | null = (() => {
     if (!params.equipmentOverride) return null;
@@ -426,7 +425,6 @@ export default function ReadinessScreen() {
   };
 
   const handleTierToggle = (tier: EquipmentTier) => {
-    if (!availableTiers.includes(tier)) return;
     hapticTap();
     setSelectedEquipments((prev) => {
       if (tier === 'fullgym') {
@@ -581,18 +579,10 @@ export default function ReadinessScreen() {
             Just for today. Untick anything you have not got and the session is rebuilt around
             what is left.
           </Text>
-          {isBeginnerExperience && (
-            <View style={styles.beginnerNote}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
-              <Text style={styles.beginnerNoteText}>
-                No Equipment & bands - great for building safe foundations
-              </Text>
-            </View>
-          )}
           {overrideTiers !== null && (
-            <View style={styles.beginnerNote}>
+            <View style={styles.pickerNote}>
               <Ionicons name="swap-horizontal-outline" size={13} color={C.primaryText} />
-              <Text style={styles.beginnerNoteText}>
+              <Text style={styles.pickerNoteText}>
                 Pre-selected from your session choice - adjust below if needed
               </Text>
             </View>
@@ -609,7 +599,6 @@ export default function ReadinessScreen() {
           )}
           <View style={styles.tierGrid}>
             {TIER_ORDER.map((tier) => {
-              const isAvailable = availableTiers.includes(tier);
               const isActive = selectedEquipments.includes(tier);
               return (
                 <Pressable
@@ -618,8 +607,7 @@ export default function ReadinessScreen() {
                   style={({ pressed }) => [
                     styles.tierTile,
                     isActive && styles.tierRowActive,
-                    !isAvailable && styles.tierRowLocked,
-                    pressed && isAvailable && { opacity: 0.8 },
+                    pressed && { opacity: 0.8 },
                     tier === 'fullgym' && styles.tierTileFull,
                   ]}
                   testID={`equipment-${tier}`}
@@ -630,33 +618,22 @@ export default function ReadinessScreen() {
                       style={styles.tierImage}
                       resizeMode="contain"
                     />
-                    {!isAvailable && (
-                      <View style={styles.tierLockedOverlay}>
-                        <Ionicons name="lock-closed" size={18} color="rgba(255,255,255,0.7)" />
-                      </View>
-                    )}
                   </View>
                   <View style={styles.tierTextRow}>
                     <View style={styles.tierText}>
                       <Text
                         numberOfLines={1}
-                        style={[
-                          styles.tierLabel,
-                          isActive && { color: C.primaryText },
-                          !isAvailable && { color: C.textTertiary },
-                        ]}
+                        style={[styles.tierLabel, isActive && { color: C.primaryText }]}
                       >
                         {getEquipmentLabel(tier)}
                       </Text>
                       <Text numberOfLines={1} style={styles.tierSub}>
-                        {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
+                        {TIER_DESCRIPTIONS[tier]}
                       </Text>
                     </View>
-                    {isAvailable && (
-                      <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                        {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
-                      </View>
-                    )}
+                    <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                      {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                    </View>
                   </View>
                 </Pressable>
               );
@@ -1416,7 +1393,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignSelf: 'flex-start' as const,
     },
     effectiveTierText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-    beginnerNote: {
+    pickerNote: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
@@ -1428,7 +1405,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderWidth: 1,
       borderColor: C.border,
     },
-    beginnerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.text },
+    pickerNoteText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.text },
 
     tierGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     tierTile: {
@@ -1442,7 +1419,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     },
     tierTileFull: { width: '100%' },
     tierRowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
-    tierRowLocked: { opacity: 0.5 },
     tierImageWrap: {
       width: '100%',
       height: 86,
@@ -1451,12 +1427,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       justifyContent: 'center',
     },
     tierImage: { width: '100%', height: '100%' },
-    tierLockedOverlay: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     tierTextRow: {
       flexDirection: 'row',
       alignItems: 'center',

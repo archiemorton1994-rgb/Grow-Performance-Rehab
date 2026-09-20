@@ -508,16 +508,12 @@ check(
 check(
   'ticking full gym in a picker does not throw the bench away',
   withKeptSupplies(TIER_ORDER, ['bodyweight', 'bench']).includes('bench') &&
-    toggleTier(['bodyweight', 'bench'], 'fullgym', 'intermediate').includes('bench'),
-  JSON.stringify(toggleTier(['bodyweight', 'bench'], 'fullgym', 'intermediate'))
+    toggleTier(['bodyweight', 'bench'], 'fullgym').includes('bench'),
+  JSON.stringify(toggleTier(['bodyweight', 'bench'], 'fullgym'))
 );
 check(
   'and unticking it leaves the bench behind',
-  toggleTier(
-    toggleTier(['bodyweight', 'bench'], 'fullgym', 'intermediate'),
-    'fullgym',
-    'intermediate'
-  ).includes('bench')
+  toggleTier(toggleTier(['bodyweight', 'bench'], 'fullgym'), 'fullgym').includes('bench')
 );
 check(
   'a picker that already has the bench does not gain a second one',

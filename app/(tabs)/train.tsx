@@ -190,11 +190,15 @@ export default function TrainScreen() {
     skipTour();
   }, [skipTour]);
 
-  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
-  const availableTiers: EquipmentTier[] = isBeginnerExperience
-    ? ['bodyweight', 'bands']
-    : TIER_ORDER;
-
+  /*
+   * THE BEGINNER EQUIPMENT LOCK IS GONE FROM THIS SHEET.
+   *
+   * Three of the five rows used to be padlocked for a beginner, under the line
+   * "Bodyweight & Bands. Unlock more in Profile". Strength sessions are built
+   * from the exercise library now and the library carries its own level, so a
+   * beginner who walks into a gym is given Beginner exercises with the kit
+   * that is actually there. See lib/sign-up.ts.
+   */
   const profileEquipment: EquipmentTier[] =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight'];
 
@@ -213,7 +217,6 @@ export default function TrainScreen() {
   };
 
   const handleDraftToggle = (tier: EquipmentTier) => {
-    if (!availableTiers.includes(tier)) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
@@ -547,20 +550,7 @@ export default function TrainScreen() {
             </View>
           )}
 
-          {isBeginnerExperience && (
-            <Pressable
-              onPress={() => router.push('/(tabs)/profile')}
-              style={({ pressed }) => [styles.beginnerNote, pressed && { opacity: 0.7 }]}
-            >
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
-              <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands. Unlock more in Profile →
-              </Text>
-            </Pressable>
-          )}
-
           {TIER_ORDER.map((tier) => {
-            const isAvailable = availableTiers.includes(tier);
             const isActive = sheetDraft.includes(tier);
             return (
               <Pressable
@@ -569,50 +559,31 @@ export default function TrainScreen() {
                 style={({ pressed }) => [
                   styles.tierRow,
                   isActive && styles.tierRowActive,
-                  !isAvailable && styles.tierRowLocked,
-                  pressed && isAvailable && { opacity: 0.8 },
+                  pressed && { opacity: 0.8 },
                 ]}
                 testID={`sheet-equipment-${tier}`}
               >
                 <View
                   style={[
                     styles.tierIcon,
-                    {
-                      backgroundColor: isActive
-                        ? C.primary
-                        : isAvailable
-                          ? C.primaryMuted
-                          : C.surfaceTertiary,
-                    },
+                    { backgroundColor: isActive ? C.primary : C.primaryMuted },
                   ]}
                 >
                   <EquipmentIcon
                     tier={tier}
                     size={16}
-                    color={isActive ? C.textInverse : isAvailable ? C.primaryText : C.textTertiary}
+                    color={isActive ? C.textInverse : C.primaryText}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.tierLabel,
-                      isActive && { color: C.primaryText },
-                      !isAvailable && { color: C.textTertiary },
-                    ]}
-                  >
+                  <Text style={[styles.tierLabel, isActive && { color: C.primaryText }]}>
                     {getEquipmentLabel(tier)}
                   </Text>
-                  <Text style={styles.tierSub}>
-                    {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
-                  </Text>
+                  <Text style={styles.tierSub}>{TIER_DESCRIPTIONS[tier]}</Text>
                 </View>
-                {!isAvailable ? (
-                  <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
-                ) : (
-                  <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                    {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
-                  </View>
-                )}
+                <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                  {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                </View>
               </Pressable>
             );
           })}
@@ -860,16 +831,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       paddingVertical: 7,
     },
     bestMatchText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.textSecondary },
-    beginnerNote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: C.primarySurface,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-    },
-    beginnerNoteText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.primaryText, flex: 1 },
     tierRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -882,7 +843,6 @@ function makeStyles(C: ReturnType<typeof useColors>, compact = false) {
       borderColor: C.borderLight,
     },
     tierRowActive: { borderColor: C.primary, backgroundColor: C.primarySurface },
-    tierRowLocked: { opacity: 0.45 },
     tierIcon: {
       width: 34,
       height: 34,

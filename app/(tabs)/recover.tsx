@@ -399,10 +399,12 @@ export default function RecoverScreen() {
   const webTopInset = Platform.OS === 'web' ? 67 : 0;
   const webBottomInset = Platform.OS === 'web' ? 84 : 0;
 
-  const isBeginnerExperience = userProfile?.experienceLevel === 'beginner';
-  const availableTiers: EquipmentTier[] = isBeginnerExperience
-    ? ['bodyweight', 'bands']
-    : TIER_ORDER;
+  /*
+   * THE BEGINNER EQUIPMENT LOCK IS GONE FROM THIS SHEET TOO. Every row is
+   * tickable at every level: the library carries its own level and does the
+   * protecting, so the kit answer is only ever about what is in the room. See
+   * lib/sign-up.ts.
+   */
   const profileEquipment: EquipmentTier[] =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight'];
   const todayTiers = sessionEquipmentOverride ?? profileEquipment;
@@ -459,7 +461,6 @@ export default function RecoverScreen() {
   };
 
   const handleDraftToggle = (tier: EquipmentTier) => {
-    if (!availableTiers.includes(tier)) return;
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSheetDraft((prev) => {
       if (tier === 'fullgym') {
@@ -969,17 +970,7 @@ export default function RecoverScreen() {
             </View>
           )}
 
-          {isBeginnerExperience && (
-            <View style={styles.beginnerNote}>
-              <Ionicons name="shield-checkmark-outline" size={13} color={C.primaryText} />
-              <Text style={styles.beginnerNoteText}>
-                Bodyweight & Bands - unlock more in profile
-              </Text>
-            </View>
-          )}
-
           {TIER_ORDER.map((tier) => {
-            const isAvailable = availableTiers.includes(tier);
             const isActive = sheetDraft.includes(tier);
             return (
               <Pressable
@@ -988,50 +979,31 @@ export default function RecoverScreen() {
                 style={({ pressed }) => [
                   styles.tierRow,
                   isActive && styles.tierRowActive,
-                  !isAvailable && styles.tierRowLocked,
-                  pressed && isAvailable && { opacity: 0.8 },
+                  pressed && { opacity: 0.8 },
                 ]}
                 testID={`recover-sheet-equipment-${tier}`}
               >
                 <View
                   style={[
                     styles.tierIcon,
-                    {
-                      backgroundColor: isActive
-                        ? C.primary
-                        : isAvailable
-                          ? C.primaryMuted
-                          : C.surfaceTertiary,
-                    },
+                    { backgroundColor: isActive ? C.primary : C.primaryMuted },
                   ]}
                 >
                   <EquipmentIcon
                     tier={tier}
                     size={16}
-                    color={isActive ? C.textInverse : isAvailable ? C.primaryText : C.textTertiary}
+                    color={isActive ? C.textInverse : C.primaryText}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={[
-                      styles.tierLabel,
-                      isActive && { color: C.primaryText },
-                      !isAvailable && { color: C.textTertiary },
-                    ]}
-                  >
+                  <Text style={[styles.tierLabel, isActive && { color: C.primaryText }]}>
                     {getEquipmentLabel(tier)}
                   </Text>
-                  <Text style={styles.tierSub}>
-                    {isAvailable ? TIER_DESCRIPTIONS[tier] : 'Unlock in profile'}
-                  </Text>
+                  <Text style={styles.tierSub}>{TIER_DESCRIPTIONS[tier]}</Text>
                 </View>
-                {!isAvailable ? (
-                  <Ionicons name="lock-closed-outline" size={14} color={C.textTertiary} />
-                ) : (
-                  <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
-                    {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
-                  </View>
-                )}
+                <View style={[styles.tierCheck, isActive && styles.tierCheckActive]}>
+                  {isActive && <Ionicons name="checkmark" size={11} color={C.textInverse} />}
+                </View>
               </Pressable>
             );
           })}
@@ -1306,21 +1278,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       fontFamily: 'Inter_400Regular',
       color: C.textSecondary,
     },
-    beginnerNote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      backgroundColor: C.primarySurface,
-      borderRadius: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-    },
-    beginnerNoteText: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.primaryText,
-      flex: 1,
-    },
     tierRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1336,7 +1293,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       borderColor: C.primary,
       backgroundColor: C.primarySurface,
     },
-    tierRowLocked: { opacity: 0.45 },
     tierIcon: {
       width: 34,
       height: 34,
