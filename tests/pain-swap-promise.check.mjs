@@ -278,9 +278,26 @@ let couldDrop = 0;
 const notGentler = [];
 let combos = 0;
 const shapeOf = (ex) => ex.map((e) => `${e.name}×${e.sets}`).join(' | ');
+/**
+ * The volume a session asks for, counted in the units each session works in.
+ *
+ * The three loaded categories are the strength session's working blocks, which
+ * is what SET_REDUCED_CATEGORIES takes a set off at severe. `cardio` is here
+ * because a conditioning session has none of the other three: its work is
+ * interval blocks, a round of an interval is its working set, and a session
+ * that took nothing off them at severe would be exactly as hard as the moderate
+ * one. Leaving `cardio` out had this rule comparing nought with nought and
+ * calling it gentler.
+ */
 const workingSets = (ex) =>
   ex
-    .filter((e) => e.category === 'main' || e.category === 'accessory' || e.category === 'mechanical')
+    .filter(
+      (e) =>
+        e.category === 'main' ||
+        e.category === 'accessory' ||
+        e.category === 'mechanical' ||
+        e.category === 'cardio'
+    )
     .reduce((sum, e) => sum + e.sets, 0);
 
 for (const region of REGIONS) {
@@ -457,8 +474,27 @@ const ROTATIONS = 12;
  */
 const CONDITIONING_TYPES = TYPES.filter((t) => t === 'conditioning');
 const STRENGTH_TYPES = TYPES.filter((t) => t !== 'conditioning');
-/** A conditioning session must keep at least this many loadable cards. */
-const CONDITIONING_CARDS_KEPT = 2;
+/** A conditioning session must keep at least this many blocks of work. */
+const CONDITIONING_CARDS_KEPT = 1;
+/**
+ * WHAT COUNTS AS WORK IN A CONDITIONING SESSION IS A BLOCK, NOT A LIFT.
+ *
+ * It used to be a loadable card, because the old engine assembled conditioning
+ * out of the general catalogue and filed most of the circuit as accessory work.
+ * The session is built from Archie's nine conditioning records now, as interval
+ * blocks filed under `cardio`, and it contains no main or accessory card at all
+ * - so counting those would have this rule reading zero on every session and
+ * calling a perfectly good one empty.
+ *
+ * The floor moved with it, from two cards to one block, and that is not a
+ * relaxation. Three of the nine need no equipment, a beginner is not given the
+ * one that lands, and a sore area can take another, so one block really is the
+ * floor a home session can reach honestly - the builder says so in words when it
+ * happens (lib/library-conditioning.ts). What the rule still refuses is the
+ * thing it was written for: a complaint leaving somebody with a warm-up, a
+ * stretch and nothing to actually do.
+ */
+const conditioningWork = (ex) => ex.filter((e) => e.category === 'cardio');
 
 const rewritten = [];
 const mainless = [];
@@ -491,9 +527,9 @@ for (const region of REGIONS) {
     for (const type of CONDITIONING_TYPES) {
       for (const tier of TIERS) {
         const ex = session(type, tier, region, 'severe', 'intermediate', rotation);
-        const loadable = ex.filter((e) => e.category === 'main' || e.category === 'accessory');
-        if (loadable.length < CONDITIONING_CARDS_KEPT) {
-          emptied.push(`${region}/${tier} at rotation ${rotation}: ${loadable.length} cards`);
+        const work = conditioningWork(ex);
+        if (work.length < CONDITIONING_CARDS_KEPT) {
+          emptied.push(`${region}/${tier} at rotation ${rotation}: ${work.length} blocks`);
         }
       }
     }

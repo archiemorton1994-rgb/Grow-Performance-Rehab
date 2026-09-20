@@ -48,6 +48,8 @@ import { fileURLToPath } from 'url';
 import { fillSwapAlternatives, generateWorkout } from '../lib/workout-engine.ts';
 import { restrictedTagsFor, restrictedTagsOn } from '../lib/exercise-safety.ts';
 import { getRegionsByExerciseNameMap, getAllPickableExercises } from '../lib/exercise-db.ts';
+import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
+import { canPerformWith } from '../lib/kit.ts';
 import {
   isEquipmentVariant,
   isSameMuscleAlternative,
@@ -167,13 +169,46 @@ const rehabCards = soreSessions.flatMap(({ type, tier, ex }) =>
  * already substituted. Its swap slot holds the exercise it REPLACED, which is
  * the revert, so it is swappable once by a different route.
  */
+/**
+ * AND THE ONE OTHER CARD ALLOWED TO HAVE NOTHING: A CONDITIONING BLOCK WHEN
+ * THERE IS NOTHING LEFT ON THE LIST.
+ *
+ * A conditioning session is built from Archie's nine and swaps within them, so
+ * the alternatives on a block are the records this person could do today and is
+ * not already doing. Three of the nine need no equipment, so a session at home
+ * is drawn from those three and gets all three - and then there is genuinely
+ * nothing else on the list to offer. Reaching into the old catalogue to fill
+ * the button would put work in front of somebody that the rest of the app has
+ * stopped prescribing, which is the worse of the two answers.
+ *
+ * So the exemption is not "conditioning is excused". It is "this card is
+ * excused only when every conditioning exercise this kit can do is already in
+ * the session", worked out from the records rather than declared, and the
+ * assertions below prove both halves: that each excused card really is in that
+ * position, and that a gym session - where there ARE spare records - leaves
+ * nothing empty.
+ */
+const conditioningOptions = (tier) =>
+  CONDITIONING_EXERCISES.filter((record) => canPerformWith(record, [tier]));
+const listExhausted = (type, tier, ex) => {
+  if (type !== 'conditioning') return false;
+  const inSession = new Set(ex.map((e) => e.name));
+  return conditioningOptions(tier).every((record) => inSession.has(record.name));
+};
+
 const naked = [];
 const single = [];
+const exhausted = [];
 for (const { type, tier, ex } of sessions) {
   for (const e of ex) {
     if (e.safetyNote) continue;
-    if (!e.swapName) naked.push(`${type}/${tier}: ${e.name} [${e.category}]`);
-    else if (!e.swap2Name) single.push(`${type}/${tier}: ${e.name} [${e.category}]`);
+    if (!e.swapName) {
+      if (e.category === 'cardio' && listExhausted(type, tier, ex)) {
+        exhausted.push({ type, tier, name: e.name });
+      } else {
+        naked.push(`${type}/${tier}: ${e.name} [${e.category}]`);
+      }
+    } else if (!e.swap2Name) single.push(`${type}/${tier}: ${e.name} [${e.category}]`);
   }
 }
 const swappable = sessions.flatMap(({ ex }) => ex.filter((e) => !e.safetyNote)).length;
@@ -202,12 +237,72 @@ check(
 );
 check(
   `and nothing in the 45 minute sample is left with nothing either (${shortSessions.flatMap(({ ex }) => ex.filter((e) => !e.safetyNote)).length} checked)`,
-  shortSessions.every(({ ex }) => ex.every((e) => e.safetyNote || !!e.swapName)),
+  shortSessions.every(({ type, tier, ex }) =>
+    ex.every(
+      (e) =>
+        e.safetyNote ||
+        !!e.swapName ||
+        (e.category === 'cardio' && listExhausted(type, tier, ex))
+    )
+  ),
   shortSessions
     .flatMap(({ type, tier, ex }) =>
-      ex.filter((e) => !e.safetyNote && !e.swapName).map((e) => `${type}/${tier}: ${e.name}`)
+      ex
+        .filter(
+          (e) =>
+            !e.safetyNote &&
+            !e.swapName &&
+            !(e.category === 'cardio' && listExhausted(type, tier, ex))
+        )
+        .map((e) => `${type}/${tier}: ${e.name}`)
     )
     .slice(0, 6)
+    .join(' | ')
+);
+
+/**
+ * The exemption is held to being true, and to being narrow.
+ *
+ * Without the first assertion a bug that emptied every conditioning block's
+ * button would be waved through by the clause above; without the second, a
+ * change that stopped filling them at all would look like the list simply
+ * running out.
+ */
+const wronglyExcused = exhausted.filter(
+  ({ tier, name }) => !conditioningOptions(tier).some((record) => record.name === name)
+);
+check(
+  `every conditioning block left with nothing really has nothing left to offer (${exhausted.length} excused)`,
+  wronglyExcused.length === 0,
+  wronglyExcused.map((r) => `${r.tier}: ${r.name}`).join(' | ')
+);
+
+const gymBlocks = sessions
+  .filter(({ type, tier }) => type === 'conditioning' && tier === 'fullgym')
+  .flatMap(({ ex }) => ex.filter((e) => e.category === 'cardio'));
+check(
+  `and a gym conditioning session, where the list is not exhausted, fills every one (${gymBlocks.length} blocks)`,
+  gymBlocks.length > 0 && gymBlocks.every((e) => !!e.swapName),
+  gymBlocks
+    .filter((e) => !e.swapName)
+    .map((e) => e.name)
+    .join(' | ') || 'no gym conditioning blocks were generated at all'
+);
+
+const conditioningSwaps = sessions
+  .filter(({ type }) => type === 'conditioning')
+  .flatMap(({ ex }) => ex.filter((e) => e.category === 'cardio' && !!e.swapName));
+const NINE_NAMES = new Set(CONDITIONING_EXERCISES.map((r) => r.name));
+check(
+  `and what a conditioning block offers is itself on the list (${conditioningSwaps.length} offers)`,
+  conditioningSwaps.length > 0 &&
+    conditioningSwaps.every(
+      (e) => NINE_NAMES.has(e.swapName) && (!e.swap2Name || NINE_NAMES.has(e.swap2Name))
+    ),
+  conditioningSwaps
+    .filter((e) => !NINE_NAMES.has(e.swapName) || (e.swap2Name && !NINE_NAMES.has(e.swap2Name)))
+    .slice(0, 5)
+    .map((e) => `${e.name} offers ${e.swapName} / ${e.swap2Name}`)
     .join(' | ')
 );
 check(

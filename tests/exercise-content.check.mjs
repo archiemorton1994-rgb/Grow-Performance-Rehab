@@ -79,6 +79,7 @@ import {
   getExerciseNameMap,
   getRegionsByExerciseNameMap,
 } from '../lib/exercise-db.ts';
+import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
 import { patternGroupOf } from '../lib/exercise-classification.ts';
 import { builderCategoryOf } from '../lib/session-builder.ts';
 
@@ -153,8 +154,20 @@ for (const s of SESSIONS) {
 }
 for (const tr of TIERS) {
   for (const e of ENERGY) {
-    // A conditioning session is composed from four pools, so one call sees one
-    // day's pick. Walking forty rotations reaches every entry in all of them.
+    /**
+     * A conditioning session is composed from four pools, so one call sees one
+     * day's pick. Walking forty rotations reaches every entry in all of them.
+     *
+     * NO SESSION IS BUILT FROM THESE ANY MORE. Conditioning comes off Archie's
+     * nine records now (lib/library-conditioning.ts), and the goal-conditioning
+     * block belonged to the lift-day generator, which nothing reaches. They are
+     * still walked because the data is still here and somebody's history is full
+     * of it: an exercise logged out of one has to keep resolving to a name, a
+     * category and a set of regions on the history and Recover screens, which is
+     * what the assertions below are about. Section 4b holds the same promises for
+     * the records that build a conditioning session today. Both collections go
+     * when the old engine does (plan phase 33).
+     */
     for (let d = 0; d < 40; d++) record(getConditioningWorkout(tr, e, d), tr, 'CONDITIONING');
     record(getGoalConditioningBlock(tr, e), tr, 'GOAL_CONDITIONING');
   }
@@ -311,6 +324,58 @@ check(
     .slice(0, 8)
     .map((t) => `${t.id} (${[...collectionsOf.get(t.id)].join('/')})`)
     .join(', ')
+);
+
+// ─── 4b. A conditioning session lights up the body ───────────────────────────
+console.log('\n[4b] The conditioning session reaches the muscle map');
+
+/**
+ * THE NINE ARE THE WHOLE CONDITIONING SESSION NOW, so the map depends on them.
+ *
+ * It did not used to. The old engine built conditioning out of
+ * CONDITIONING_WORKOUTS, and a fair number of those circuits were steady machine
+ * cardio that genuinely trains no muscle - they are in NO_MUSCLE_ON_PURPOSE
+ * above, and correctly so. A conditioning session could therefore leave the
+ * Recover drawing exactly as grey as it found it, which was defensible when it
+ * was one card among several and is not when it is the whole session.
+ *
+ * Archie's nine are all tagged, so the promise is now simply true, and this
+ * holds it: finish a conditioning session, any conditioning session, and
+ * something shades in. Asked of the map the heatmap itself reads rather than of
+ * the records, because the records being right and the map missing them is the
+ * exact failure this file was written for.
+ */
+const conditioningRegions = new Set();
+const invisibleNine = [];
+const unreachableByName = [];
+for (const record of CONDITIONING_EXERCISES) {
+  const regions = regionMap[record.id];
+  if (!regions || regions.length === 0) invisibleNine.push(`${record.id} (${record.name})`);
+  else for (const r of regions) conditioningRegions.add(r);
+  if (!nameRegionMap[record.name]) unreachableByName.push(record.name);
+}
+
+check(
+  `every conditioning exercise shades something in (${CONDITIONING_EXERCISES.length} records)`,
+  CONDITIONING_EXERCISES.length === 9 && invisibleNine.length === 0,
+  `${invisibleNine.length} contribute nothing: ${invisibleNine.join(', ')} — a whole conditioning session would leave the map grey`
+);
+check(
+  'and every one of them is reachable by name, so a swap keeps its regions',
+  unreachableByName.length === 0,
+  `${unreachableByName.length} missing: ${unreachableByName.join(', ')}`
+);
+check(
+  `between them they reach ${conditioningRegions.size} regions rather than one corner of the body`,
+  conditioningRegions.size >= 8,
+  `only: ${[...conditioningRegions].join(', ')}`
+);
+
+const nineExcused = CONDITIONING_EXERCISES.filter((e) => NO_MUSCLE_ON_PURPOSE.has(e.id));
+check(
+  'and not one of them is excused from tagging',
+  nineExcused.length === 0,
+  `${nineExcused.map((e) => e.name).join(', ')} is on the untagged-on-purpose list, which would hide a real gap`
 );
 
 // ─── 5. Nobody is handed kit they said they do not have ──────────────────────

@@ -124,9 +124,18 @@ function arraysIn(value, out = []) {
  *     conditioning records, its pattern slots off Archie's list and its cool
  *     down and its rehab slot out of Restore.
  *
- * PREP and COOLDOWN are the two that are still live, and they are still tested
- * in section 2: the conditioning, rehab and stretching sessions are built by
- * the old engine and open and close on them.
+ *   CONDITIONING_WORKOUTS, CONDITIONING_WARMUPS, CONDITIONING_FINISHERS and
+ *     CONDITIONING_COOLDOWNS, plus PREP - the old conditioning session, and the
+ *     stretches that were spliced into the top of it. Conditioning is built from
+ *     Archie's nine conditioning records now, on an interval clock, and it takes
+ *     its cool-down out of Restore (COOLDOWN, still live below). PREP went dark
+ *     with it: the conditioning session was the last thing reading it, because
+ *     the lift-day and weekly generators that also did are themselves
+ *     unreachable. See lib/library-conditioning.ts.
+ *
+ * COOLDOWN is the one that is still live, and it is still tested in section 2:
+ * the conditioning session closes on it, and the rehab and stretching sessions
+ * are still built by the old engine.
  *
  * Listed here rather than quietly dropped, so section 5 can ASSERT the
  * unreachability instead of leaving it as a thing this file stopped looking at.
@@ -147,6 +156,11 @@ const UNREACHED_NAMES = [
   'ACCESSORIES',
   'PREHAB',
   'FINISHERS',
+  'PREP',
+  'CONDITIONING_WORKOUTS',
+  'CONDITIONING_WARMUPS',
+  'CONDITIONING_FINISHERS',
+  'CONDITIONING_COOLDOWNS',
 ];
 const UNREACHED_POOLS = [
   ...UNREACHED_NAMES.map((name) => ({ name, arrays: arraysIn(SESSION_POOLS[name]) })),

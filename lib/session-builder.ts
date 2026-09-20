@@ -1514,11 +1514,15 @@ export interface BuilderPick {
   sets: number;
   reps: string;
   /**
-   * Set only on the flat catalogue's five cardio machines (Treadmill, Bike,
-   * Rower, Ski Erg, Other Cardio), which are not exercises in the database at
-   * all. The session screen keys its duration-and-distance logger off this, so
-   * a saved template that contains one has to carry it back out again — drop it
-   * and the user is asked for sets and reps on a treadmill.
+   * Set only on the custom builder's own cardio tiles (Assault Bike, Incline
+   * Treadmill Walk, Rowing Machine and Other Cardio), which are not exercises
+   * in the database at all. The session screen keys its duration-and-distance
+   * logger off this, so a saved template that contains one has to carry it back
+   * out again — drop it and the user is asked for sets and reps on a treadmill.
+   *
+   * The three machines are the three on Archie's conditioning list, which is
+   * what the tile offers now; a template saved before that still carries its own
+   * stationary bike or ski erg, name and all, and still reopens and runs.
    */
   type?: 'cardio';
 }

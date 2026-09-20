@@ -154,30 +154,42 @@ interface CardioOption {
   cue: string;
 }
 
+/**
+ * THE THREE MACHINES ON ARCHIE'S CONDITIONING LIST, AND NOTHING ELSE.
+ *
+ * The list holds nine conditioning exercises and exactly three of them are
+ * machines: the assault bike, the treadmill and the rower. This tile used to
+ * offer a stationary bike and a ski erg as well, neither of which is on it, so
+ * a session built here could contain conditioning the rest of the app would
+ * never prescribe.
+ *
+ * The ids of the two that stay are unchanged, so a saved template that holds a
+ * treadmill or a rower reopens as the same exercise it was saved as. A template
+ * holding the bike or the ski erg keeps reading too: it carries its own name and
+ * cue, so it reopens and runs, it is simply no longer offered to pick fresh.
+ *
+ * "Other cardio" stays, and is not a machine the app is prescribing. It is the
+ * one place somebody can log a run or a swim they have actually done, which is
+ * their own choice rather than the app putting work in front of them.
+ */
 const CARDIO_OPTIONS: CardioOption[] = [
   {
-    id: 'cardio-treadmill',
-    name: 'Treadmill',
-    icon: 'walk-outline',
-    cue: 'Run, walk, or jog at your chosen pace. Log duration and optional speed.',
+    id: 'cardio-assault-bike',
+    name: 'Assault Bike',
+    icon: 'bicycle-outline',
+    cue: 'Arms and legs working together, sitting tall. Log duration and optional distance.',
   },
   {
-    id: 'cardio-bike',
-    name: 'Stationary Bike',
-    icon: 'bicycle-outline',
-    cue: 'Steady or interval cycling. Log duration and optional speed.',
+    id: 'cardio-treadmill',
+    name: 'Incline Treadmill Walk',
+    icon: 'walk-outline',
+    cue: 'Walk briskly on a gentle incline without holding the handles. Log duration and optional speed.',
   },
   {
     id: 'cardio-rowing',
     name: 'Rowing Machine',
     icon: 'boat-outline',
-    cue: 'Drive with legs, then pull. Log duration and optional distance.',
-  },
-  {
-    id: 'cardio-ski-erg',
-    name: 'Ski Erg',
-    icon: 'body-outline',
-    cue: 'Pull down with arms, hinge from hips. Log duration and optional distance.',
+    cue: 'Legs, then body, then arms, and the reverse coming back. Log duration and optional distance.',
   },
   {
     id: 'cardio-other',

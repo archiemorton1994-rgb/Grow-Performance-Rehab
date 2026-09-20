@@ -35,17 +35,22 @@
  * to prime a half of the body: two of the nine are not machines at all, and
  * Archie's list is what a session is allowed to draw on.
  *
- * ALL THREE WEEKLY TYPES ARE NOW ON THE LIBRARY, so no generated session opens
- * on a cardio machine at all. That does not retire the machine rules, it moves
- * where they are asked: the machines are still reachable, through the warm-up
- * card's own picker, and what that picker offers is decided by
- * `cardioWarmupPoolForSession` and `machinesForFocus`. So the "primes the half
- * of the body the session loads" rule is asked of the picker in sections 2 and
- * 4, where the decision is actually made, rather than of a session that no
- * longer contains a machine; the generated sessions are held to opening on
- * Archie's list instead (section 2b). Which types are on the library is read
- * from the app (LIBRARY_LIVE_TYPES) rather than listed here, so this file
- * follows the switch instead of pinning it.
+ * ALL THREE WEEKLY TYPES AND CONDITIONING ARE NOW ON THE LIBRARY, so no
+ * generated session opens on a cardio machine at all. That does not retire the
+ * machine rules, it moves where they are asked: the machines are still
+ * reachable, through the warm-up card's own picker, and what that picker offers
+ * is decided by `cardioWarmupPoolForSession` and `machinesForFocus`. So the
+ * "primes the half of the body the session loads" rule is asked of the picker in
+ * sections 2 and 4, where the decision is actually made, rather than of a
+ * session that no longer contains a machine; the generated sessions are held to
+ * opening on Archie's list instead (section 2b). Which types are on the library
+ * is read from the app (LIBRARY_BUILT_TYPES) rather than listed here, so this
+ * file follows the switch instead of pinning it.
+ *
+ * AND THERE ARE THREE MACHINES ON OFFER NOW, NOT FOUR. Archie's Conditioning
+ * list names the assault bike, the treadmill and the rower; a stationary bike is
+ * not on it, so it is offered to nobody and still resolves by id for the
+ * warm-ups already logged on one. Section 2 holds both halves of that.
  *
  * Run:  npx tsx tests/cardio-machine.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -54,7 +59,7 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 
-const { generateWorkout, LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
+const { generateWorkout, LIBRARY_BUILT_TYPES } = await import('../lib/workout-engine.ts');
 const { trainTypeOf } = await import('../lib/session-type.ts');
 const { CONDITIONING_EXERCISES } = await import('../lib/exercise-library.ts');
 const { canPerformWith } = await import('../lib/kit.ts');
@@ -62,6 +67,7 @@ const { getStandalonePrehabWorkout } = await import('../lib/exercise-db.ts');
 const {
   CARDIO_MACHINES,
   CARDIO_MACHINE_IDS,
+  OFFERED_CARDIO_MACHINES,
   cardioFocusForSession,
   cardioWarmupPoolForSession,
   machineById,
@@ -101,7 +107,15 @@ const profile = {
  * this sweep did exactly that and reported a single machine per session type
  * with perfect confidence.
  */
-const SWEPT_TYPES = ['squat', 'bench', 'deadlift', 'upper_body', 'lower_body', 'full_body'];
+const SWEPT_TYPES = [
+  'squat',
+  'bench',
+  'deadlift',
+  'upper_body',
+  'lower_body',
+  'full_body',
+  'conditioning',
+];
 const SWEPT_TIERS = ['bodyweight', 'bands', 'dumbbells', 'fullgym'];
 const SWEPT_TIMES = ['30', '45', '60'];
 const SWEPT_SEEDS = 12;
@@ -133,7 +147,7 @@ function openings() {
             seed,
             first: w[0],
             // Which builder made it, asked of the app rather than listed here.
-            library: LIBRARY_LIVE_TYPES.includes(trainTypeOf(sessionType)),
+            library: LIBRARY_BUILT_TYPES.includes(trainTypeOf(sessionType)),
           });
         }
       }
@@ -154,7 +168,7 @@ console.log('\n[1] The sessions were really generated');
 check(
   `${rows.length} sessions opened, all ${fromLibrary.length} of them from the library`,
   rows.length > 500 && fromLibrary.length === rows.length,
-  `${oldEngine.length} row(s) still came from the old engine (${[...new Set(oldEngine.map((r) => r.sessionType))].join(', ')}) - LIBRARY_LIVE_TYPES is ${LIBRARY_LIVE_TYPES.join(', ') || 'empty'}`
+  `${oldEngine.length} row(s) still came from the old engine (${[...new Set(oldEngine.map((r) => r.sessionType))].join(', ')}) - LIBRARY_BUILT_TYPES is ${LIBRARY_BUILT_TYPES.join(', ') || 'empty'}`
 );
 
 check(
@@ -172,10 +186,10 @@ check(
 console.log('\n[2] The machine primes the half of the body the session loads');
 
 const LOWER = new Set(
-  CARDIO_MACHINES.filter((m) => m.primes === 'lower').map((m) => `cardio-machine-${m.id}`)
+  OFFERED_CARDIO_MACHINES.filter((m) => m.primes === 'lower').map((m) => `cardio-machine-${m.id}`)
 );
 const UPPER = new Set(
-  CARDIO_MACHINES.filter((m) => m.primes === 'upper').map((m) => `cardio-machine-${m.id}`)
+  OFFERED_CARDIO_MACHINES.filter((m) => m.primes === 'upper').map((m) => `cardio-machine-${m.id}`)
 );
 
 /**
@@ -205,21 +219,77 @@ check(
 );
 
 /**
- * More than one machine per session type.
+ * More than one machine per session type, asked of THE PICKER.
  *
  * Not decoration. A single fixed machine per session type is what the old code
  * effectively did, and the comment in the catalogue claimed otherwise for
  * years. If this ever drops to one, somebody standing in front of an occupied
  * rower has nowhere to go.
+ *
+ * ASKED OF `machinesForFocus` RATHER THAN OF THE DEFAULT POOL, because that is
+ * the list the warm-up card's picker actually renders (app/session.tsx) and the
+ * default pool is now only read by generators that build nothing. It matters
+ * here in a way it did not before: Archie's Conditioning list names three
+ * machines - the assault bike, the treadmill and the rower - so the stationary
+ * bike is no longer offered, and the treadmill is the only one left that primes
+ * the legs. A leg day's DEFAULT pool is therefore one machine long by arithmetic
+ * rather than by anybody's mistake, and asking that question of it would go red
+ * on a list that is doing the right thing. The promise this section exists for
+ * is "nobody is stuck", and the picker is where that is kept: every machine is
+ * still on it, the relevant ones first.
  */
 for (const sessionType of SWEPT_TYPES) {
-  const pool = cardioWarmupPoolForSession(sessionType);
+  const offered = machinesForFocus(cardioFocusForSession(sessionType));
   check(
     `${sessionType} offers more than one machine rather than always naming one`,
-    new Set(pool.map((tpl) => tpl.id)).size >= 2,
-    `only ever offers: ${pool.map((tpl) => tpl.name).join(', ') || 'nothing'}`
+    new Set(offered.map((m) => m.id)).size >= 2,
+    `only ever offers: ${offered.map((m) => m.name).join(', ') || 'nothing'}`
   );
 }
+
+/**
+ * AND THE MACHINES ON OFFER ARE THE ONES ON ARCHIE'S LIST.
+ *
+ * Nine conditioning exercises, three of which are machines. A stationary bike
+ * is not one of them, so it is offered to nobody - not in the default pool, not
+ * in the picker, not on any session type. It is still in the table and still
+ * resolves by id, which is the next assertion: somebody's history has warm-ups
+ * logged on one, and the session screen reads a saved `cardioMachine` back
+ * through `machineById` to decide what the card is showing.
+ */
+const retired = CARDIO_MACHINES.filter((m) => m.retired);
+const retiredIds = new Set(retired.map((m) => m.id));
+const stillOffered = [
+  ...SWEPT_TYPES.flatMap((t) => machinesForFocus(cardioFocusForSession(t))),
+  ...SWEPT_TYPES.flatMap((t) =>
+    cardioWarmupPoolForSession(t).map((tpl) => ({ id: tpl.id.replace('cardio-machine-', '') }))
+  ),
+].filter((m) => retiredIds.has(m.id));
+
+check(
+  `a retired machine is put in front of nobody (${retired.map((m) => m.label).join(', ') || 'none retired'})`,
+  retired.length > 0 && stillOffered.length === 0,
+  retired.length === 0
+    ? 'nothing is marked retired, so this measures nothing'
+    : `${stillOffered.length} sighting(s) of ${[...retiredIds].join(', ')}`
+);
+
+check(
+  'but it still resolves, so a warm-up logged on one still reads',
+  retired.every(
+    (m) => machineById(m.id)?.name === m.name && !!machineForExerciseId(`cardio-machine-${m.id}`)
+  ),
+  'dropping the row would turn a real past session into a blank card'
+);
+
+check(
+  `and every machine still offered is one of Archie's three (${OFFERED_CARDIO_MACHINES.length} offered)`,
+  OFFERED_CARDIO_MACHINES.length === 3 &&
+    ['assault_bike', 'rower', 'treadmill'].every((id) =>
+      OFFERED_CARDIO_MACHINES.some((m) => m.id === id)
+    ),
+  `offered: ${OFFERED_CARDIO_MACHINES.map((m) => m.id).join(', ')}`
+);
 
 check(
   'and no generated session opens on a machine any more',
@@ -328,8 +398,8 @@ for (const sessionType of ['squat', 'bench', 'deadlift', 'full_body', 'upper_bod
   const relevant = relevantCountForFocus(focus);
   check(
     `${sessionType}: every machine is still offered`,
-    ordered.length === CARDIO_MACHINES.length &&
-      new Set(ordered.map((m) => m.id)).size === CARDIO_MACHINES.length,
+    ordered.length === OFFERED_CARDIO_MACHINES.length &&
+      new Set(ordered.map((m) => m.id)).size === OFFERED_CARDIO_MACHINES.length,
     'filtering the list is how "both of those are taken too" becomes a dead end'
   );
   check(
@@ -352,7 +422,7 @@ check(
 );
 
 check(
-  'every machine id resolves back to its machine',
+  'every machine id resolves back to its machine, retired ones included',
   CARDIO_MACHINE_IDS.every((id) => !!machineForExerciseId(id)) &&
     CARDIO_MACHINES.every((m) => machineById(m.id)?.id === m.id),
   'the session screen looks the current machine up by id to tick it in the picker'

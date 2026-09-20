@@ -9,7 +9,12 @@ import type {
 import type { ExerciseTemplate } from './exercise-db';
 import { getCooldown, getStandalonePrehabWorkout, possibleFor } from './exercise-db';
 import type { StressTag } from './exercise-safety';
-import { restrictedTagsFor, restrictedTagsOn, restrictedTagsOnRecord } from './exercise-safety';
+import {
+  SEVERE_SET_REDUCTION,
+  restrictedTagsFor,
+  restrictedTagsOn,
+  restrictedTagsOnRecord,
+} from './exercise-safety';
 import type { KitKey, LibraryLevel } from './exercise-library';
 import { CONDITIONING_EXERCISES, hasAuthoredContent } from './exercise-library';
 import { canPerformWith } from './kit';
@@ -183,10 +188,30 @@ export const INTERVAL_BOUNDS = {
 const clamp = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, value));
 
-/** The interval this person works at today. */
+/**
+ * The interval this person works at today.
+ *
+ * `severelySore` is the third input and the only one that is not about how fit
+ * they are or how they feel: it is "the area you told us about is severe". The
+ * rest of the app answers that by taking a set off every working block
+ * (SEVERE_SET_REDUCTION, lib/exercise-safety.ts), and a round of an interval is
+ * this session's working set, so it is answered here in the same units and off
+ * the same number.
+ *
+ * DONE TO THE INTERVAL RATHER THAN TO THE FINISHED CARDS, which is where the
+ * strength session does it. The blocks this builder returns are read as numbers
+ * by whatever renders the session, so a round taken off a card and not off the
+ * block it came from would leave the app showing six rounds beside a card
+ * prescribing five. One interval, one answer, and both halves of the session
+ * come off it.
+ *
+ * Inside the clamp, so a round can never be taken below the floor an interval
+ * is allowed to have.
+ */
 export function intervalFor(
   profile: UserProfile | undefined,
-  energy: EnergyLevel
+  energy: EnergyLevel,
+  severelySore: boolean = false
 ): ConditioningInterval {
   const base = LEVEL_INTERVAL[levelCeilingFor(profile)];
   const delta = ENERGY_INTERVAL[energy] ?? ENERGY_INTERVAL.normal;
@@ -202,7 +227,7 @@ export function intervalFor(
       INTERVAL_BOUNDS.restSeconds.max
     ),
     rounds: clamp(
-      base.rounds + delta.rounds,
+      base.rounds + delta.rounds - (severelySore ? SEVERE_SET_REDUCTION : 0),
       INTERVAL_BOUNDS.rounds.min,
       INTERVAL_BOUNDS.rounds.max
     ),
@@ -427,7 +452,19 @@ export function generateLibraryConditioningSession(
   // Consecutive entries of the available list, so two neighbours are never the
   // same exercise, and capped at the length of that list so no exercise appears
   // twice anywhere in the session.
-  const interval = intervalFor(profile, energy);
+  /**
+   * A round comes off every block when a reported area is severe.
+   *
+   * Gated on an area actually being flagged, not on the severity answer alone:
+   * "severe" with nothing named is an answer to a question that was not asked,
+   * and quietly shortening somebody's session over it would be the app acting
+   * on a field rather than on a complaint.
+   */
+  const interval = intervalFor(
+    profile,
+    energy,
+    flagged.length > 0 && readiness.painSeverity === 'severe'
+  );
   for (let i = 0; i < blockCount; i++) {
     const record = available[(blockStart + i) % available.length];
     blocks.push({ id: record.id, name: record.name, ...interval });
@@ -443,6 +480,56 @@ export function generateLibraryConditioningSession(
     notes.push(
       `Only ${k === 1 ? 'one conditioning exercise' : `${k} conditioning exercises`} ${k === 1 ? because : becausePlural}, so this is ${blockWord(blockCount)} rather than ${asked}. ${unlock}`
     );
+  }
+
+  /**
+   * WHAT ELSE ON THE LIST THEY COULD DO INSTEAD, WHICH IS THE SWAP BUTTON.
+   *
+   * Archie's rule about the button is plain: "EVERYthing should be swappable at
+   * least once, sometimes twice". Every other session has its swap slots filled
+   * by `fillSwapAlternatives` out of the old catalogue, and for a conditioning
+   * block that is the wrong answer twice over. It found nothing at all for four
+   * of the nine, because the catalogue has no entry with a matching name to
+   * reach from; and where it did find something, what it offered was not on the
+   * list, so a session built from the nine could be tapped into something that
+   * is not conditioning at all.
+   *
+   * So the alternatives are answered here, from the same nine the session came
+   * from, and only from the records this person can actually do today: the ones
+   * the kit allows and the day did not rule out. The engine's fill runs after
+   * this and honours what it finds already written on a card, so these survive.
+   *
+   * THE RECORDS ALREADY IN THE SESSION ARE NOT OFFERED, which is the same rule
+   * that gives every card its own exercise. Two cards built from one record
+   * share an id, and the session screen logs sets against the id, so swapping
+   * the third block into the second block's exercise would write its sets on
+   * top of them.
+   *
+   * WHICH MEANS A HOME SESSION CAN HAVE NOTHING TO OFFER, and it says so by
+   * leaving the button empty rather than by reaching off the list. Three of the
+   * nine need no equipment, and a session at home is drawn from those three, so
+   * when all three are in front of you there is genuinely nothing else on
+   * Archie's list you could be doing instead.
+   */
+  const usedIds = new Set(built.map((e) => e.id));
+  const spare = available.filter((record) => !usedIds.has(record.id));
+  if (spare.length > 0) {
+    let offset = 0;
+    for (const card of built) {
+      if (card.category !== 'cardio') continue;
+      const first = spare[offset % spare.length];
+      const second = spare.length > 1 ? spare[(offset + 1) % spare.length] : undefined;
+      offset++;
+      card.hasSwap = true;
+      card.swapName = first.name;
+      card.swapCue = first.cue;
+      card.swapLoad = first.suggestedLoad;
+      if (second) {
+        card.swap2Name = second.name;
+        card.swap2Cue = second.cue;
+        card.swap2Load = second.suggestedLoad;
+      }
+    }
   }
 
   // ── 3. Cool-down ──────────────────────────────────────────────────────────

@@ -13,18 +13,27 @@
  *
  * WHAT THIS FILE PROTECTS, AND WHAT IT HONESTLY CANNOT
  * ────────────────────────────────────────────────────
- * Rotation was the engine half of that defect. The other half is data: the
- * database holds exactly ONE prescribed circuit per tier and energy level, so
- * after the shuffle what changes day to day is the ORDER of the work, not which
- * work it is. This file therefore asserts what the engine can be held to —
+ * Rotation was the engine half of that defect. The other half was data: the old
+ * database held exactly ONE prescribed circuit per tier and energy level, so
+ * after the shuffle what changed day to day was the ORDER of the work, not which
+ * work it was. This file therefore asserted what the engine could be held to —
  * the session is not frozen, and nothing was dropped or reordered into
- * nonsense — and deliberately does not assert exercise-level variety, because
- * the engine cannot deliver it from a pool of one. That needs more entries in
- * CONDITIONING_WORKOUTS.
+ * nonsense — and deliberately did not assert exercise-level variety, because
+ * the engine could not deliver it from a pool of one.
  *
- * The three fixed points are fixed on purpose. A warm-up that is not first is
- * not a warm-up; a finisher that is not the last hard effort is not a finisher;
- * a cooldown in the middle of a session is a mistake.
+ * CONDITIONING IS BUILT FROM ARCHIE'S NINE NOW, and the same promises are asked
+ * of that session instead. The nine are the whole universe of conditioning work
+ * (lib/library-conditioning.ts), the blocks are consecutive entries of whatever
+ * the kit and the day allow, and which entry the session starts on moves with
+ * how many conditioning sessions the person has finished. So "it is not frozen"
+ * is still the question, and it is now asked of a list of nine rather than of a
+ * pool of one — which is also why section 2 no longer counts a retired circuit's
+ * entries. What it counts instead is whether the session gives as many blocks as
+ * the clock asked for, which is the same promise ("rotation never loses work")
+ * stated over the thing that actually decides the length.
+ *
+ * The fixed points are fixed on purpose. A warm-up that is not first is not a
+ * warm-up, and a cooldown in the middle of a session is a mistake.
  *
  * Run:  npx tsx tests/conditioning-rotation.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -33,7 +42,9 @@
 globalThis.__DEV__ = false;
 
 import { generateWorkout } from '../lib/workout-engine.ts';
-import { getConditioningWorkout } from '../lib/exercise-db.ts';
+import { BLOCKS_BY_TIME } from '../lib/library-conditioning.ts';
+import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
+import { canPerformWith } from '../lib/kit.ts';
 
 let failures = 0;
 let total = 0;
@@ -48,7 +59,6 @@ function check(label, condition, detail) {
 
 const TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 const ENERGIES = ['low', 'normal', 'high'];
-const ENERGY_KEY = { low: 'easy', normal: 'normal', high: 'hard' };
 
 /**
  * A conditioning session as it would be built on a given day.
@@ -76,7 +86,7 @@ const DAYS = 30;
 console.log('\n[1] The conditioning WORK is no longer frozen');
 
 /**
- * The conditioning work, warm-ups excluded.
+ * The conditioning work, and ONLY the work.
  *
  * Measuring the whole session would not catch the defect this file exists for.
  * The prep stretches spliced in above the work already rotated — that is the
@@ -84,10 +94,15 @@ console.log('\n[1] The conditioning WORK is no longer frozen');
  * that compares whole sessions goes green with the work block still frozen
  * solid. Confirmed by mutation: un-shuffling the work leaves a whole-session
  * comparison passing.
+ *
+ * The cool-down is excluded for the same reason, and it has to be said out loud
+ * now: the new session rotates its Restore cool-down on the same count the
+ * blocks move on, so a comparison that let the cool-down in would report
+ * variety on a session whose every interval was identical.
  */
 const workOf = (tier, energy, seedStep) =>
   session(tier, energy, seedStep)
-    .filter((e) => e.category !== 'prep')
+    .filter((e) => e.category === 'cardio')
     .map((e) => e.name)
     .join('|');
 
@@ -123,31 +138,55 @@ check(
 // ─── 2. Nothing was dropped to get that variety ──────────────────────────────
 console.log('\n[2] Rotation reorders; it never loses work');
 
+/**
+ * How many blocks this person could be given at all, worked out here rather
+ * than read off the session being measured.
+ *
+ * The clock asks for two, three or four blocks by length. The list can be
+ * shorter than that: nine records, only three of which need no equipment, and
+ * one of those three is withheld from a beginner (decision 7). So the honest
+ * floor is "the clock, or the whole list if the list is shorter", and the extra
+ * subtraction is the pulse raiser, which comes off the list only when there is
+ * one to spare. Computed from the records and the kit, so it follows the
+ * library rather than pinning a number per tier.
+ */
+const LIFTER_TIME = '60';
+function blocksOwed(tier) {
+  const usable = CONDITIONING_EXERCISES.filter((e) => canPerformWith(e, [tier]));
+  const asked = BLOCKS_BY_TIME[LIFTER_TIME];
+  return Math.min(asked, usable.length > asked ? usable.length - 1 : usable.length);
+}
+
 let lostWork = [];
 for (const tier of TIERS) {
+  const need = blocksOwed(tier);
   for (const energy of ENERGIES) {
-    const pool = getConditioningWorkout(tier, ENERGY_KEY[energy]);
     for (let d = 0; d < DAYS; d++) {
       const built = session(tier, energy, d);
-      // The prep stretches spliced in are extra; every pool exercise must still
-      // be present. Kettlebell relabelling and the injury screen can rename or
-      // substitute, so this compares category counts rather than names.
-      const need = pool.filter((t) => t.category !== 'prep').length;
-      const got = built.filter((e) => e.category !== 'prep').length;
+      // Blocks only. The pulse raiser at the top and the Restore cool-down at
+      // the bottom are not the work, and counting them would let a session that
+      // had lost an interval pass on the strength of its warm-up.
+      const got = built.filter((e) => e.category === 'cardio').length;
       if (got < need) lostWork.push(`${tier}/${energy} day ${d}: ${got} of ${need}`);
     }
   }
 }
 check(
-  'every prescribed effort survives the shuffle',
+  'every block the kit can fill is still prescribed, on every day of the rotation',
   lostWork.length === 0,
   lostWork.slice(0, 3).join('; ')
 );
 
-// ─── 3. The order that carries meaning is fixed ──────────────────────────────
-console.log('\n[3] Warm-up first, finisher last hard effort, cooldown last');
+check(
+  `and the floor being measured is a real one (${TIERS.map((t) => `${t}:${blocksOwed(t)}`).join(', ')})`,
+  TIERS.every((t) => blocksOwed(t) >= 1) && blocksOwed('fullgym') === BLOCKS_BY_TIME[LIFTER_TIME],
+  'a floor of zero blocks would pass on an empty session'
+);
 
-let misplaced = { warmup: [], cooldown: [], finisher: [] };
+// ─── 3. The order that carries meaning is fixed ──────────────────────────────
+console.log('\n[3] Warm-up first, the work in the middle, cooldown last');
+
+let misplaced = { warmup: [], cooldown: [], work: [] };
 for (const tier of TIERS) {
   for (const energy of ENERGIES) {
     for (let d = 0; d < DAYS; d++) {
@@ -158,11 +197,21 @@ for (const tier of TIERS) {
       if (cooldownIdx !== -1 && cooldownIdx !== built.length - 1) {
         misplaced.cooldown.push(`${tier}/${energy}/${d}`);
       }
-      const finisherIdx = built.findIndex((e) => e.category === 'finisher');
-      if (finisherIdx !== -1) {
-        const after = built.slice(finisherIdx + 1);
+      /**
+       * NOTHING BUT THE COOL-DOWN AFTER THE LAST HARD EFFORT.
+       *
+       * This used to be asked of the `finisher` card, which was the old
+       * conditioning circuit's closing block. The new session has no finisher -
+       * every effort in it is an interval block - so the same rule is asked of
+       * the last block instead: once the hard work has started, the only thing
+       * allowed after it is the cool-down. A warm-up drill turning up after the
+       * intervals would be exactly the mistake the old clause guarded.
+       */
+      const lastBlock = built.map((e) => e.category).lastIndexOf('cardio');
+      if (lastBlock !== -1) {
+        const after = built.slice(lastBlock + 1);
         if (after.some((e) => e.category !== 'cooldown')) {
-          misplaced.finisher.push(`${tier}/${energy}/${d}`);
+          misplaced.work.push(`${tier}/${energy}/${d}`);
         }
       }
     }
@@ -171,9 +220,9 @@ for (const tier of TIERS) {
 check('a warm-up opens every session', misplaced.warmup.length === 0, misplaced.warmup.slice(0, 3).join(', '));
 check('a cooldown closes it', misplaced.cooldown.length === 0, misplaced.cooldown.slice(0, 3).join(', '));
 check(
-  'nothing but the cooldown comes after the finisher',
-  misplaced.finisher.length === 0,
-  misplaced.finisher.slice(0, 3).join(', ')
+  'nothing but the cooldown comes after the last block of work',
+  misplaced.work.length === 0,
+  misplaced.work.slice(0, 3).join(', ')
 );
 
 /**

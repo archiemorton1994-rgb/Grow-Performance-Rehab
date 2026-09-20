@@ -20,8 +20,13 @@
  * So the machine is chosen for what the session is about to load, and the swap
  * list is ordered the same way. `primes` is the whole model:
  *
- *   lower  the legs drive it            treadmill, stationary bike
+ *   lower  the legs drive it            treadmill
  *   upper  the arms and back drive it   rowing machine, assault bike
+ *
+ * THREE MACHINES, NOT FOUR. Archie's Conditioning list names the assault bike,
+ * the treadmill and the rower, and a stationary bike is not on it, so it is not
+ * offered any more. It is still in the table below, and still resolves by id,
+ * because somebody's history has warm-ups logged on one - see `retired`.
  *
  * A ROWING MACHINE IS OBVIOUSLY A LEG EXERCISE TOO, and an assault bike is
  * obviously a bike. `primes` is not a claim about which muscles do the work; it
@@ -60,6 +65,22 @@ export interface CardioMachine {
   primes: Exclude<CardioFocus, 'both'>;
   primaryMuscle: string;
   secondaryMuscles: string[];
+  /**
+   * A machine the app no longer OFFERS, but still knows the name of.
+   *
+   * Archie's list names three machines - the assault bike, the treadmill and
+   * the rower - and a stationary bike is not one of them, so it is not put in
+   * front of anybody any more. It stays in this table, and in `CardioMachineId`,
+   * because somebody's history has warm-ups logged under it: the session screen
+   * looks a saved `cardioMachine` up by id to decide what a card is showing, and
+   * deleting the row would turn a real past session into a blank card.
+   *
+   * Read by `machinesForFocus` and `cardioWarmupPoolForSession`, which are the
+   * two places a machine is put on offer. Everything that RESOLVES a machine -
+   * `machineById`, `machineForExerciseId`, `CARDIO_MACHINE_IDS` - deliberately
+   * ignores it, so old data keeps reading.
+   */
+  retired?: true;
 }
 
 export const CARDIO_MACHINES: readonly CardioMachine[] = [
@@ -82,6 +103,7 @@ export const CARDIO_MACHINES: readonly CardioMachine[] = [
     primes: 'lower',
     primaryMuscle: 'Quadriceps',
     secondaryMuscles: ['Hamstrings', 'Core'],
+    retired: true,
   },
   {
     id: 'rower',
@@ -104,6 +126,18 @@ export const CARDIO_MACHINES: readonly CardioMachine[] = [
     secondaryMuscles: ['Quadriceps', 'Upper back'],
   },
 ] as const;
+
+/**
+ * THE MACHINES THE APP STILL PUTS IN FRONT OF SOMEBODY.
+ *
+ * Archie's Conditioning list names three machines and only three: the assault
+ * bike, the treadmill and the rower. The stationary bike stays in the table
+ * above so a warm-up logged on one years ago still reads, and it is offered to
+ * nobody. See `retired` on CardioMachine.
+ */
+export const OFFERED_CARDIO_MACHINES: readonly CardioMachine[] = CARDIO_MACHINES.filter(
+  (m) => !m.retired
+);
 
 /**
  * The exercise ids the machines are generated under.
@@ -159,18 +193,20 @@ export function cardioFocusForSession(sessionType: SessionType): CardioFocus {
 export function machinesForFocus(focus: CardioFocus): CardioMachine[] {
   if (focus === 'both') {
     const order: CardioMachineId[] = ['rower', 'assault_bike', 'bike', 'treadmill'];
-    return order.map((id) => machineById(id)).filter((m): m is CardioMachine => !!m);
+    return order
+      .map((id) => machineById(id))
+      .filter((m): m is CardioMachine => !!m && !m.retired);
   }
-  const relevant = CARDIO_MACHINES.filter((m) => m.primes === focus);
-  const rest = CARDIO_MACHINES.filter((m) => m.primes !== focus);
+  const relevant = OFFERED_CARDIO_MACHINES.filter((m) => m.primes === focus);
+  const rest = OFFERED_CARDIO_MACHINES.filter((m) => m.primes !== focus);
   return [...relevant, ...rest];
 }
 
 /** How many of `machinesForFocus` are the ones that suit the session. */
 export function relevantCountForFocus(focus: CardioFocus): number {
   return focus === 'both'
-    ? CARDIO_MACHINES.length
-    : CARDIO_MACHINES.filter((m) => m.primes === focus).length;
+    ? OFFERED_CARDIO_MACHINES.length
+    : OFFERED_CARDIO_MACHINES.filter((m) => m.primes === focus).length;
 }
 
 /** One short line saying why the top of the swap list is at the top. */
@@ -224,6 +260,6 @@ export function cardioWarmupPoolForSession(sessionType: SessionType): ExerciseTe
   const machines =
     focus === 'both'
       ? machinesForFocus(focus)
-      : CARDIO_MACHINES.filter((m) => m.primes === focus);
+      : OFFERED_CARDIO_MACHINES.filter((m) => m.primes === focus);
   return machines.map((m) => machineTemplate(m, CARDIO_WARMUP_REPS));
 }

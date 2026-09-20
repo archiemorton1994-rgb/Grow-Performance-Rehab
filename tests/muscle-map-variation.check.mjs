@@ -156,13 +156,19 @@ for (const sessionType of SESSION_TYPES) {
 /**
  * Every type is asked for, and the lifting ones are counted separately.
  *
- * Rehab and stretching sessions contain no main or accessory work at all and a
- * conditioning session has no lead exercise, which is correct and is why the
+ * Rehab and stretching sessions contain no main or accessory work at all, and
+ * neither does a conditioning session: it is built from Archie's nine
+ * conditioning records now, as interval blocks filed under `cardio`, with a
+ * pulse raiser above them and a Restore cool-down below. It has no lead
+ * exercise and nothing filed as accessory work, which is correct and is why the
  * two counts are made apart: a type dropping out of `typesBuilt` is a session
  * that failed to build, while the work and main counts guard the half the
- * region map is about.
+ * region map is about. Conditioning still has to BUILD, and `typesBuilt` above
+ * is what holds it to that; what it does not have to do is contain a lift.
  */
-const LIFTING_TYPES = SESSION_TYPES.filter((t) => t !== 'prehab' && t !== 'flexibility');
+const LIFTING_TYPES = SESSION_TYPES.filter(
+  (t) => t !== 'prehab' && t !== 'flexibility' && t !== 'conditioning'
+);
 check(
   `the sweep really built sessions (${typesBuilt.size} types, ${served.length} exercises of work, ${mains.length} of them leading one)`,
   typesBuilt.size === SESSION_TYPES.length &&

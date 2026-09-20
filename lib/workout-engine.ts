@@ -20,7 +20,7 @@ import type {
 import { cardioWarmupPoolForSession } from './cardio-warmup';
 // Also import-only-what-it-needs: lib/session-type.ts has no runtime imports of
 // its own, so this adds no edge back to the store.
-import { trainTypeOf } from './session-type';
+import { trainTypeOf, type TrainSessionType } from './session-type';
 import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 // Same reasoning as session-type above: lib/kit.ts imports nothing from the
 // store at runtime, so reading the supply-tier rule from it adds no edge back.
@@ -36,6 +36,10 @@ import { isSupplyTier } from './kit';
  * function body - so the cycle never has a half-built module to resolve.
  */
 import { generateLibrarySession, type LibrarySessionType } from './library-session';
+// Same cycle, same reason: the conditioning session is built from Archie's nine
+// records and reuses this module's injury screen and easier week, and the one
+// door every session comes through is `generateWorkout` below.
+import { generateLibraryConditioningSession } from './library-conditioning';
 import {
   ExerciseCategory,
   ExerciseTemplate,
@@ -1825,6 +1829,25 @@ export const LIBRARY_LIVE_TYPES: readonly LibrarySessionType[] = [
   'full_body',
 ];
 
+/**
+ * EVERY SESSION TYPE BUILT FROM ARCHIE'S LIBRARY, CONDITIONING INCLUDED.
+ *
+ * `LIBRARY_LIVE_TYPES` above is narrower than it reads: it is the list the
+ * STRENGTH builder handles, and its type says so, because `generateLibrarySession`
+ * indexes its slot tables by it. Conditioning is built from the same library by
+ * a different function - nine records, an interval clock, no movement patterns -
+ * so it cannot join that list without making the slot tables owe it a row.
+ *
+ * Which leaves the question a check actually wants to ask: "is this session type
+ * built from Archie's list, or from the old catalogue?" That is this list. The
+ * only thing left on the old catalogue now is Restore (prehab and flexibility)
+ * and the custom session, which is whatever the user assembled.
+ */
+export const LIBRARY_BUILT_TYPES: readonly TrainSessionType[] = [
+  ...LIBRARY_LIVE_TYPES,
+  'conditioning',
+];
+
 /** What the library builder needs and `generateWorkout`'s arguments cannot say. */
 export interface LibraryFacts {
   /**
@@ -2044,6 +2067,133 @@ export function generateWorkout(
    * either way, and the sentence explaining it is wired to the plan sheet in a
    * later phase. Callers that want it call `generateLibrarySession` directly.
    */
+  /**
+   * AND THE CONDITIONING SESSION IS THE NINE, WORKED ON A CLOCK.
+   *
+   * Its own builder rather than the strength one, because it shares none of the
+   * shape: no movement patterns, no main exercise to progress, no rep target.
+   * What it has instead is an interval - work this long, rest that long, this
+   * many times - scaled by level and energy, over the nine records in Archie's
+   * Conditioning section and nothing else. See lib/library-conditioning.ts.
+   *
+   * ABOVE THE STRENGTH RETURN AND BEFORE THE OLD CATALOGUE, so that the pool the
+   * old engine drew a conditioning session from (CONDITIONING_WORKOUTS, one
+   * fixed circuit per tier and energy) is now unreachable from this function.
+   * That pool is full of names Archie's list does not hold, which is the whole
+   * point of the switch.
+   *
+   * THE SAME SEED THE STRENGTH SESSIONS USE, read per type: completed
+   * CONDITIONING sessions, which is exactly what the builder's rotation wants.
+   * The fallback is the all-time lifting count, which keeps a caller that does
+   * not track the split rotating rather than frozen on one answer.
+   *
+   * WHAT IS DROPPED HERE, and it is the same thing the strength branch drops:
+   * the builder returns its blocks as numbers and an honest note about anything
+   * it could not give, and `generateWorkout` returns a list of exercises. The
+   * cards carry the whole prescription either way - the clock is written on
+   * them - so nothing is hidden. A caller that wants the numbers calls
+   * `generateLibraryConditioningSession` directly.
+   *
+   * The empty state comes back as an empty list for the same reason, which is
+   * honest: when not one of the nine is safe and owned today there is no
+   * conditioning session to give, and padding it out with something that is not
+   * conditioning would be the app pretending.
+   */
+  if (buildType === 'conditioning') {
+    const conditioningRotation = libraryFacts.sessionTypeCount ?? strengthSessionCount;
+    const conditioning = generateLibraryConditioningSession({
+      // Everything they own, not the single best rung - see the strength branch
+      // below for why the tier alone cannot answer a kit list.
+      equipment: libraryFacts.equipment ?? [equipmentTier],
+      readiness,
+      profile,
+      sessionCount: conditioningRotation,
+      loadUnit,
+    });
+    /**
+     * The swap slots, filled the way every other session's are - and then held
+     * to the list, because a conditioning block is the one card where the old
+     * catalogue's answer is plainly the wrong one.
+     *
+     * The builder has already written what each block could be swapped for: the
+     * records on Archie's list this person can do today and is not already
+     * doing. `fillSwapAlternatives` honours what it finds written on a card, and
+     * it is worth running over them because it is what CLASSIFIES an
+     * alternative - same exercise with other kit, or different work for the same
+     * muscles - and writes the line that explains it on the sheet.
+     *
+     * What it must not do here is add to them. Left alone it reaches into the
+     * old catalogue by name, which for a conditioning session is the session
+     * being built from the nine and then offering, one tap behind the button,
+     * a burpee round that the rest of the app has stopped prescribing. So a
+     * block keeps only the alternatives the builder chose, in the order the fill
+     * ranked them, with its labels. Where the builder chose none - a home
+     * session is drawn from the three records that need no equipment, and gets
+     * all three - the button stays empty, which is the honest answer to "what
+     * else on this list could I be doing".
+     *
+     * Every other card is left exactly as the fill made it: the Restore warm-up
+     * and cool-down swap within Restore, which is their own job and is right.
+     */
+    const ownAlternatives = conditioning.exercises;
+    /**
+     * And the kit ceiling last, exactly as the old path applied it.
+     *
+     * It changes nothing today - the only records a dumbbell or kettlebell
+     * answer can reach are the three that need no equipment, and none of them
+     * names a weight - but the rule is "a weight they do not own is a weight
+     * they cannot lift", and dropping it here because the arithmetic happens to
+     * be empty is how a guarantee goes missing.
+     */
+    const withSwaps = fillSwapAlternatives(
+      conditioning.exercises,
+      screenedReadiness,
+      equipmentTier,
+      profile,
+      conditioningRotation + getLocalDayIndex()
+    ).map((ex, i) => {
+      // A safety substitution's swap slot holds the exercise it REPLACED, which
+      // is the revert. Leave it, exactly as the fill does.
+      if (ex.category !== 'cardio' || ex.safetyNote) return ex;
+      const own = ownAlternatives[i];
+      const onTheList = new Set(
+        [own?.swapName, own?.swap2Name].filter((name): name is string => !!name)
+      );
+      const kept = [
+        {
+          name: ex.swapName,
+          cue: ex.swapCue,
+          load: ex.swapLoad,
+          kind: ex.swapKind,
+          reason: ex.swapReason,
+        },
+        {
+          name: ex.swap2Name,
+          cue: ex.swap2Cue,
+          load: ex.swap2Load,
+          kind: ex.swap2Kind,
+          reason: ex.swap2Reason,
+        },
+      ].filter((option) => !!option.name && onTheList.has(option.name));
+      return {
+        ...ex,
+        hasSwap: kept.length > 0,
+        swapName: kept[0]?.name,
+        swapCue: kept[0]?.cue,
+        swapLoad: kept[0]?.load,
+        swapKind: kept[0]?.kind,
+        swapReason: kept[0]?.reason,
+        swap2Name: kept[1]?.name,
+        swap2Cue: kept[1]?.cue,
+        swap2Load: kept[1]?.load,
+        swap2Kind: kept[1]?.kind,
+        swap2Reason: kept[1]?.reason,
+      };
+    });
+
+    return capToKit(withSwaps, profile?.maxKitKg ?? 0, equipmentTier);
+  }
+
   if (LIBRARY_LIVE_TYPES.includes(buildType as LibrarySessionType)) {
     const libraryRotation = libraryFacts.sessionTypeCount ?? strengthSessionCount;
     const librarySession = generateLibrarySession({
