@@ -663,6 +663,19 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     built.push({ card, loadPattern, satisfies });
   };
 
+  /**
+   * Restore's own mobility drills, filed here as prep because in this session
+   * that is what they are. Filed as prehab they would be exempt from the injury
+   * screen, and that exemption exists for the rehab slot, which is chosen FOR a
+   * sore area and must not be screened away because it mentions it.
+   *
+   * Read by the pulse raiser as well as by the mobility block, which is why it
+   * is defined above both rather than beside the one that used to own it.
+   */
+  const mobilityPool = possibleFor(getStandalonePrehabWorkout(), equipment).filter(
+    (t) => t.category === 'prehab'
+  );
+
   // ── 1. Pulse raiser ───────────────────────────────────────────────────────
   // One conditioning item, at a pace that raises the pulse and nothing more.
   // Skipping is not offered to a beginner here or in the finisher (decision 7),
@@ -675,26 +688,31 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     add({ ...templateToExercise(pulse), category: 'prep', sets: 1, suggestedLoad: 'Easy pace' });
   } else {
     /**
-     * Nothing on the conditioning list fits, so Restore's own warm-up stands in.
+     * NOTHING ON THE NINE FITS, SO THE SESSION OPENS ON RESTORE MOBILITY.
      *
      * Reachable: a beginner with no kit and a sore ankle loses Skipping to the
      * beginner rule and Duck Walks and Bear Crawl to the ankle, and owns none of
-     * the machines. An easy walk is still a pulse raiser.
+     * the machines.
+     *
+     * It used to stand in with ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)" - the
+     * card the Restore Joint Health session opens on. That was the last place in
+     * a Train session where an old template could still reach the user: it names
+     * a stationary bike, which is on neither Archie's conditioning list nor the
+     * machine picker any more, and it carries no video because it is an
+     * instruction rather than a movement.
+     *
+     * A mobility drill is a real record from the same pool the block below
+     * draws on, so the session opens on something that can be demonstrated, and
+     * the person simply gets one more drill than they otherwise would. Nothing
+     * is hidden by that: every card still says what it is.
      */
-    const fallback = getStandalonePrehabWorkout().find((t) => t.category === 'prep');
-    if (fallback && free(fallback)) {
-      add({ ...templateToExercise(fallback), category: 'prep', sets: 1 });
+    const stand = pickFrom(mobilityPool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
+    if (stand) {
+      add({ ...templateToExercise(stand), category: 'prep' });
     }
   }
 
   // ── 2. Mobility ───────────────────────────────────────────────────────────
-  // Restore's own drills, filed here as prep because in this session that is
-  // what they are. Filed as prehab they would be exempt from the injury screen,
-  // and that exemption exists for the rehab slot, which is chosen FOR a sore
-  // area and must not be screened away because it mentions it.
-  const mobilityPool = possibleFor(getStandalonePrehabWorkout(), equipment).filter(
-    (t) => t.category === 'prehab'
-  );
   const mobilityCount = mobilityCountFor(timeAvailable, profile?.ageYears);
   for (let i = 0; i < mobilityCount; i++) {
     const drill = pickFrom(mobilityPool, Math.floor(n / SLOT_ROTATION_EVERY) + i, choosable);

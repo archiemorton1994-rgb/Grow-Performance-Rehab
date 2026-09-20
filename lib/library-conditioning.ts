@@ -48,7 +48,11 @@ import {
  * Walk, Rowing Machine, Duck Walks, Skipping and Bear Crawl. Three of them need
  * nothing, which is what a home session is made of, and the other six are gym
  * kit. The only things from outside the nine are the Restore cool-down and the
- * Restore warm-up that stands in when the list is too short to spare one.
+ * Restore MOBILITY drill that stands in as the warm-up when the list is too
+ * short to spare one, which `warmUpNote` says out loud. It used to stand in with
+ * ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)", and that was the last old
+ * template still reaching a Train-side card: a stationary bike the app no longer
+ * offers, no video, and no movement to demonstrate.
  *
  * WHY EVERY BLOCK IS A CLOCK AND NOT THE RECORD'S OWN DOSE
  * ───────────────────────────────────────────────────────
@@ -121,8 +125,30 @@ export interface LibraryConditioningSession {
    * nothing is smuggled into the load line in the meantime.
    */
   blocks: ConditioningBlock[];
-  /** Honest lines about anything the session could not give. Usually empty. */
+  /**
+   * Honest lines about the WORK the session could not give. Usually empty.
+   *
+   * One subject only: why there are fewer interval blocks than the clock asked
+   * for, and what would change it. The warm-up has its own line below rather
+   * than a place in this list, because something has to be able to ask "is this
+   * session short, and why" without reading English, and two unrelated subjects
+   * in one array makes that a guess.
+   */
   notes: string[];
+  /**
+   * Set when the warm-up could not be one of the nine, saying why.
+   *
+   * At home the conditioning list is three records long, and a session that
+   * spent one of them on an easy-pace warm-up would have a single block of work
+   * left. So the warm-up is a Restore mobility drill instead, and this is the
+   * line that says so. Null whenever the pulse raiser is one of the nine, which
+   * is every session with the kit for it.
+   *
+   * SURFACED WHEREVER `notes` IS SURFACED. Anything rendering the plan sheet
+   * shows both; they are separate so they can be asked about separately, not so
+   * that one of them can be quietly dropped.
+   */
+  warmUpNote: string | null;
   /**
    * Set only when not one of the nine can be given today, in which case
    * `exercises` and `blocks` are both empty.
@@ -412,6 +438,7 @@ export function generateLibraryConditioningSession(
       exercises: [],
       blocks: [],
       notes,
+      warmUpNote: null,
       emptyState: `Nothing on the conditioning list ${because}. ${unlock} Restore is the better session for you today.`,
     };
   }
@@ -432,6 +459,8 @@ export function generateLibraryConditioningSession(
 
   const built: Exercise[] = [];
   const blocks: ConditioningBlock[] = [];
+  /** Why the warm-up is not one of the nine, when it is not. See the interface. */
+  let warmUpNote: string | null = null;
 
   // ── 1. Pulse raiser ───────────────────────────────────────────────────────
   if (pulseFromNine) {
@@ -442,10 +471,33 @@ export function generateLibraryConditioningSession(
       suggestedLoad: 'Easy pace',
     });
   } else {
-    const fallback = possibleFor(getStandalonePrehabWorkout(), equipment).find(
-      (t) => t.category === 'prep' && !ruledOut(t, neverChoose)
+    /**
+     * NOTHING ON THE NINE CAN BE SPARED, SO THE SESSION OPENS ON RESTORE'S
+     * MOBILITY WORK - AND SAYS SO.
+     *
+     * It used to open on ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)", which is
+     * the card the Restore Joint Health session starts with. Three things were
+     * wrong with reaching for it here. It names a stationary bike, which is not
+     * on Archie's conditioning list and is not offered anywhere in the app any
+     * more. It is not a movement so much as an instruction, with no video and
+     * nothing to demonstrate. And it let a home beginner - the person this
+     * session is hardest to build for - be handed a generic old template while
+     * every other card in the app came off Archie's list.
+     *
+     * A Restore mobility drill is a real record with a real prescription, it is
+     * one of the three sources a warm-up is allowed to come from, and the note
+     * below says plainly why the session is opening on one rather than on
+     * conditioning. Saying it is the point: a short list is a fact about the
+     * person's kit and level, and hiding it behind a filler card is how the app
+     * would start pretending.
+     */
+    const mobility = possibleFor(getStandalonePrehabWorkout(), equipment).find(
+      (t) => t.category === 'prehab' && !ruledOut(t, neverChoose)
     );
-    if (fallback) built.push({ ...templateToExercise(fallback), category: 'prep', sets: 1 });
+    if (mobility) {
+      built.push({ ...templateToExercise(mobility), category: 'prep', sets: 1 });
+      warmUpNote = `Not enough of the conditioning list ${becausePlural} to spare one for the warm-up, so this opens on a mobility drill instead. ${unlock}`;
+    }
   }
 
   // ── 2. Interval blocks ────────────────────────────────────────────────────
@@ -578,5 +630,5 @@ export function generateLibraryConditioningSession(
    */
   const eased = readiness.deload ? easeForDeloadWeek(screened, loadUnit) : screened;
 
-  return { exercises: eased, blocks, notes, emptyState: null };
+  return { exercises: eased, blocks, notes, warmUpNote, emptyState: null };
 }

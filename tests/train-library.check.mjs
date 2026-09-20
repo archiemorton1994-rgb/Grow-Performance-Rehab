@@ -120,6 +120,20 @@ const restoreTemplates = [
   ...ALL_REGIONS.flatMap((r) => getRegionPrehabWorkout(r, { acute: true })),
 ];
 const restoreByKey = new Map(restoreTemplates.map((t) => [key(t.name), t]));
+/**
+ * Restore's MOBILITY drills, which is narrower than "a Restore record".
+ *
+ * The only part of Restore a Train warm-up may stand in with. The standalone
+ * Restore session's own prep card is ph-s-1, "Cardio Warm-Up (Easy Walk /
+ * Bike)": a stationary bike the app no longer offers anywhere, no video, and no
+ * movement to demonstrate. It is still Restore's card and is left exactly where
+ * it is; it simply may not open a Train session.
+ */
+const mobilityByKey = new Map(
+  getStandalonePrehabWorkout()
+    .filter((t) => t.category === 'prehab')
+    .map((t) => [key(t.name), t])
+);
 
 console.log('\n[0] The lists this session may draw on');
 check(
@@ -224,8 +238,11 @@ const violations = {
   beginnerImpact: [],
   upperPull: [],
   repeated: [],
+  warmUp: [],
 };
 let swept = 0;
+let warmUpsFromNine = 0;
+let warmUpsFromMobility = 0;
 
 for (const sessionType of SESSION_TYPES) {
   for (const equipment of KITS) {
@@ -269,6 +286,36 @@ for (const sessionType of SESSION_TYPES) {
 
               // [5] A session is a session.
               if (exercises.length < 3) violations.empty.push(`${where}: ${exercises.length} cards`);
+
+              /**
+               * [1b] WHAT THE SESSION OPENS ON, ASKED SEPARATELY FROM [1].
+               *
+               * [1] asks whether a card's name is on one of the three lists, and
+               * ph-s-1 - "Cardio Warm-Up (Easy Walk / Bike)" - passes that, in
+               * every kit and at every level, because it is genuinely a Restore
+               * card: the one the Joint Health session opens on. That is how it
+               * went on being served here long after the rest of the old
+               * catalogue stopped: a name test said Restore and nobody asked
+               * which Restore card.
+               *
+               * The pulse raiser has exactly two legal answers. One of the nine
+               * at an easy pace, which is the ordinary case, or a Restore
+               * MOBILITY drill when today's areas and the person's kit leave
+               * nothing on the nine. Not Restore's own prep card, which names a
+               * stationary bike the app stopped offering and has no movement to
+               * demonstrate.
+               */
+              {
+                const first = exercises[0];
+                const k = first ? key(first.name) : '';
+                if (conditioningByKey.has(k)) {
+                  warmUpsFromNine++;
+                } else if (mobilityByKey.has(k)) {
+                  warmUpsFromMobility++;
+                } else {
+                  violations.warmUp.push(`${where}: opened on ${first && first.name}`);
+                }
+              }
 
               let hasPull = false;
               /**
@@ -368,6 +415,16 @@ noneOf(violations.upperPull, 'every Upper Body session contains a pull or declar
 noneOf(
   violations.repeated,
   'no movement is asked for twice in one session, however the three lists spell it'
+);
+noneOf(
+  violations.warmUp,
+  `every session opens on one of the nine or on a Restore mobility drill (${warmUpsFromNine} from the nine, ${warmUpsFromMobility} stood in)`,
+  'Restore’s own prep card names a stationary bike the app stopped offering'
+);
+check(
+  'both answers actually happen, so neither half of that rule is decoration',
+  warmUpsFromNine > 0 && warmUpsFromMobility > 0,
+  `${warmUpsFromNine} from the nine, ${warmUpsFromMobility} from mobility`
 );
 
 // ── [8] The same answers build the same session ──────────────────────────────

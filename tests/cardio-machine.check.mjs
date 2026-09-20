@@ -304,18 +304,27 @@ check(
 console.log('\n[2b] A library session opens on one of the nine, at an easy pace');
 
 const conditioningByName = new Map(CONDITIONING_EXERCISES.map((e) => [e.name, e]));
-/** The one thing that stands in when nothing on the nine fits: Restore's walk. */
-const restorePrep = new Set(
+/**
+ * What may stand in when nothing on the nine fits: Restore's MOBILITY drills.
+ *
+ * NOT Restore's own prep card, which is what this used to allow. That card is
+ * ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)" - the one the Joint Health session
+ * opens on - and it names a stationary bike this very file proves the app no
+ * longer offers anywhere. A home beginner's conditioning session was still
+ * opening on it, which is the last old template that could reach a Train card.
+ * The mobility drills are real records with a movement to demonstrate.
+ */
+const restoreStandIns = new Set(
   getStandalonePrehabWorkout()
-    .filter((t) => t.category === 'prep')
+    .filter((t) => t.category === 'prehab')
     .map((t) => t.name)
 );
 
 const offTheList = fromLibrary.filter(
-  (r) => !conditioningByName.has(r.first.name) && !restorePrep.has(r.first.name)
+  (r) => !conditioningByName.has(r.first.name) && !restoreStandIns.has(r.first.name)
 );
 check(
-  `every library session opens on the conditioning list or Restore (${fromLibrary.length} checked)`,
+  `every library session opens on the conditioning list or Restore mobility (${fromLibrary.length} checked)`,
   fromLibrary.length > 0 && offTheList.length === 0,
   offTheList
     .slice(0, 3)

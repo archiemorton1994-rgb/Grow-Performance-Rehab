@@ -14,10 +14,6 @@ import type {
   UserProfile,
   WeightUnit,
 } from './store';
-// The one runtime dependency this module has outside the exercise database:
-// the grid a gym can actually load. `lib/utils.ts` imports nothing at runtime,
-// so the contract tests that import this file directly stay free of the store.
-import { cardioWarmupPoolForSession } from './cardio-warmup';
 // Also import-only-what-it-needs: lib/session-type.ts has no runtime imports of
 // its own, so this adds no edge back to the store.
 import { trainTypeOf, type TrainSessionType } from './session-type';
@@ -44,29 +40,11 @@ import {
   ExerciseCategory,
   ExerciseTemplate,
   type InternalTier,
-  CARDIO_WARMUP,
-  CARDIO_WARMUPS,
   toInternalTier,
-  getPrep,
-  getMechanical,
-  getPowerMechanical,
-  getNeuro,
-  getPowerNeuro,
-  getMainLift,
-  getAccessories,
-  getPrehab,
-  getFinisher,
-  getCooldown,
-  getConditioningWorkout,
   getStandalonePrehabWorkout,
   getStandaloneFlexibilityWorkout,
   getRegionPrehabWorkout,
   getRegionPrehabSupplements,
-  getRegionPrehabExercise,
-  getGoalConditioningBlock,
-  getWeeklyLowerBodyExercises,
-  getWeeklyUpperBodyExercises,
-  getWeeklyFullBodyExercises,
   getAllPickableExercises,
   getRestoreExercises,
   type PickableExercise,
@@ -74,8 +52,7 @@ import {
   possibleFor,
   getRegionsByExerciseNameMap,
 } from './exercise-db';
-import { byLevelPreference, levelOf, withinLevel } from './exercise-levels';
-import { levelBandForExperience } from './programme';
+import { levelOf } from './exercise-levels';
 import { type ExerciseLevel } from './exercise-levels';
 import {
   isEquipmentVariant,
@@ -448,12 +425,6 @@ export function daysSinceLastTrained(now: number = Date.now()): number | null {
   return lastTrainedAt === null ? null : wholeDaysBetween(lastTrainedAt, now);
 }
 
-type MainSessionType = Exclude<
-  SessionType,
-  'conditioning' | 'prehab' | 'flexibility' | 'custom' | 'upper_body' | 'lower_body' | 'full_body'
->;
-type WeeklySessionType = 'upper_body' | 'lower_body' | 'full_body';
-
 /**
  * Deterministic Fisher-Yates shuffle seeded by an integer.
  * Produces consistent ordering for the same seed value, rotating
@@ -511,107 +482,6 @@ function diversifyByMovementPattern<T extends { movementPattern?: MovementPatter
  * true, a rotated selection is far less likely to stack two same-pattern
  * exercises back to back — e.g. two 'push' accessories in the same session.
  */
-/**
- * Do two exercise names describe effectively the same movement?
- *
- * Exact-name dedupe is not enough once the accessory pool is wide: a session
- * came out with "Incline Barbell Bench Press" as the main and "Incline Barbell
- * Press" as an accessory, which are the same exercise typed twice.
- *
- * Equipment and stance words carry no movement information, so they are dropped
- * before comparing. A match needs the smaller name to be a subset of the larger
- * AND to have at least two words left — otherwise "Barbell Row" would swallow
- * every other row in the database and cost more variety than it saves.
- */
-const NAME_NOISE = new Set([
-  'barbell',
-  'dumbbell',
-  'db',
-  'kb',
-  'kettlebell',
-  'cable',
-  'machine',
-  'seated',
-  'standing',
-  'the',
-  'with',
-  'a',
-]);
-function movementTokens(name: string): Set<string> {
-  return new Set(
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .split(/[\s-]+/)
-      .filter((w) => w.length > 1 && !NAME_NOISE.has(w))
-  );
-}
-function isSameMovement(a: string, b: string): boolean {
-  const ta = movementTokens(a);
-  const tb = movementTokens(b);
-  if (ta.size === 0 || tb.size === 0) return a.toLowerCase().trim() === b.toLowerCase().trim();
-  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
-  if (small.size < 2) return small.size === large.size && [...small].every((w) => large.has(w));
-  return [...small].every((w) => large.has(w));
-}
-
-/** How often a weekly session's MAIN movement is served by its alternative
- *  instead. Rare on purpose — the main lift is what you are progressing, and
- *  progression needs the same movement most of the time. */
-const MAIN_VARIATION_EVERY = 4;
-
-/** Appended to the base lift's id so a main-lift variation carries its own
- *  progression rather than the base lift's. See the loop that uses it. */
-const MAIN_VARIATION_ID_SUFFIX = '-variation';
-
-/** How often each REQUIRED slot swaps to a different exercise of the same
- *  movement pattern. Staggered per slot, so this is the period for one slot,
- *  not for the session — a typical session has one of them varied. */
-const REQUIRED_VARIATION_EVERY = 3;
-
-/** Minimum secondary muscles for an exercise to count as compound enough to
- *  fill a required movement slot. See the filter that uses it. */
-const MIN_COMPOUND_SECONDARIES = 2;
-
-/**
- * Muscle families, used to decide whether one exercise can stand in for another
- * in a required slot.
- *
- * movementPattern alone is far too coarse for this. It has one value, 'push',
- * covering both an overhead press and a cable tricep pushdown, and one value,
- * 'pull', covering both a barbell row and a bicep curl. Substituting on pattern
- * alone produced exactly that: a session whose vertical-press slot was filled by
- * a triceps isolation, and whose horizontal-pull slot was filled by a curl. The
- * movement coverage the required slots exist to guarantee was silently gone.
- *
- * primaryMuscle is the finer signal — every one of the 447 pickable exercises
- * has it — but an exact match is too strict in the other direction: a Barbell
- * Row is 'Mid back' and a T-Bar Row is 'Rhomboids', and swapping those is
- * precisely what is wanted. Grouping them fixes both ends.
- *
- * Anything not listed falls back to requiring an exact primaryMuscle match,
- * which is conservative — an unknown muscle simply will not be substituted.
- */
-const MUSCLE_FAMILIES: string[][] = [
-  ['chest', 'pectorals', 'upper pectorals', 'lower pectorals'],
-  ['anterior deltoid', 'lateral deltoid', 'deltoids', 'rear deltoid'],
-  ['triceps'],
-  ['latissimus dorsi', 'lats', 'mid back', 'rhomboids', 'trapezius', 'upper back'],
-  ['biceps', 'brachialis'],
-  ['quadriceps'],
-  ['glutes', 'glute medius'],
-  ['hamstrings', 'posterior chain', 'erector spinae'],
-  ['adductors'],
-];
-
-function sameMuscleFamily(a?: string, b?: string): boolean {
-  if (!a || !b) return false;
-  const x = a.toLowerCase().trim();
-  const y = b.toLowerCase().trim();
-  if (x === y) return true;
-  return MUSCLE_FAMILIES.some((fam) => fam.includes(x) && fam.includes(y));
-}
-
 /** How many rotating general joint-health movements a MAINTENANCE rehab session
  *  picks up alongside its region-specific core. Keeps the total in line with the
  *  seven the standalone prehab session already prescribes. Not used by the acute
@@ -1414,8 +1284,8 @@ export function getGoalVolumeDeltas(goals: FitnessGoal[]): {
 }
 
 /**
- * Exported so the library generator personalises its cards through the same
- * function the old engine does.
+ * Exported so the library generator personalises its cards through this one
+ * function rather than growing a second copy of it.
  *
  * This is what plan section 2's "substitutes personalised again" means in
  * practice: every card the new generator produces - a main lift, a stand-in
@@ -1694,7 +1564,11 @@ export function easeForDeloadWeek(
  * patterns at once and could only go live once both halves of the body were
  * known to hold up on their own.
  *
- * Anything not on this list is still built from the old catalogue below.
+ * ALL THREE ARE ON IT NOW, AND THE OLD CATALOGUE THEY REPLACED IS GONE. The
+ * list is kept rather than collapsed into a constant `true`, because it is
+ * still the honest answer to "which strength sessions does the library build",
+ * and a fourth strength type would join it here.
+ *
  * Exported so a check can ask the app which types have been switched, rather
  * than holding its own copy that says Lower Body for ever.
  */
@@ -1714,9 +1588,10 @@ export const LIBRARY_LIVE_TYPES: readonly LibrarySessionType[] = [
  * so it cannot join that list without making the slot tables owe it a row.
  *
  * Which leaves the question a check actually wants to ask: "is this session type
- * built from Archie's list, or from the old catalogue?" That is this list. The
- * only thing left on the old catalogue now is Restore (prehab and flexibility)
- * and the custom session, which is whatever the user assembled.
+ * built from Archie's list?" That is this list, and it is now every Train type
+ * there is. What is left outside it is Restore (prehab and flexibility), which
+ * is hand-authored clinical content and was never part of the move, and the
+ * custom session, which is whatever the user assembled.
  */
 export const LIBRARY_BUILT_TYPES: readonly TrainSessionType[] = [
   ...LIBRARY_LIVE_TYPES,
@@ -1908,12 +1783,12 @@ export function generateWorkout(
       : { ...readiness, painRegion: [...new Set([...named, ...workAround])] };
 
   /**
-   * AND THE SESSIONS THAT HAVE BEEN SWITCHED OVER ARE BUILT FROM THE LIBRARY.
+   * AND EVERY TRAIN SESSION IS BUILT FROM THE LIBRARY.
    *
-   * Everything below this line is the old catalogue. A session type listed in
-   * LIBRARY_LIVE_TYPES never reaches it: its exercises, its warm-up, its
-   * finisher and its cool-down all come from Archie's list, the nine
-   * conditioning records and Restore, and nothing else.
+   * Below this line there is only Restore. A Train session type - its exercises,
+   * its warm-up, its finisher and its cool-down - comes from Archie's list, the
+   * nine conditioning records and Restore, and nothing else. The old catalogue
+   * that used to sit underneath these returns is deleted.
    *
    * The whole switch is this one early return, and it is done at the SAME door
    * the lift-named ids are mapped at, so a 'squat', 'bench' or 'deadlift' day
@@ -1930,11 +1805,9 @@ export function generateWorkout(
    * same picker every other session uses. Archie's rule about the button is
    * plain: "EVERYthing should be swappable at least once, sometimes twice", and
    * a session where no card has anything behind the button is the complaint
-   * that rule came from. The alternatives still come out of the old catalogue,
-   * which is a wart this phase does not fix: a library session can be swapped
-   * into an exercise that is not on Archie's list. Re-pointing the swap sheet
-   * at the library is phase 30's work, and until then a button that offers
-   * something sensible beats a button that does nothing. The builder's own
+   * that rule came from. The alternatives come out of the same three lists the
+   * session does, because the picker's index is built from them - see
+   * `getAllPickableExercises` in lib/exercise-db.ts. The builder's own
    * same-pattern substitutions are left alone, because their swap slot holds
    * the exercise they replaced and that is the way back.
    *
@@ -1953,11 +1826,10 @@ export function generateWorkout(
    * many times - scaled by level and energy, over the nine records in Archie's
    * Conditioning section and nothing else. See lib/library-conditioning.ts.
    *
-   * ABOVE THE STRENGTH RETURN AND BEFORE THE OLD CATALOGUE, so that the pool the
-   * old engine drew a conditioning session from (CONDITIONING_WORKOUTS, one
-   * fixed circuit per tier and energy) is now unreachable from this function.
-   * That pool is full of names Archie's list does not hold, which is the whole
-   * point of the switch.
+   * The pool the old engine drew a conditioning session from
+   * (CONDITIONING_WORKOUTS, one fixed circuit per tier and energy) was full of
+   * names Archie's list does not hold, which is the whole point of the switch.
+   * It is deleted, along with the rest of the old catalogue.
    *
    * THE SAME SEED THE STRENGTH SESSIONS USE, read per type: completed
    * CONDITIONING sessions, which is exactly what the builder's rotation wants.
@@ -2131,29 +2003,11 @@ export function generateWorkout(
     );
   }
 
-  const layoff = getLayoff(daysSinceLastSession);
-
   // Screen first, then fill the swap slots — so the alternatives on offer are
   // alternatives to what the user is actually being shown, and a substituted
   // exercise gets its own stand-ins rather than inheriting the removed one's.
   const screened = applyInjurySafety(
-    generateWorkoutUnscreened(
-      buildType,
-      equipmentTier,
-      screenedReadiness,
-      profile,
-      exerciseFeedback,
-      bestOrmKg,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    ),
+    generateRestoreWorkout(buildType, equipmentTier, screenedReadiness, strengthSessionCount),
     screenedReadiness,
     equipmentTier,
     profile,
@@ -2169,7 +2023,7 @@ export function generateWorkout(
     /**
      * AND THE TAB THIS SESSION BELONGS TO, WHICH ONLY MATTERS FOR RESTORE.
      *
-     * Everything the old catalogue still builds arrives here: Recovery,
+     * Everything left below the two Train returns arrives here: Recovery,
      * Mobility and the targeted rehab work, plus the custom session, which
      * comes back empty. The two Restore ones take their alternatives from
      * Restore's own lists; nothing else changes.
@@ -2754,78 +2608,6 @@ function sameJobAlternatives(
   return out;
 }
 
-/**
- * A pool held to the rungs this person has earned, easiest-suited first.
- *
- * WHAT IT DOES AND WHAT IT DELIBERATELY DOES NOT.
- *
- *   IT FILTERS the accessory, warm-up and finisher pools by the movement-level
- *   ceiling from lib/exercise-levels.ts, so somebody new to structured training
- *   stops being handed level 3 and 4 work as "accessories". That is the visible
- *   half of the ladders.
- *
- *   IT DOES NOT TOUCH THE MAIN LIFT. A squat session's main movement is the
- *   squat, and holding a beginner off the barbell there is the earn-the-barbell
- *   rule, which needs their LOGGED history rather than a label: nobody is
- *   promoted by answering a question differently. That is the next piece of
- *   work and it is not this one.
- *
- *   IT NEVER EMPTIES A POOL. A ceiling that leaves a session without its warm-up
- *   is a worse outcome than a warm-up that is a rung too hard, so a pool with
- *   nothing left inside the ceiling comes back untouched. Measured across the
- *   catalogue in tests/exercise-levels.check.mjs: at every ceiling the app can
- *   apply, every pattern keeps at least three movements, so this is a backstop
- *   rather than a routine escape.
- *
- * Unlevelled work - rehab, conditioning, mobility - passes straight through.
- * See the docblock in lib/exercise-levels.ts for why that is not an oversight.
- */
-/**
- * THE HARDEST RUNG THIS PERSON MAY BE PRESCRIBED, AND EXPERIENCE ALONE SETS IT.
- *
- * There used to be a second input. The builder asked six zero-load benchmarks
- * and held any pattern whose box was left unticked at the foundation rung,
- * whatever somebody had said about how long they had been training, and a card
- * mid-session asked the same question one ladder at a time for anybody who had
- * skipped it.
- *
- * Both are gone, on Archie's instruction, and the reasoning is clinical rather
- * than about friction. A self-graded benchmark records how somebody feels about
- * a movement: the confident over-report it, the cautious under-report it, and
- * the person the gate existed to protect is the one most likely to tick every
- * box. Experience is the honest signal, it is one question, and the app already
- * asks it.
- *
- * So there is one ceiling per person, it is band.max, and it applies to every
- * pattern equally. A profile still carrying the old stored answers is built
- * exactly like one that never had them.
- */
-function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): ExerciseTemplate[] {
-  /**
-   * The WHOLE profile, not just the experience answer.
-   *
-   * The ceiling is what somebody told us plus what they have shown us, and the
-   * second half arrives as earnedLevelBonus. Taking only the string here is how
-   * a rung earned by finishing a block would be recorded, displayed on the
-   * report, and then quietly ignored by the thing that picks the exercises.
-   */
-  const band = levelBandForExperience(
-    (profile?.experienceLevel as ExperienceLevel) ?? 'intermediate',
-    profile?.earnedLevelBonus ?? 0
-  );
-  /**
-   * THE FILTER FALLS BACK POOL-WIDE, and that is the promise it exists to keep.
-   *
-   * A pool with nothing inside the ceiling comes back untouched, because a
-   * session missing its warm-up is a worse outcome than a warm-up a rung too
-   * hard. Nobody is ever prescribed past the hardest band their experience can
-   * reach while the catalogue has anything at all to offer inside it.
-   */
-  const withinCeiling = pool.filter((t) => withinLevel(t.name, t.movementPattern, band.max));
-  const base = withinCeiling.length > 0 ? withinCeiling : pool;
-  return byLevelPreference(base, band, (t) => t);
-}
-
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
   return {
     id: t.id,
@@ -3285,42 +3067,42 @@ export function applyInjurySafety(
   return screened;
 }
 
-function generateWorkoutUnscreened(
+/**
+ * THE RESTORE SESSIONS, AND THE EMPTY CUSTOM ONE. NOTHING ELSE IS LEFT HERE.
+ *
+ * This used to be the whole engine: a conditioning circuit, a weekly Lower,
+ * Upper or Full Body session, and beneath them the lift-day generator that
+ * built a squat, bench or deadlift day out of MAIN_LIFTS, ACCESSORIES, PREP,
+ * MECHANICAL, NEURO, FINISHERS and the rest. Every one of those paths is gone,
+ * because every session type they built now comes from Archie's library or from
+ * his nine conditioning records - see `generateWorkout` above, which routes both
+ * before it ever reaches this function.
+ *
+ * WHAT IS LEFT IS RESTORE'S OWN WORK, which is not part of that move and is
+ * deliberately untouched: targeted rehab for an area, the acute protocol, the
+ * standalone Joint Health session and Mobility. Those are hand-authored
+ * clinical content with their own pools, their own structure and their own
+ * contract tests, and they are what the Restore tab is.
+ *
+ * WHY IT KEEPS THREE ARGUMENTS AND NOT FIFTEEN. Everything the deleted paths
+ * needed - feedback, last logged weights, streaks, the layoff curve, the load
+ * unit, the pre-library epoch - existed to put a WEIGHT on a card. No Restore
+ * card carries one: the dose is a hold, a count or a distance written by a
+ * physiotherapist, and `applyPersonalization` was never run over any of it.
+ * Keeping the parameters would have been thirteen values threaded through a
+ * function that reads none of them.
+ */
+function generateRestoreWorkout(
   sessionType: SessionType,
   equipmentTier: EquipmentTier,
   readiness: ReadinessCheck,
-  profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>,
-  bestOrmKg?: number,
-  strengthSessionCount: number = 0,
-  lastLoggedWeights?: Record<string, number>,
-  exerciseNormalStreak?: Record<string, number>,
-
-  exerciseStuckStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null,
-  /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg',
-  /** Sessions logged before the current library - see generateWorkout. */
-  libraryEpochSessionCount: number = 0
+  /**
+   * Completed LIFTING sessions, all time. The rotation seed, and the only thing
+   * here that varies: it is what stops six weeks of knee rehab being the
+   * identical session forty times over.
+   */
+  strengthSessionCount: number = 0
 ): Exercise[] {
-  if (sessionType === 'conditioning') {
-    return generateConditioningWorkout(
-      equipmentTier,
-      readiness,
-      profile,
-      exerciseFeedback,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    );
-  }
   if (sessionType === 'prehab') {
     if (readiness?.painRegion) {
       const primaryRegion = Array.isArray(readiness.painRegion)
@@ -3426,748 +3208,22 @@ function generateWorkoutUnscreened(
     const rotated = seededShuffleDiverse(subset, daySeed);
     return [...warmup, ...rotated, ...cooldown].map((t) => templateToExercise(t));
   }
-  if (sessionType === 'custom') {
-    return [];
-  }
-  if (sessionType === 'upper_body' || sessionType === 'lower_body' || sessionType === 'full_body') {
-    return generateWeeklyWorkout(
-      sessionType,
-      equipmentTier,
-      readiness,
-      profile,
-      exerciseFeedback,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    );
-  }
-
   /**
-   * BELOW HERE IS THE OLD LIFT-DAY GENERATOR, AND NOTHING REACHES IT ANY MORE.
+   * A CUSTOM SESSION, OR ANYTHING ELSE, COMES BACK EMPTY - THE HONEST ANSWER.
    *
-   * The only way in is 'squat', 'bench' or 'deadlift', and generateWorkout now
-   * maps all three to a weekly session before it calls this function, so the
-   * branch above catches them. It is left standing rather than deleted because
-   * the pools it reads (MAIN_LIFTS, ACCESSORIES, PREP, MECHANICAL, NEURO and
-   * the rest) are the same pools the weekly generator is still being moved off,
-   * and pulling this out while they are half migrated would mean two large
-   * changes tangled into one diff. It goes when they do.
+   * Every Train type - Lower, Upper, Full Body, Conditioning, and the three
+   * lift-named ids out of history that now mean the first three - is routed to
+   * the library before `generateWorkout` reaches this function, so none of them
+   * can arrive here. A custom session is assembled by the user rather than
+   * generated, and has always come back empty by design.
    *
-   * The guard that this stays unreachable is behavioural, not a comment:
-   * tests/legacy-session-ids.check.mjs asserts a stored squat day generates the
-   * SAME session as a lower body day, card for card, which can only be true
-   * while the map above is doing its job.
+   * The old lift-day generator stood below this line until this phase. It was
+   * already unreachable - the lift-named ids had been mapped at the door for
+   * several phases - and it went with the pools it read.
    */
-  const mainType = sessionType as MainSessionType;
-  const exercises: Exercise[] = [];
-  const { hasAches, energy, timeAvailable } = readiness;
-  const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
-  const { mainSetsDelta, accSetsDelta } = profile
-    ? getGoalVolumeDeltas(profile.goals)
-    : { mainSetsDelta: 0, accSetsDelta: 0 };
-
-  // Shared seed for all seededShuffleDiverse calls in this session: rotates
-  // by session count AND by day so exercises change even on same-day replays.
-  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
-
-  // ── 1. Cardio Warm-Up (ALL sessions including 30 min - safety requirement) ──
-  // The machine is chosen for the half of the body this session is about to
-  // load rather than shuffled out of a pool that had nothing to do with it, and
-  // every other machine is one tap away in the swap sheet - see
-  // lib/cardio-warmup.ts. Home users keep the bodyweight warm-ups: choosing
-  // between machines is not a choice they have.
-  const warmupPool =
-    toInternalTier(equipmentTier) === 'fullgym'
-      ? cardioWarmupPoolForSession(sessionType)
-      : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
-  const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
-  exercises.push(templateToExercise(cardioWarmup));
-
-  // ── 2. Pre-Training Prep ─────────────────────────────────────────────────
-  //   30 min → all 3 stretches (safety warmup - never skip)
-  //   45 min → first 2 stretches
-  //   60 min → all 3 stretches
-  const prep = seededShuffleDiverse(
-    atEarnedLevel(getPrep(mainType, equipmentTier), profile),
-    sessionSeed
-  );
-  const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
-  /**
-   * COMFORT VARIANTS ARE GONE FROM TRAIN, AND WHAT REPLACED THEM.
-   *
-   * Every block in this generator used to run its template through
-   * `applyComfortOrBadge`, which looked up a hand-authored gentler version -
-   * Knee Diamond Push-Up, Floor Press, Box Goblet Squat - and served that
-   * instead when the user had flagged the area it was written for.
-   *
-   * Two things were wrong with it, and only one of them was the wiring. The
-   * variants are movements that exist nowhere but inside another exercise's
-   * record: they have no id, no level, no video and no row on Archie's list, so
-   * a session that reached for one served a card the rest of the app had never
-   * heard of. And which areas they covered was an accident of which templates
-   * somebody had got round to annotating.
-   *
-   * The library answers the same question properly. A slot whose record is
-   * ruled out today takes the next record OF THE SAME PATTERN that is clean for
-   * the flagged area and is no harder a rung, the card says what it replaced,
-   * and the swap slot offers the original back. See `generateLibrarySession` in
-   * lib/library-session.ts, which is what builds every Train session now.
-   */
-  for (const p of prep.slice(0, prepCount))
-    exercises.push(templateToExercise(p, undefined, isDumbbellTier(equipmentTier)));
-
-  // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
-  // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
-  // speed squats/bench/good-mornings) instead of slow activation work.
-  const hasPowerGoal = profile?.goals?.includes('power') ?? false;
-  const mechanicalPool =
-    hasPowerGoal && !hasAches
-      ? getPowerMechanical(mainType, equipmentTier)
-      : getMechanical(mainType, equipmentTier);
-  const mechanical = seededShuffleDiverse(
-    atEarnedLevel(mechanicalPool, profile),
-    sessionSeed
-  );
-  // A slice rather than mechanical[0], so an empty pool drops the block instead
-  // of handing undefined on and throwing. See tests/empty-pools.check.mjs.
-  const mechanicalCount = timeAvailable === '60' ? 2 : 1;
-  for (const m of mechanical.slice(0, mechanicalCount))
-    exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
-
-  // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
-  // Power goal: use goal-specific plyometric templates (depth jumps, power
-  // cleans, clap push-ups) that maximise rate-of-force development before the
-  // KPI lift - not just extra sets of the generic explosive exercise.
-  if (timeAvailable !== '30') {
-    const neuroPool =
-      hasPowerGoal && !hasAches
-        ? [getPowerNeuro(mainType, equipmentTier)]
-        : getNeuro(mainType, equipmentTier);
-    // The power block is where the jumps live, and jumping is level 3 work
-    // on the squat ladder. Somebody new to structured training was being
-    // primed with lateral bounds and split squat jumps before their first
-    // squat; the zero-load screen in PROGRESSION-LADDERS.md exists to stop
-    // exactly that. getPowerNeuro returns a single template and is left alone
-    // for the same reason the main lift is - see atEarnedLevel.
-    const neuroTemplate = seededShuffleDiverse(
-      atEarnedLevel(neuroPool, profile),
-      sessionSeed
-    )[0] as ExerciseTemplate | undefined;
-    // An empty pool drops the block. See tests/empty-pools.check.mjs.
-    if (neuroTemplate) {
-      const neuroEx = templateToExercise(neuroTemplate, undefined, isDumbbellTier(equipmentTier));
-      // Power goal: always perform 5 sets in the neuro block.
-      if (hasPowerGoal && !hasAches) {
-        neuroEx.sets = Math.max(neuroEx.sets, 5);
-      }
-      exercises.push(neuroEx);
-    }
-  }
-
-  // ── 5. KPI Lift ──────────────────────────────────────────────────────────
-  const mainTemplate = getMainLift(mainType, equipmentTier);
-  let baseSets = mainTemplate.sets + mainSetsDelta;
-  if (timeAvailable === '30') baseSets = Math.max(baseSets - 1, 3);
-  if (energy === 'low') baseSets = Math.max(baseSets - 1, 2);
-  if (energy === 'high') baseSets = baseSets + 1;
-  baseSets = Math.max(baseSets, 2);
-
-  // The main lift's own comfort variant went with the rest of them - see the
-  // prep block above. A main movement the flagged area rules out is answered by
-  // the library's same-pattern, no-harder substitution, which keeps the card on
-  // a record that exists.
-  {
-    const badge = energy !== 'normal' ? ('volume' as const) : undefined;
-    const ex = templateToExercise(mainTemplate, badge, isDumbbellTier(equipmentTier));
-    ex.sets = baseSets;
-    exercises.push(ex);
-  }
-
-  // ── 6. Pump Accessories (1 for 30 min, 2 for 45 and 60 min) ─────────────
-  // Seeded shuffle ensures accessories rotate across sessions and days so
-  // users see different exercises rather than always the same first two.
-  // Diversify by movement pattern so the 1-2 chosen accessories don't stack the
-  // same pattern (e.g. two 'push' moves) within a single session.
-  const allAccessories = seededShuffleDiverse(
-    atEarnedLevel(getAccessories(mainType, equipmentTier), profile),
-    sessionSeed
-  );
-  // Conditioning-compatible goals: fat_loss targets caloric burn; fitness builds
-  // general conditioning capacity. Both benefit from a single conditioning
-  // exercise that replaces the standard finisher slot.
-  //  30-min + conditioning goal : 0 accessories (1 conditioning ex replaces the 1)
-  //  30-min + other goals       : 1 accessory (no finisher)
-  //  45/60-min + conditioning   : 1 accessory (1 conditioning ex replaces the 2nd)
-  //  45/60-min + other goals    : 2 accessories + standard single finisher
-  const hasConditioningGoal =
-    (profile?.goals?.includes('fat_loss') || profile?.goals?.includes('fitness')) ?? false;
-  const accCount =
-    timeAvailable === '30' ? (hasConditioningGoal ? 0 : 1) : hasConditioningGoal ? 1 : 2;
-
-  for (const acc of allAccessories.slice(0, accCount)) {
-    const accEx = templateToExercise(acc, undefined, isDumbbellTier(equipmentTier));
-    accEx.sets = Math.max(1, Math.min(accEx.sets + accSetsDelta, 4));
-    exercises.push(accEx);
-  }
-
-  // ── 7. Finisher / Goal-Conditioning Block ────────────────────────────────
-  // Conditioning goals (fat_loss/fitness): inject 2-exercise conditioning
-  // circuit at ALL session durations - including 30 min, where it fills the
-  // slot that would otherwise have no finisher, keeping total load appropriate.
-  // Other goals: standard single-exercise finisher at 45 and 60 min only
-  // (30-min sessions remain tight with 1 accessory + KPI lift, no finisher).
-  const finBadge = energy !== 'normal' ? ('volume' as const) : undefined;
-  if (hasConditioningGoal) {
-    const condBlock = getGoalConditioningBlock(
-      equipmentTier,
-      finisherKey,
-      profile?.experienceLevel
-    );
-    if (__DEV__) {
-      console.log(
-        '[workout-engine] Conditioning block injected (goal=fat_loss|fitness, level=' +
-          (profile?.experienceLevel ?? 'intermediate') +
-          '):',
-        condBlock.map((e) => e.name)
-      );
-    }
-    for (const t of condBlock) exercises.push(templateToExercise(t, finBadge));
-  } else if (timeAvailable !== '30') {
-    const finisherPool = atEarnedLevel(
-      getFinisher(mainType, equipmentTier, finisherKey),
-      profile
-    );
-    const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] as
-      | ExerciseTemplate
-      | undefined;
-    // An empty pool drops the block, as the weekly sessions' finisher already
-    // did. See tests/empty-pools.check.mjs.
-    if (finisher) exercises.push(templateToExercise(finisher, finBadge));
-  }
-
-  // ── 8. Prehab / Cool-Down Stretches (45 and 60 min only) ─────────────────
-  if (timeAvailable !== '30') {
-    // The user told the readiness screen this area hurts, so the rehab slot in
-    // their session is the acute one. It used to be PREHAB_BY_REGION[region][0]
-    // — for hamstrings, a 45-second-a-side Standing Hamstring Stretch on a
-    // muscle they had just reported as strained.
-    const prehabTemplate: ExerciseTemplate | undefined = readiness?.painRegion
-      ? getRegionPrehabExercise(
-          Array.isArray(readiness.painRegion) ? readiness.painRegion[0] : readiness.painRegion,
-          { acute: true }
-        )
-      : seededShuffleDiverse(getPrehab(mainType, equipmentTier), sessionSeed)[0];
-    // An empty pool drops the slot. See tests/empty-pools.check.mjs.
-    if (prehabTemplate) {
-      const phEx = templateToExercise(prehabTemplate);
-      phEx.sets = 1;
-      exercises.push(phEx);
-    }
-  }
-
-  // ── 9. Cool Down breathing (60 min only) ─────────────────────────────────
-  if (timeAvailable === '60') {
-    const cooldown = possibleFor(getCooldown(), equipmentTier);
-    // An empty pool drops the block. See tests/empty-pools.check.mjs.
-    if (cooldown.length > 0) exercises.push(templateToExercise(cooldown[0]));
-  }
-
-  const isUpperBody = mainType === 'bench';
-  const personalized = exercises.map((ex) =>
-    applyPersonalization(
-      ex,
-      profile,
-      isUpperBody,
-      exerciseFeedback,
-      bestOrmKg,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    )
-  );
-
-  /**
-   * Deduplicate by name, with one exception that has to come first.
-   *
-   * A COLLISION WITH THE REHAB SLOT IS RESOLVED IN THE REHAB SLOT'S FAVOUR.
-   * Plain first-wins dedup drops whichever card was assembled later, and the
-   * rehab slot is assembled after the warm-up. When comfort variants were
-   * switched on for prep, a bench session for a sore shoulder started opening
-   * with a Pendulum Shoulder Swing - which is precisely what the acute protocol
-   * prescribes for that region - so the two collided and the acute card was the
-   * one deleted. The movement survived; the card explaining what it was for,
-   * and carrying the acute prescription, did not.
-   *
-   * The rehab slot is the point of the whole pain-adaptation path, so it wins.
-   */
-  const rehabNames = new Set(
-    personalized.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
-  );
-  const seenNames = new Set<string>();
-  const deduped = personalized.filter((ex) => {
-    const key = ex.name.toLowerCase().trim();
-    if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
-    if (seenNames.has(key)) return false;
-    seenNames.add(key);
-    return true;
-  });
-
-  // Activation (mechanical priming) exercises are always 1 set -
-  // they exist purely to prime the tissue, not accumulate volume.
-  const setsEnforced = deduped.map((ex) =>
-    ex.category === 'mechanical' ? { ...ex, sets: 1 } : ex
-  );
-
-  // Guarantee ordering: finisher always last, cooldown always after finisher.
-  // This is a stable sort - all non-finisher/non-cooldown exercises keep their
-  // relative order exactly as assembled above.
-  const catOrder = (cat: string) => (cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0);
-  return setsEnforced.sort((a, b) => catOrder(a.category) - catOrder(b.category));
+  return [];
 }
 
-function generateWeeklyWorkout(
-  sessionType: WeeklySessionType,
-  equipmentTier: EquipmentTier,
-  readiness: ReadinessCheck,
-  profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>,
-  strengthSessionCount: number = 0,
-  lastLoggedWeights?: Record<string, number>,
-  exerciseNormalStreak?: Record<string, number>,
-
-  exerciseStuckStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null,
-  /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg',
-  /** Sessions logged before the current library - see generateWorkout. */
-  libraryEpochSessionCount: number = 0
-): Exercise[] {
-  const { painRegion, energy, timeAvailable } = readiness;
-  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
-  const exercises: Exercise[] = [];
-
-  // ── 1. Cardio Warm-Up (always) ─────────────────────────────────────────────
-  // The machine is chosen for the half of the body this session is about to
-  // load rather than shuffled out of a pool that had nothing to do with it, and
-  // every other machine is one tap away in the swap sheet - see
-  // lib/cardio-warmup.ts. Home users keep the bodyweight warm-ups: choosing
-  // between machines is not a choice they have.
-  const warmupPool =
-    toInternalTier(equipmentTier) === 'fullgym'
-      ? cardioWarmupPoolForSession(sessionType)
-      : CARDIO_WARMUPS.filter((w) => w.equipmentRequired === 'bodyweight');
-  const cardioWarmup = seededShuffleDiverse(warmupPool, sessionSeed)[0] ?? CARDIO_WARMUP;
-  exercises.push(templateToExercise(cardioWarmup));
-
-  // ── 2. Pre-Training Prep (active mobility) — mirrors the KPI session
-  //   builder's prep step, which this function was missing: raising the heart
-  //   rate isn't the same as mobilising the joints about to be loaded.
-  //   45 min → 2 stretches, 30/60 min → 3. Pattern-matched the same way
-  //   prehab/finisher already are below (upper→bench, lower→squat, full→deadlift).
-  const prepSource: MainSessionType =
-    sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-  const prep = seededShuffleDiverse(
-    atEarnedLevel(getPrep(prepSource, equipmentTier), profile),
-    sessionSeed
-  );
-  const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
-  // No comfort variants here either - see the prep block in the generator
-  // above for what replaced them and why.
-  for (const p of prep.slice(0, prepCount))
-    exercises.push(templateToExercise(p, undefined, isDumbbellTier(equipmentTier)));
-
-  // ── 3. Main exercises — pattern-first, never drop required movements ───────
-  // Pool is ordered by pattern priority so first N exercises always cover all
-  // required movement patterns. Optional "bonus" exercises (beyond minRequired)
-  // are seeded-shuffled for variety across sessions.
-  //
-  //   30 min → 3-4 main     45 min → 4-5 main     60 min → 5-6 main
-  //   (full_body adds 1 extra to cover the additional pattern)
-  //
-  const getterFn =
-    sessionType === 'lower_body'
-      ? getWeeklyLowerBodyExercises
-      : sessionType === 'upper_body'
-        ? getWeeklyUpperBodyExercises
-        : getWeeklyFullBodyExercises;
-
-  const allMainExercises = getterFn(equipmentTier);
-
-  // Per-type required-pattern counts (deterministic coverage guarantee):
-  //   lower_body: squat + hinge + single-leg = 3 patterns (positions 1-3 in pool)
-  //   upper_body: H.Push + H.Pull + V.Push + V.Pull = 4 patterns (positions 1-4 in pool)
-  //   full_body:  always all 6 patterns — sets are scaled to fit time, movements are never dropped
-  //               30/45 min → 2 sets per exercise; 60 min → full template sets
-  //
-  // Pool order is deterministic: required patterns are always taken first.
-  // "Optional" extras (beyond minRequired) are seeded-shuffled for session variety.
-  const minRequired = sessionType === 'upper_body' ? 4 : sessionType === 'full_body' ? 6 : 3;
-
-  // Time-based total exercise count
-  //   lower/upper: 30 min → 3–4 main   45 min → 4–5 main   60 min → 5 main
-  //   full_body: always all 6 (sets scaled below to fit time)
-  const baseCount =
-    sessionType === 'full_body'
-      ? 6 // all 6 patterns every session — volume adapted, not coverage
-      : sessionType === 'upper_body'
-        ? timeAvailable === '30'
-          ? 4 // 4 required patterns only
-          : 5 // 4 required + 1 optional extra
-        : // lower_body
-          timeAvailable === '30'
-          ? 3
-          : timeAvailable === '45'
-            ? 4
-            : 5;
-
-  // Low energy: remove 1 optional extra for lower/upper; full_body never drops a movement
-  const mainCount =
-    sessionType === 'full_body'
-      ? 6
-      : energy === 'low'
-        ? Math.max(baseCount - 1, minRequired)
-        : baseCount;
-
-  // Required patterns first — coverage is guaranteed and the curated choices are
-  // respected. What fills the OPTIONAL slots is where variety comes from.
-  //
-  // Those slots used to be filled from the leftovers of the same 5-exercise
-  // weekly list, which is why an upper body session was the same five movements
-  // every time: with 4 required patterns out of a pool of 5 there was one
-  // leftover, and often none at all. Meanwhile the KPI sessions have been
-  // drawing accessories from a pool of 14-18 all along.
-  //
-  // The optional slots now come from that same accessory pool, mapped by
-  // session type exactly as the prehab and finisher blocks below already do.
-  // Coverage, curation and set structure are untouched; only the extras rotate.
-  const curatedRequired = allMainExercises.slice(0, minRequired);
-  const optionalCount = Math.max(0, mainCount - minRequired);
-  const accessorySource: MainSessionType =
-    sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-  const widePool = [
-    // The OPTIONAL half of the weekly list. The required half above is this
-    // session's identity and is left exactly as curated, same reasoning as the
-    // main lift: a ceiling may narrow the variety, never the session.
-    ...atEarnedLevel(allMainExercises.slice(minRequired), profile),
-    ...atEarnedLevel(getAccessories(accessorySource, equipmentTier), profile),
-  ];
-
-  // The main movement is resolved BEFORE anything is filtered, so nothing else
-  // in the session can duplicate whichever variant it ended up as.
-  const mainTemplate = allMainExercises[0];
-  const rotateMain =
-    mainTemplate?.swapAlternative != null &&
-    MAIN_VARIATION_EVERY > 0 &&
-    sessionSeed % MAIN_VARIATION_EVERY === 0;
-  const resolvedMainName = rotateMain
-    ? (mainTemplate.swapAlternative?.name ?? mainTemplate.name)
-    : (mainTemplate?.name ?? '');
-
-  // The REQUIRED slots rotate too, one at a time.
-  //
-  // Making the optional slots draw on the wide pool fixed half the problem: the
-  // extras varied, but an upper body session still opened with the same bench,
-  // row, press and pulldown every single time, because the required slots were
-  // always positions 0..N of a hand-picked list of five.
-  //
-  // Each required slot now occasionally takes a different exercise OF THE SAME
-  // MOVEMENT PATTERN from the wide pool — a barbell row becoming a T-bar row or
-  // a seated cable row. Coverage is untouched: the substitute is only ever
-  // accepted if it declares the same pattern, so the session still contains
-  // exactly the movements it is supposed to.
-  //
-  // Staggered by slot (sessionSeed + i) rather than switching them together, so
-  // a typical session has one slot varied rather than all of them — a coach
-  // changing one thing at a time, not a different workout every week. Slot 0 is
-  // excluded because the main lift has its own, rarer, rotation above.
-  const requiredExercises = curatedRequired.map((t, i) => {
-    if (i === 0 || REQUIRED_VARIATION_EVERY <= 0) return t;
-    if ((sessionSeed + i) % REQUIRED_VARIATION_EVERY !== 0) return t;
-    if (!t.movementPattern) return t;
-    const sameMovementAlternatives = widePool.filter(
-      (a) =>
-        a.movementPattern === t.movementPattern &&
-        // The pattern alone would let a tricep pushdown stand in for an
-        // overhead press — see MUSCLE_FAMILIES.
-        sameMuscleFamily(a.primaryMuscle, t.primaryMuscle) &&
-        // ...and the muscle family alone still allows an isolation to take a
-        // required slot: a cable front raise shares the deltoid family with an
-        // overhead press, but filling the vertical-press slot with it means the
-        // session contains no vertical pressing at all. secondaryMuscles
-        // separates the two cleanly — compounds carry two or more (overhead
-        // press 3, landmine press 3, barbell row 2), isolations carry none or
-        // one (front raise 1, leg extension 0, tricep pushdown 0).
-        (a.secondaryMuscles?.length ?? 0) >= MIN_COMPOUND_SECONDARIES &&
-        !isSameMovement(a.name, t.name) &&
-        !isSameMovement(a.name, resolvedMainName) &&
-        !curatedRequired.some((r) => isSameMovement(a.name, r.name))
-    );
-    if (sameMovementAlternatives.length === 0) return t;
-    return seededShuffleDiverse(sameMovementAlternatives, sessionSeed + i)[0];
-  });
-
-  const takenNames = [...requiredExercises.map((t) => t.name), resolvedMainName].filter(Boolean);
-  const accessoryPool = widePool.filter(
-    (t) => !takenNames.some((n) => isSameMovement(n, t.name))
-  );
-  const shuffledOptional = seededShuffleDiverse(accessoryPool, sessionSeed);
-  const selectedMain = [...requiredExercises, ...shuffledOptional.slice(0, optionalCount)];
-
-  // Scale full_body sets to fit the time budget (never drop movements):
-  //   30/45 min → 2 sets each; 60 min → keep template defaults; low energy also caps at 2
-  const fullBodySets =
-    sessionType === 'full_body' && (timeAvailable !== '60' || energy === 'low') ? 2 : 0;
-
-  for (let i = 0; i < selectedMain.length; i++) {
-    // Occasional main-lift variation: every MAIN_VARIATION_EVERY sessions the
-    // session's first movement is served by its curated alternative instead —
-    // barbell bench becoming an incline or dumbbell press, say. Deliberately
-    // rare rather than a shuffle: the main lift is the thing you are trying to
-    // progress, and progression needs the same movement most of the time. The
-    // alternative is the one already declared on the template, so it is a
-    // choice someone made rather than a pattern match.
-    //
-    // It trains under its OWN id, which is the part that was wrong. The
-    // variation used to keep the base lift's id so progression carried over —
-    // which sounds right and is not. An incline bench is not a flat bench:
-    // inheriting the id meant the incline was prescribed at the flat bench's
-    // working weight, and then wrote its own, necessarily lighter, result back
-    // over it. One id, two movements, and neither one's history was true.
-    //
-    // A derived id is stable across sessions, so the variation builds its own
-    // progression line and the base lift's is left exactly where it was. The
-    // first time it appears there is nothing to progress from, which is the
-    // honest answer for a movement that has never been performed.
-    const base = selectedMain[i];
-    const t =
-      i === 0
-        ? rotateMain && base.swapAlternative
-          ? { ...base, ...base.swapAlternative, id: `${base.id}${MAIN_VARIATION_ID_SUFFIX}` }
-          : base
-        : /**
-           * ACCESSORIES USED TO ROTATE THEIR GRIP OR STANCE HERE, AND NO LONGER
-           * DO.
-           *
-           * `applyGripVariant` renamed the card - a Wide-Grip Inverted Row, a
-           * Sumo-Stance Goblet Squat - while keeping the base template's id, so
-           * the name on the screen was not the name of any record. Every Train
-           * session is built from Archie's library now, and a library record is
-           * named exactly once: the card has to say what the list says, because
-           * that is the name the video, the level ladder, the safety regexes
-           * and the history all look it up by. See lib/grip-variants.ts, which
-           * keeps the table until the old pools go.
-           */
-          base;
-    const ex = templateToExercise(t, undefined, isDumbbellTier(equipmentTier));
-    // Only the first movement is the session's KPI lift; the rest are accessories
-    const withCategory = i === 0 ? ex : { ...ex, category: 'accessory' as const };
-    exercises.push(fullBodySets > 0 ? { ...withCategory, sets: fullBodySets } : withCategory);
-  }
-
-  // ── 4. Prehab (45 min only — 60 min uses finisher instead) ────────────────
-  if (timeAvailable === '45') {
-    // Same rule as the KPI path above: a named region is a sore region, so the
-    // rehab slot comes from the acute protocol.
-    const prehabTemplate: ExerciseTemplate | undefined = painRegion
-      ? getRegionPrehabExercise(Array.isArray(painRegion) ? painRegion[0] : painRegion, {
-          acute: true,
-        })
-      : seededShuffleDiverse(
-          getPrehab(
-            sessionType === 'upper_body'
-              ? 'bench'
-              : sessionType === 'full_body'
-                ? 'deadlift'
-                : 'squat',
-            equipmentTier
-          ),
-          sessionSeed
-        )[0];
-    // An empty pool drops the slot. See tests/empty-pools.check.mjs.
-    if (prehabTemplate) {
-      const phEx = templateToExercise(prehabTemplate);
-      phEx.sets = 1;
-      exercises.push(phEx);
-    }
-  }
-
-  // ── 5. Finisher (60 min only) ─────────────────────────────────────────────
-  if (timeAvailable === '60') {
-    const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
-    const finisherSource: MainSessionType =
-      sessionType === 'upper_body' ? 'bench' : sessionType === 'lower_body' ? 'squat' : 'deadlift';
-    const finisherPool = atEarnedLevel(
-      getFinisher(finisherSource, equipmentTier, finisherKey),
-      profile
-    );
-    if (finisherPool.length > 0) {
-      // Rotated on the same seed as everything else in this session. It used to
-      // be finisherPool[0], so every 60-minute weekly session for the rest of
-      // time ended on the same exercise — while the KPI sessions, drawing from
-      // these very same pools, had been rotating theirs all along.
-      const finisher = seededShuffleDiverse(finisherPool, sessionSeed)[0] ?? finisherPool[0];
-      exercises.push(templateToExercise(finisher));
-    }
-  }
-
-  // ── 6. Cooldown (ALL sessions — always closes with recovery) ──────────────
-  const cooldownPool = possibleFor(getCooldown(), equipmentTier);
-  if (cooldownPool.length > 0) {
-    exercises.push(templateToExercise(cooldownPool[0]));
-  }
-
-  // Personalize loads
-  const isUpperBodySession = sessionType === 'upper_body' || sessionType === 'full_body';
-  const personalized = exercises.map((ex) =>
-    applyPersonalization(
-      ex,
-      profile,
-      isUpperBodySession,
-      exerciseFeedback,
-      undefined,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    )
-  );
-
-
-  /**
-   * Deduplicate by name, with the rehab slot's exception first.
-   *
-   * The same rule the lift-day generator above carries, and for the same reason
-   * it was written there: plain first-wins dedup drops whichever card was
-   * assembled later, and the rehab slot is assembled after the warm-up. The
-   * moment the prep block started applying its comfort variants, an upper body
-   * session for a sore shoulder opened with a Pendulum Shoulder Swing - exactly
-   * what the acute protocol prescribes for that region - and the two collided,
-   * so the acute card was the one deleted. The movement survived; the card
-   * explaining what it was for, carrying the acute prescription, did not.
-   *
-   * Measured: two of the fifty-seven region-and-session pairs lost their rehab
-   * slot outright. The rehab slot is the point of the whole pain-adaptation
-   * path, so it wins.
-   */
-  const rehabNames = new Set(
-    personalized.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
-  );
-  const seenNames = new Set<string>();
-  const deduped = personalized.filter((ex) => {
-    const key = ex.name.toLowerCase().trim();
-    if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
-    if (seenNames.has(key)) return false;
-    seenNames.add(key);
-    return true;
-  });
-
-  // Guarantee ordering: cooldown always last
-  const catOrder = (cat: string) => (cat === 'cooldown' ? 2 : cat === 'finisher' ? 1 : 0);
-  return deduped.sort((a, b) => catOrder(a.category) - catOrder(b.category));
-}
-
-function generateConditioningWorkout(
-  equipmentTier: EquipmentTier,
-  readiness: ReadinessCheck,
-  profile?: UserProfile,
-  exerciseFeedback?: Record<string, ExerciseFeedback>,
-  /** Count of completed LIFTING sessions, all time - the rotation's count. */
-  strengthSessionCount: number = 0,
-  lastLoggedWeights?: Record<string, number>,
-  exerciseNormalStreak?: Record<string, number>,
-
-  exerciseStuckStreak?: Record<string, number>,
-  lastSessionPerformance?: Record<string, ExercisePerformance>,
-  layoff?: Layoff | null,
-  /** The unit the user's gym is stocked in - see personalizeLoad. */
-  loadUnit: WeightUnit = 'kg',
-  /** Sessions logged before the current library - see generateWorkout. */
-  libraryEpochSessionCount: number = 0
-): Exercise[] {
-  const { energy, timeAvailable } = readiness;
-  const energyKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
-  const templates = possibleFor(getConditioningWorkout(equipmentTier, energyKey), equipmentTier);
-
-  // Insert active mobility stretches right after the cardio warm-up (always
-  // templates[0] in this pool) — raising the heart rate isn't the same as
-  // mobilising the joints about to be loaded, and this pool was missing that
-  // step entirely. Same 45min→2 / else→3 scaling used by the other builders.
-  const prepCount = timeAvailable === '45' ? 2 : 3;
-  const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
-  const prepTemplates = seededShuffleDiverse(getPrep('squat', equipmentTier), sessionSeed).slice(
-    0,
-    prepCount
-  );
-  // The work block rotates, like every other session builder's does. This one
-  // took its list verbatim, which made a conditioning session byte-identical
-  // every day, forever, at every equipment tier and energy level — the only
-  // thing that ever moved was the order of the stretches spliced in above.
-  //
-  // The slots whose position carries meaning keep it: the warm-up opens, the
-  // finisher is the last hard effort, the cooldown closes. Only the circuits
-  // between them move.
-  //
-  // Worth being straight about the ceiling. The database holds exactly ONE
-  // prescribed circuit per tier and energy level, so what changes day to day is
-  // the order of two or three efforts, not which efforts they are. Rotation was
-  // the engine half of this defect; the other half is more entries in
-  // CONDITIONING_WORKOUTS, and that is lib/exercise-db.ts.
-  //
-  // The opening warm-up is recognised as a warm-up rather than assumed to be
-  // there. When its pool is empty, the first card in the list is a piece of the
-  // circuit, and treating that as the warm-up left it unshuffled at the top with
-  // the mobility stretches below it, in the middle of the work.
-  const warmup = templates[0]?.category === 'prep' ? templates.slice(0, 1) : [];
-  const rest = templates.slice(warmup.length);
-  const finisher = rest.filter((t) => t.category === 'finisher');
-  const cooldown = rest.filter((t) => t.category === 'cooldown');
-  const work = seededShuffleDiverse(
-    rest.filter((t) => t.category !== 'finisher' && t.category !== 'cooldown'),
-    sessionSeed
-  );
-  const withPrep =
-    templates.length > 0
-      ? [...warmup, ...prepTemplates, ...work, ...finisher, ...cooldown]
-      : templates;
-
-  const personalized = withPrep.map((t) =>
-    applyPersonalization(
-      templateToExercise(t),
-      profile,
-      false,
-      exerciseFeedback,
-      undefined,
-      strengthSessionCount,
-      lastLoggedWeights,
-      exerciseNormalStreak,
-
-      exerciseStuckStreak,
-      lastSessionPerformance,
-      layoff,
-      loadUnit,
-      libraryEpochSessionCount
-    )
-  );
-  return personalized;
-}
 
 /**
  * Numeric rest-timer defaults per category, in seconds.

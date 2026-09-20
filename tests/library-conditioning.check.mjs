@@ -100,6 +100,19 @@ const restoreByKey = new Map(
     ...ALL_REGIONS.flatMap((r) => getRegionPrehabWorkout(r, { acute: true })),
   ].map((t) => [key(t.name), t])
 );
+/**
+ * Restore's MOBILITY drills, which is a narrower list than "a Restore record".
+ *
+ * The standalone Restore session is a prep card, then its mobility work, then a
+ * cool-down. Only the middle of those may stand in as a conditioning warm-up:
+ * the prep card is ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)", which names a
+ * machine the app stopped offering and carries no movement to demonstrate.
+ */
+const mobilityByKey = new Map(
+  getStandalonePrehabWorkout()
+    .filter((t) => t.category === 'prehab')
+    .map((t) => [key(t.name), t])
+);
 
 console.log('\n[0] The list this session is built from');
 check(
@@ -168,7 +181,10 @@ const SITUATIONS = [
 ];
 
 const offList = [];
+const badWarmUp = [];
 const bannedThrough = [];
+let warmUpsFromNine = 0;
+let warmUpsFromMobility = 0;
 const beginnerImpact = [];
 const repeated = [];
 const badInterval = [];
@@ -243,6 +259,40 @@ for (const equipment of KITS) {
               categories.slice(1, 1 + cardioCount).some((c) => c !== 'cardio')
             ) {
               badShape.push(`${where}: ${categories.join(',')} against ${session.blocks.length} blocks`);
+            }
+
+            /**
+             * [6b] WHERE THE WARM-UP CAME FROM, WHICH IS THE WHOLE POINT OF
+             * "NOTHING OLD REACHES A TRAIN CARD".
+             *
+             * Two legal answers and no third. One of the nine at an easy pace,
+             * with nothing to explain; or a Restore MOBILITY drill, with
+             * `warmUpNote` saying why. Anything else - and in particular the old
+             * ph-s-1 "Cardio Warm-Up (Easy Walk / Bike)", which is Restore's own
+             * prep card and therefore passes the Restore name test in [1] - is a
+             * failure here. That is exactly how it survived: a name test said
+             * "Restore", and nobody asked which Restore card.
+             */
+            {
+              const warmUp = session.exercises[0];
+              const k = key(warmUp.name);
+              const nine = nineByKey.get(k);
+              const mobility = mobilityByKey.get(k);
+              if (nine) {
+                warmUpsFromNine++;
+                if (!/easy/i.test(warmUp.suggestedLoad ?? '') || session.warmUpNote !== null) {
+                  badWarmUp.push(
+                    `${where}: one of the nine but "${warmUp.suggestedLoad}" / note ${session.warmUpNote}`
+                  );
+                }
+              } else if (mobility) {
+                warmUpsFromMobility++;
+                if (typeof session.warmUpNote !== 'string' || session.warmUpNote.length === 0) {
+                  badWarmUp.push(`${where}: stood in with ${warmUp.name} and said nothing`);
+                }
+              } else {
+                badWarmUp.push(`${where}: warmed up on ${warmUp.name}`);
+              }
             }
 
             for (const card of session.exercises) {
@@ -356,6 +406,16 @@ check(
   'every session is a warm-up, then its blocks, then a cool-down',
   badShape.length === 0,
   `${badShape.length} sessions, e.g. ${badShape.slice(0, 3).join(' / ')}`
+);
+check(
+  `every warm-up is one of the nine at an easy pace, or a Restore mobility drill that says why (${warmUpsFromNine} from the nine, ${warmUpsFromMobility} stood in)`,
+  badWarmUp.length === 0,
+  `${badWarmUp.length} sessions, e.g. ${badWarmUp.slice(0, 3).join(' / ')}`
+);
+check(
+  'both answers actually happen, so neither half of that rule is decoration',
+  warmUpsFromNine > 0 && warmUpsFromMobility > 0,
+  `${warmUpsFromNine} from the nine, ${warmUpsFromMobility} from mobility`
 );
 check(
   'the empty state is rare and never silent',

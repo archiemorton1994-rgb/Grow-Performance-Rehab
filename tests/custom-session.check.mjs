@@ -54,7 +54,6 @@ import {
 } from '../lib/session-builder.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
 const customSrc = readFileSync(join(__dir, '../app/custom-session.tsx'), 'utf8');
 const sessionSrc = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
@@ -328,22 +327,65 @@ check(
   idDupes.slice(0, 6).join(', ')
 );
 
-// ─── 5. Engine bypass — workout-engine.ts returns [] for 'custom' ─────────────
-console.log("\n[5] Engine bypass — workout-engine.ts returns [] for sessionType === 'custom'");
+// ─── 5. Engine bypass — a custom session generates nothing of its own ────────
+console.log('\n[5] Engine bypass — the generator adds nothing to a custom session');
 
+/**
+ * THIS USED TO READ THE SOURCE, AND THAT IS WHY IT BROKE.
+ *
+ * It searched lib/workout-engine.ts for the literal `sessionType === 'custom'`
+ * and for a `return [];` within fifty characters of it. Both are true of code
+ * that does the right thing and both are false of other code that also does the
+ * right thing, which is exactly what happened when the old lift-day generator
+ * was deleted: the branch became the function's ordinary ending, the behaviour
+ * did not change by one card, and the check failed anyway.
+ *
+ * So it asks the generator instead. A custom session is assembled by the user;
+ * anything the engine returned for one would be pushed in alongside their picks
+ * or on top of them. The answer has to be nothing, whatever the readiness
+ * answers, whatever the kit, and whether or not something is sore - a sore
+ * shoulder must not quietly add a rehab card to a session somebody built
+ * themselves.
+ */
+const { generateWorkout } = await import('../lib/workout-engine.ts');
+const customGenerated = [];
+for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
+  for (const timeAvailable of ['30', '45', '60']) {
+    for (const energy of ['low', 'normal', 'high']) {
+      for (const painRegion of [null, 'knee', 'front_shoulder']) {
+        for (const seed of [0, 1, 5, 12]) {
+          const out = generateWorkout(
+            'custom',
+            tier,
+            {
+              hasAches: !!painRegion,
+              energy,
+              timeAvailable,
+              painRegion,
+              painSeverity: painRegion ? 'moderate' : undefined,
+              acute: !!painRegion,
+            },
+            { experienceLevel: 'intermediate', goals: ['muscle'], equipmentTiers: [tier] },
+            undefined,
+            undefined,
+            seed
+          );
+          if (out.length > 0) {
+            customGenerated.push(
+              `${tier}/${timeAvailable}/${energy}/${painRegion ?? 'nothing sore'}/n=${seed}: ${out
+                .map((e) => e.name)
+                .join(', ')}`
+            );
+          }
+        }
+      }
+    }
+  }
+}
 check(
-  "workout-engine.ts has explicit 'custom' bypass returning []",
-  engineSrc.includes("sessionType === 'custom'") && engineSrc.includes('return [];'),
-  "bypass missing — engine may generate a random session instead of using the user's picked exercises"
-);
-
-const customBypassIdx = engineSrc.indexOf("sessionType === 'custom'");
-const returnEmptyIdx =
-  customBypassIdx !== -1 ? engineSrc.indexOf('return [];', customBypassIdx) : -1;
-check(
-  "return [] follows immediately after the 'custom' check (within 50 chars)",
-  returnEmptyIdx !== -1 && returnEmptyIdx - customBypassIdx < 50,
-  "return [] is too far from the 'custom' check — may not be the custom bypass"
+  'a custom session comes back empty from every set of answers (540 asked)',
+  customGenerated.length === 0,
+  `${customGenerated.length} generated something, e.g. ${customGenerated.slice(0, 2).join(' / ')}`
 );
 
 // ─── 6. Store contract — pendingCustomExercises + setPendingCustomExercises ───
