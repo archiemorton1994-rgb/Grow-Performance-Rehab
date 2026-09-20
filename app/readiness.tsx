@@ -23,10 +23,9 @@ import {
   PainSeverity,
   SessionType,
   TimeAvailable,
-  TIER_ORDER,
   useAppStore,
 } from '@/lib/store';
-import { isSupplyTier, withKeptSupplies } from '@/lib/kit';
+import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
 import {
   getSessionLabel,
   getSessionSubtitle,
@@ -52,14 +51,11 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Available',
   kettlebells: 'Available',
   fullgym: 'Everything',
-  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
-  // rather than a rung on it. The wording is here so that the day it is
-  // offered, it says the same thing everywhere.
-  bench: 'Bench, box or sturdy step',
+  bench: 'Anything solid to sit, press or step on',
 };
 
-// Partial on purpose: there is no bench photograph, because there is no bench
-// tile to put one on yet.
+// Partial on purpose: there is no bench photograph, so that tile draws the same
+// line icon the other pickers draw for it.
 const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
@@ -243,10 +239,10 @@ export default function ReadinessScreen() {
    * lib/sign-up.ts for the whole story.
    *
    * What survives is a sanity filter on the route param below: a value that is
-   * not a tile and not a supply (a bench) is not kit at all, so it is dropped
-   * rather than passed to the generator.
+   * not one of the tiles is not kit at all, so it is dropped rather than passed
+   * to the generator.
    */
-  const keepsTier = (t: EquipmentTier) => TIER_ORDER.includes(t) || isSupplyTier(t);
+  const keepsTier = (t: EquipmentTier) => PICKER_TIERS.includes(t);
 
   const overrideTiers: EquipmentTier[] | null = (() => {
     if (!params.equipmentOverride) return null;
@@ -426,20 +422,8 @@ export default function ReadinessScreen() {
 
   const handleTierToggle = (tier: EquipmentTier) => {
     hapticTap();
-    setSelectedEquipments((prev) => {
-      if (tier === 'fullgym') {
-        if (prev.includes('fullgym')) {
-          return prev.filter((t) => t !== 'fullgym');
-        } else {
-          return withKeptSupplies(TIER_ORDER, prev);
-        }
-      }
-      if (prev.includes(tier)) {
-        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
-        return next.length > 0 ? next : [tier];
-      }
-      return [...prev, tier];
-    });
+    // One shared rule for all six equipment questions. See lib/equipment-picker.
+    setSelectedEquipments((prev) => toggleEquipment(prev, tier, { keepLastRung: true }));
   };
 
   const handleStart = () => {
@@ -598,7 +582,7 @@ export default function ReadinessScreen() {
             </View>
           )}
           <View style={styles.tierGrid}>
-            {TIER_ORDER.map((tier) => {
+            {PICKER_TIERS.map((tier) => {
               const isActive = selectedEquipments.includes(tier);
               return (
                 <Pressable

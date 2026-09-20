@@ -32,7 +32,7 @@ import Animated, {
 import { useColors } from '@/constants/colors';
 import { shadowStyle } from '@/constants/shadows';
 import { useAppStore, type EquipmentTier } from '@/lib/store';
-import { withKeptSupplies } from '@/lib/kit';
+import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
 import { countLiftingSessions, rotatesSessions } from '@/lib/session-type';
 import { getSessionImage } from '@/lib/session-images';
 import { nameOf } from '@/lib/programme';
@@ -117,6 +117,8 @@ export default function HomeScreen() {
     earnedBadges,
     calibrationBannerDismissed,
     setCalibrationBannerDismissed,
+    levelCheckCardPending,
+    dismissLevelCheckCard,
     tourJustCompleted,
     setTourJustCompleted,
     tourActiveTab,
@@ -146,8 +148,11 @@ export default function HomeScreen() {
    * padlock beside each. The library builds the strength sessions and carries
    * its own level, so the level decides the exercise and the kit answer decides
    * only what it may be done with. See lib/sign-up.ts.
+   *
+   * The tiles themselves are PICKER_TIERS now, shared with the other five
+   * places this question is asked, so the bench cannot be offered here and
+   * missing there.
    */
-  const ALL_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'] as const;
 
   const profileEquipment =
     equipmentTiers && equipmentTiers.length > 0 ? equipmentTiers : ['bodyweight' as const];
@@ -166,8 +171,8 @@ export default function HomeScreen() {
    */
 
   const [sheetOpen, setSheetOpen] = useState(false);
-  // The draft holds whatever the person owns, which can include kit that is
-  // not one of the tiles (a bench). The tiles are still ALL_TIERS.
+  // The draft holds every answer, the ladder and the kit alike, and PICKER_TIERS
+  // is that same list in the order every picker draws it.
   const [sheetDraft, setSheetDraft] = useState<EquipmentTier[]>([]);
 
   const openEquipmentSheet = () => {
@@ -178,18 +183,8 @@ export default function HomeScreen() {
 
   const handleDraftToggle = (tier: EquipmentTier) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSheetDraft((prev) => {
-      if (tier === 'fullgym') {
-        return prev.includes('fullgym')
-          ? prev.filter((t) => t !== 'fullgym')
-          : withKeptSupplies(ALL_TIERS, prev);
-      }
-      if (prev.includes(tier)) {
-        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
-        return next.length > 0 ? next : [tier];
-      }
-      return [...prev, tier];
-    });
+    // One shared rule for all six equipment questions. See lib/equipment-picker.
+    setSheetDraft((prev) => toggleEquipment(prev, tier, { keepLastRung: true }));
   };
 
   const confirmEquipment = () => {
@@ -1350,6 +1345,55 @@ export default function HomeScreen() {
                 <Ionicons name="close" size={16} color={C.textTertiary} />
               </Pressable>
             </Animated.View>
+          ) : levelCheckCardPending ? (
+            /* CHECK YOUR LEVEL, ONCE, FOR THE PEOPLE WHO WERE ALREADY HERE.
+
+               Archie's decision 13. Sessions come from his exercise library now
+               and the library's own level decides which movements somebody is
+               ever shown - so for everybody who signed up before this release,
+               the exercises have changed, on the strength of an answer they
+               gave a long time ago to a different app. Re-rating them silently
+               was the other option and it is the worse one: the app would be
+               overwriting something they told it.
+
+               IT TAKES NO EXTRA ROOM. Home is sized to fit one screen without
+               scrolling, so this is not a new row: it stands in the secondary
+               card's slot, above the streak warning and below the two things
+               that are about right now - a wrong unit on every weight, and a
+               session left half finished. */
+            <Animated.View
+              entering={FadeInDown.delay(180).duration(380)}
+              style={styles.calibrationCompleteCard}
+              testID="home-level-check"
+            >
+              <Pressable
+                onPress={() => router.push('/(tabs)/profile')}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}
+                accessibilityRole="button"
+                accessibilityLabel="Check your exercise level"
+                testID="home-level-check-open"
+              >
+                <View style={styles.calibrationCompleteIcon}>
+                  <Ionicons name="trending-up" size={20} color={C.primaryText} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.calibrationCompleteTitle}>Is your level still right?</Text>
+                  <Text style={styles.calibrationCompleteSub}>
+                    Your exercises come from it. Check it in Profile.
+                  </Text>
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={dismissLevelCheckCard}
+                hitSlop={10}
+                style={styles.resumeDiscardBtn}
+                testID="home-level-check-dismiss"
+                accessibilityLabel="Dismiss"
+                accessibilityRole="button"
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
+            </Animated.View>
           ) : calibrationComplete ? (
             <Animated.View
               entering={FadeInDown.delay(180).duration(380)}
@@ -1558,7 +1602,7 @@ export default function HomeScreen() {
             </View>
           )}
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-            {ALL_TIERS.map((tier) => {
+            {PICKER_TIERS.map((tier) => {
               const selected = sheetDraft.includes(tier);
               return (
                 <Pressable

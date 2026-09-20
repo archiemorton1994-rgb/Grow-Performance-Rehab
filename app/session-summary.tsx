@@ -39,6 +39,8 @@ import {
 } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { nameOf } from '@/lib/programme';
+import { countLiftingSessions } from '@/lib/session-type';
+import { levelStepOffer } from '@/lib/level-step';
 import {
   getExerciseCategoryMap,
   getExerciseTargetRegionsMap,
@@ -683,6 +685,10 @@ export default function SessionSummaryScreen() {
   const pendingProgrammeReportId = useAppStore((s) => s.pendingProgrammeReportId);
   const clearNewlyUnlockedBadges = useAppStore((s) => s.clearNewlyUnlockedBadges);
   const completedProgrammes = useAppStore((s) => s.completedProgrammes);
+  const userProfile = useAppStore((s) => s.userProfile);
+  const levelStepDueAt = useAppStore((s) => s.levelStepDueAt);
+  const acceptLevelStep = useAppStore((s) => s.acceptLevelStep);
+  const deferLevelStep = useAppStore((s) => s.deferLevelStep);
 
   // Badges earned by the session you just finished, celebrated here rather than
   // waiting until you happen to open a tab.
@@ -728,6 +734,10 @@ export default function SessionSummaryScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveConfirmed, setSaveConfirmed] = useState(false);
+  // The name of the level just taken, so the card says what happened instead of
+  // vanishing the instant it is tapped. Accepting moves the counter, so the
+  // offer itself is gone by the next render.
+  const [levelStepTaken, setLevelStepTaken] = useState<string | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
 
   const session = useMemo(() => {
@@ -746,6 +756,38 @@ export default function SessionSummaryScreen() {
   // show as "what happens next" when this is genuinely the most recent
   // completed session, not one pulled up from history.
   const isLatestSession = !!session && completedSessions[0]?.id === session.id;
+
+  /**
+   * THE STEP UP, OFFERED HERE BECAUSE THIS IS WHERE THE EVIDENCE LANDS.
+   *
+   * Gated on this being the newest session for the same reason the block card
+   * above is: opening a summary from months ago is reading history, and being
+   * offered a change to next week's sessions from inside it would be the app
+   * acting on a screen the person is only looking through.
+   *
+   * The rule itself - sixteen sessions, never past Advanced, never while a
+   * block is running - is in lib/level-step.ts, so it can be run on its own.
+   */
+  const stepOffer = useMemo(
+    () =>
+      isLatestSession
+        ? levelStepOffer({
+            experienceLevel: userProfile.experienceLevel,
+            earnedLevelBonus: userProfile.earnedLevelBonus,
+            liftingCount: countLiftingSessions(completedSessions),
+            levelStepDueAt,
+            programme,
+          })
+        : null,
+    [
+      isLatestSession,
+      userProfile.experienceLevel,
+      userProfile.earnedLevelBonus,
+      completedSessions,
+      levelStepDueAt,
+      programme,
+    ]
+  );
 
   useEffect(() => {
     setSessionNotes(session?.notes ?? '');
@@ -1278,6 +1320,66 @@ export default function SessionSummaryScreen() {
             <Ionicons name="chevron-forward" size={18} color={SAGE.muted} />
           </Pressable>
         )}
+
+        {/* READY FOR HARDER MOVEMENTS?
+
+            Nothing here changes anything by itself. "Step up" is the only thing
+            that writes the rung, through the same action the block report uses,
+            and "Not yet" is a real answer rather than a way of closing the
+            card: the question comes back after eight more sessions instead of
+            sixteen. See lib/level-step.ts for what will and will not be
+            offered, and why Athlete never is. */}
+        {levelStepTaken ? (
+          <View style={styles.levelStep} testID="summary-level-stepped">
+            <View style={styles.levelStepSeal}>
+              <Ionicons name="checkmark" size={19} color={SAGE.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockDoneTitle}>You are on {levelStepTaken} now</Text>
+              <Text style={styles.blockDoneSub}>
+                Your next session is built from {levelStepTaken.toLowerCase()} movements. You can
+                step back down any time in Profile.
+              </Text>
+            </View>
+          </View>
+        ) : stepOffer ? (
+          <View style={styles.levelStep} testID="summary-level-offer">
+            <View style={styles.levelStepSeal}>
+              <Ionicons name="trending-up" size={19} color={SAGE.accent} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockDoneTitle}>Ready for harder movements?</Text>
+              <Text style={styles.blockDoneSub}>
+                Your sessions are built from {stepOffer.fromName.toLowerCase()} movements, and you
+                have logged a good run of them. Step up and Grow starts giving you{' '}
+                {stepOffer.toName.toLowerCase()} work.
+              </Text>
+              <View style={styles.levelStepActions}>
+                <Pressable
+                  onPress={() => {
+                    if (Platform.OS !== 'web')
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setLevelStepTaken(stepOffer.toName);
+                    acceptLevelStep(stepOffer.toBonus);
+                  }}
+                  testID="summary-level-accept"
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.levelStepPrimary, pressed && { opacity: 0.9 }]}
+                >
+                  <Text style={styles.levelStepPrimaryText}>Step up to {stepOffer.toName}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => deferLevelStep()}
+                  testID="summary-level-defer"
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.levelStepSecondary, pressed && { opacity: 0.8 }]}
+                >
+                  <Text style={styles.levelStepSecondaryText}>Not yet</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.tabSwitcherRow}>
           <View style={[styles.tabSwitcher, { backgroundColor: SAGE.pillBg }]}>
@@ -1821,6 +1923,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: SAGE.badgeBg,
   },
+  // The level card wears the block card's colours, because it is the same kind
+  // of moment: something that happened across weeks rather than in this hour.
+  // Top-aligned rather than centred, since it carries two buttons.
+  levelStep: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+    marginBottom: 12,
+    padding: 13,
+    borderRadius: 15,
+    backgroundColor: SAGE.cardGradient[0],
+    borderWidth: 1.5,
+    borderColor: SAGE.accent,
+  },
+  levelStepSeal: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: SAGE.badgeBg,
+  },
+  levelStepActions: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  levelStepPrimary: {
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 11,
+    backgroundColor: SAGE.accent,
+  },
+  levelStepPrimaryText: { fontSize: 12.5, fontFamily: 'Inter_600SemiBold', color: SAGE.cardGradient[0] },
+  levelStepSecondary: { paddingHorizontal: 11, paddingVertical: 9 },
+  levelStepSecondaryText: { fontSize: 12.5, fontFamily: 'Inter_600SemiBold', color: SAGE.muted },
+
   blockDoneTitle: { fontSize: 14.5, fontFamily: 'Inter_700Bold', color: SAGE.text },
   blockDoneSub: {
     marginTop: 2,

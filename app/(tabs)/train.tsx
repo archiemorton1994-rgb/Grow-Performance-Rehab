@@ -19,8 +19,8 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors } from '@/constants/colors';
-import { EquipmentTier, SessionType, TIER_ORDER, useAppStore } from '@/lib/store';
-import { withKeptSupplies } from '@/lib/kit';
+import { EquipmentTier, SessionType, useAppStore } from '@/lib/store';
+import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
 import { resumeParams } from '@/lib/resume-params';
 import { getSessionImage } from '@/lib/session-images';
 import { getEquipmentLabel, getEffectiveTier } from '@/lib/workout-engine';
@@ -42,9 +42,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   fullgym: 'Everything - cables, machines, full setup',
-  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
-  // rather than a rung on it.
-  bench: 'Bench, box or sturdy step',
+  bench: 'Anything solid to sit, press or step on',
 };
 
 export default function TrainScreen() {
@@ -218,20 +216,8 @@ export default function TrainScreen() {
 
   const handleDraftToggle = (tier: EquipmentTier) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSheetDraft((prev) => {
-      if (tier === 'fullgym') {
-        if (prev.includes('fullgym')) {
-          return prev.filter((t) => t !== 'fullgym');
-        } else {
-          return withKeptSupplies(TIER_ORDER, prev);
-        }
-      }
-      if (prev.includes(tier)) {
-        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
-        return next.length > 0 ? next : [tier];
-      }
-      return [...prev, tier];
-    });
+    // One shared rule for all six equipment questions. See lib/equipment-picker.
+    setSheetDraft((prev) => toggleEquipment(prev, tier, { keepLastRung: true }));
   };
 
   const confirmEquipment = () => {
@@ -550,7 +536,7 @@ export default function TrainScreen() {
             </View>
           )}
 
-          {TIER_ORDER.map((tier) => {
+          {PICKER_TIERS.map((tier) => {
             const isActive = sheetDraft.includes(tier);
             return (
               <Pressable

@@ -202,7 +202,10 @@ const LEVEL_FOR_EXPERIENCE: Record<ExperienceLevel, LibraryLevel> = {
  * banked by finishing blocks and accepted by the person, capped here at the top
  * of the library rather than left to run past it.
  */
-export function levelCeilingFor(profile?: UserProfile): LibraryLevel {
+export function levelCeilingFor(profile?: {
+  experienceLevel?: ExperienceLevel;
+  earnedLevelBonus?: number;
+}): LibraryLevel {
   const base = LEVEL_FOR_EXPERIENCE[profile?.experienceLevel ?? 'intermediate'] ?? 2;
   const bonus = Math.max(0, Math.floor(profile?.earnedLevelBonus ?? 0));
   return Math.min(4, base + bonus) as LibraryLevel;

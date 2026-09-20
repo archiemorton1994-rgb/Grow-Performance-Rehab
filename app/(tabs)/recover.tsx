@@ -19,8 +19,8 @@ import { EquipmentIcon } from '@/components/EquipmentIcon';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { glowShadow } from '@/constants/shadows';
-import { useAppStore, PainRegion, EquipmentTier, TIER_ORDER } from '@/lib/store';
-import { withKeptSupplies } from '@/lib/kit';
+import { useAppStore, PainRegion, EquipmentTier } from '@/lib/store';
+import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
 import { getRecoverImage } from '@/lib/session-images';
 import { getEffectiveTier, getEquipmentLabel } from '@/lib/workout-engine';
 import { daysSince } from '@/lib/utils';
@@ -110,9 +110,7 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Dumbbells available',
   kettlebells: 'Kettlebells available',
   fullgym: 'Everything - cables, machines, full setup',
-  // Not on offer yet: the tiles come from TIER_ORDER, and 'bench' is kit
-  // rather than a rung on it.
-  bench: 'Bench, box or sturdy step',
+  bench: 'Anything solid to sit, press or step on',
 };
 
 type ModalType = 'recovery' | 'mobility' | 'prehab' | null;
@@ -462,20 +460,12 @@ export default function RecoverScreen() {
 
   const handleDraftToggle = (tier: EquipmentTier) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSheetDraft((prev) => {
-      if (tier === 'fullgym') {
-        if (prev.includes('fullgym')) {
-          return prev.filter((t) => t !== 'fullgym');
-        } else {
-          return withKeptSupplies(TIER_ORDER, prev);
-        }
-      }
-      if (prev.includes(tier)) {
-        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
-        return next.length > 0 ? next : [tier];
-      }
-      return [...prev, tier];
-    });
+    // One shared rule for all six equipment questions. See lib/equipment-picker.
+    // This sheet writes the same answer the Train ones do - it is one override
+    // for the next session, whichever tab starts it - so it offers the same
+    // tiles, including the bench, even though Restore's own content asks for
+    // no kit at all.
+    setSheetDraft((prev) => toggleEquipment(prev, tier, { keepLastRung: true }));
   };
 
   const confirmEquipment = () => {
@@ -970,7 +960,7 @@ export default function RecoverScreen() {
             </View>
           )}
 
-          {TIER_ORDER.map((tier) => {
+          {PICKER_TIERS.map((tier) => {
             const isActive = sheetDraft.includes(tier);
             return (
               <Pressable

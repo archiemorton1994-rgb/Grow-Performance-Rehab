@@ -794,6 +794,42 @@ interface AppState {
    * predates the library because none of it exists yet.
    */
   libraryEpochSessionCount: number;
+  /**
+   * THE TRAIN-SESSION COUNT AT WHICH THE NEXT LEVEL STEP-UP IS OFFERED.
+   *
+   * Archie's rule is "sixteen logged Train sessions at their current level",
+   * and this is how a count of sessions is turned into something a screen can
+   * answer in one comparison: it is stamped forward whenever the level MOVES,
+   * so the gap between it and the live count is always "sessions since the
+   * level was last set". Declining pushes it eight further out rather than
+   * sixteen, which is the whole of the "ask me again later" promise.
+   *
+   * A COUNT, NOT A DATE, for the same reason libraryEpochSessionCount above is:
+   * somebody who trains twice a week and somebody who trains five times are
+   * both being asked after the same amount of evidence rather than after the
+   * same number of weeks. The same warning applies too - a count only means
+   * anything against the session list it was stamped from, so mergeServerData
+   * moves it when a sign-in lengthens that list.
+   *
+   * Null only until it is stamped: the migration stamps every existing device
+   * and completeOnboarding stamps every new account. A null is read as "do not
+   * offer", because an unstamped device cannot tell sixteen sessions at this
+   * level from sixteen sessions in a career.
+   */
+  levelStepDueAt: number | null;
+  /**
+   * The one-time card asking somebody to check the level their sessions are
+   * built on (Archie's decision 13), and the one-time card telling home users
+   * about the bench choice (decision 6).
+   *
+   * BOTH ARE FOR PEOPLE WHO WERE ALREADY HERE. A new account answers both
+   * questions during sign-up - it picks a level on the experience page and sees
+   * the bench tile on the equipment page - so both flags start false and only
+   * the migration ever sets them true. Neither is synced: they are a prompt
+   * this device has or has not shown, not a fact about the person.
+   */
+  levelCheckCardPending: boolean;
+  benchPromptPending: boolean;
   oneRepMaxes: OneRepMax[];
   /**
    * Always 'never' now: see TestWeekFrequency. Persisted and synced so that the
@@ -1240,6 +1276,26 @@ interface AppState {
    * only thing that edits it.
    */
   acceptLevelStep: (toBonus: number) => void;
+  /**
+   * "Not yet" on the session summary's offer. Asks again after eight more
+   * Train sessions instead of sixteen. See levelStepDueAt.
+   */
+  deferLevelStep: () => void;
+  /**
+   * Hand a rung back, from the level control on Profile.
+   *
+   * The other half of an offer that can be accepted. Somebody who steps up and
+   * finds the movements too much needs a way down that is as plain as the way
+   * up was, and it has to be the EARNED rung that moves: the experience answer
+   * is theirs, and the edit sheet is where they change that.
+   *
+   * Re-stamps the counter, so stepping down does not put somebody straight back
+   * in front of the offer they have just turned down by acting on it.
+   */
+  stepLevelDown: () => void;
+  /** The one-time cards, each dismissed for good. See levelCheckCardPending. */
+  dismissLevelCheckCard: () => void;
+  dismissBenchPrompt: () => void;
   /** Where they are in the block, replayed from history. Null when not enrolled. */
   getProgrammePosition: () => ProgrammePosition | null;
   /**
@@ -1345,6 +1401,24 @@ export const RECENT_WINDOW = 6;
  *  Enough to be a pattern, not a one-off. */
 export const ROTATION_EVIDENCE = 3;
 
+/**
+ * HOW MUCH TRAINING EARNS THE QUESTION, AND HOW LONG "NOT YET" LASTS.
+ *
+ * Archie's numbers. Sixteen Train sessions at a level is two months at twice a
+ * week and about five weeks at three - long enough that the app is answering
+ * "you have been doing this a while" rather than "you had a good day".
+ *
+ * Eight after a decline, because "not yet" is not "never" and being asked the
+ * same question two sessions later is what teaches people to stop reading the
+ * cards. Half is the smallest gap that is unmistakably a different moment.
+ *
+ * Here rather than beside the rule in lib/level-step.ts because this file owns
+ * the counter they are measured against: every write of levelStepDueAt is in
+ * this file, and a number that only one file stamps belongs next to it.
+ */
+export const LEVEL_STEP_AFTER = 16;
+export const LEVEL_STEP_RETRY_AFTER = 8;
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
@@ -1354,6 +1428,11 @@ export const useAppStore = create<AppState>()(
       completedCount: 0,
       completedSessions: [],
       libraryEpochSessionCount: 0,
+      // Sixteen sessions from a standing start, because a brand-new account has
+      // logged none. See levelStepDueAt.
+      levelStepDueAt: LEVEL_STEP_AFTER,
+      levelCheckCardPending: false,
+      benchPromptPending: false,
       oneRepMaxes: [],
       testWeekFrequency: 'never',
       testWeekDeferred: false,
@@ -1538,6 +1617,17 @@ export const useAppStore = create<AppState>()(
               }
             : {}),
           onboardingComplete: true,
+          /**
+           * The step-up clock starts here, at sixteen from nothing.
+           *
+           * Somebody has just chosen their level on the experience page, so
+           * this is the exact moment "sixteen sessions at their current level"
+           * begins - and the two one-time cards stay off, because both of the
+           * questions they ask have just been answered in the pager.
+           */
+          levelStepDueAt: LEVEL_STEP_AFTER,
+          levelCheckCardPending: false,
+          benchPromptPending: false,
           // Every answer in it has just been written to the profile, so the draft
           // is worthless from this instant. Cleared in the same set() as the flag
           // it belongs to, so no half-state can leave a stale answer sheet behind.
@@ -1546,7 +1636,12 @@ export const useAppStore = create<AppState>()(
       },
 
       setEquipmentTiers: (tiers) =>
-        set({ equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'] }),
+        set({
+          equipmentTiers: tiers.length > 0 ? tiers : ['bodyweight'],
+          // Answering the bench question is a better end to the card than
+          // dismissing it, so saying yes puts it away too.
+          ...(tiers.includes('bench') ? { benchPromptPending: false } : {}),
+        }),
       setUserProfile: (profile) => {
         // Last line of defence for the one field the load maths multiplies by.
         // Four screens write a bodyweight (onboarding, profile, the weekly weight
@@ -1559,6 +1654,22 @@ export const useAppStore = create<AppState>()(
           delete patch.bodyweightKg;
         }
         set((state) => {
+          /**
+           * A NEW ANSWER TO THE EXPERIENCE QUESTION RESTARTS THE STEP-UP CLOCK.
+           *
+           * The offer is made after sixteen Train sessions AT A LEVEL. Somebody
+           * who corrects "beginner" to "intermediate" in the edit sheet has
+           * just changed which movements they are given, so the sessions behind
+           * them were trained at a different level and cannot also earn the
+           * step past this one. Without this, correcting your level downwards
+           * could be met by an offer to put it straight back up.
+           */
+          const levelChanged =
+            patch.experienceLevel !== undefined &&
+            patch.experienceLevel !== state.userProfile.experienceLevel;
+          const clock = levelChanged
+            ? { levelStepDueAt: countLiftingSessions(state.completedSessions) + LEVEL_STEP_AFTER }
+            : {};
           if (patch.bodyweightKg !== undefined && patch.bodyweightKg > 0) {
             const lastEntry = state.bodyweightLog[state.bodyweightLog.length - 1];
             const weightChanged = !lastEntry || lastEntry.kg !== patch.bodyweightKg;
@@ -1569,9 +1680,10 @@ export const useAppStore = create<AppState>()(
               bodyweightLog: weightChanged
                 ? [...state.bodyweightLog, { date: now, kg: patch.bodyweightKg }]
                 : state.bodyweightLog,
+              ...clock,
             };
           }
-          return { userProfile: { ...state.userProfile, ...patch } };
+          return { userProfile: { ...state.userProfile, ...patch }, ...clock };
         });
         get().awardNewBadges();
       },
@@ -2067,6 +2179,10 @@ export const useAppStore = create<AppState>()(
           // with it. Left standing it would sit above every session they log
           // from now on, and the first-time estimates would never rise again.
           libraryEpochSessionCount: 0,
+          // Same reasoning: the sessions it was counted against have just been
+          // deleted, so it goes back to sixteen from a standing start rather
+          // than sitting for ever above a count that now starts at zero.
+          levelStepDueAt: LEVEL_STEP_AFTER,
           oneRepMaxes: [],
           lastLoggedWeights: {},
           lastSessionPerformance: {},
@@ -2445,11 +2561,36 @@ export const useAppStore = create<AppState>()(
             // from a screen and a screen is reachable from a stale report.
             earnedLevelBonus: Math.max(0, Math.min(MAX_EARNED_BONUS, Math.trunc(toBonus))),
           },
+          // The clock restarts wherever the offer was taken. Sixteen sessions
+          // at a level means sixteen at THIS level, so an offer accepted from
+          // the summary or from a block report cannot be followed by another
+          // one next week on the strength of the same sessions.
+          levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
+          // They have just answered the question the card was asking.
+          levelCheckCardPending: false,
         }));
         // TAKING the rung is the achievement. Being offered one is not: the
         // report never applies a step by itself, on purpose.
         get().awardNewBadges();
       },
+
+      deferLevelStep: () =>
+        set((st) => ({
+          levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_RETRY_AFTER,
+        })),
+
+      stepLevelDown: () =>
+        set((st) => ({
+          userProfile: {
+            ...st.userProfile,
+            earnedLevelBonus: Math.max(0, (st.userProfile.earnedLevelBonus ?? 0) - 1),
+          },
+          levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
+          levelCheckCardPending: false,
+        })),
+
+      dismissLevelCheckCard: () => set({ levelCheckCardPending: false }),
+      dismissBenchPrompt: () => set({ benchPromptPending: false }),
 
       getProgrammePosition: () => {
         const { programme, completedSessions } = get();
@@ -2981,6 +3122,26 @@ export const useAppStore = create<AppState>()(
             : Math.max(serverEpoch, s.libraryEpochSessionCount);
         if (nextEpoch !== s.libraryEpochSessionCount) {
           set({ libraryEpochSessionCount: nextEpoch });
+        }
+
+        /**
+         * AND THE STEP-UP CLOCK MOVES WITH THE HISTORY IT MEASURES.
+         *
+         * levelStepDueAt is a count of Train sessions, so the union above can
+         * walk straight past it: restoring two years of training on a new
+         * handset would leave the due figure hundreds behind the live count and
+         * the app would offer a level step on the first session after signing
+         * in, having watched none of it.
+         *
+         * Raised by exactly the sessions the merge brought in, so "sessions
+         * since the level was set" is unchanged by a restore. An unstamped
+         * device - one whose migration has not run, or whose payload arrived
+         * before it did - is stamped here on the same rule the migration uses.
+         */
+        if (typeof s.levelStepDueAt !== 'number' || !Number.isFinite(s.levelStepDueAt)) {
+          set({ levelStepDueAt: countLiftingSessions(mergedSessions) + LEVEL_STEP_AFTER });
+        } else if (restoredLifting > 0) {
+          set({ levelStepDueAt: s.levelStepDueAt + restoredLifting });
         }
 
         if (serverCount > localCount) {
@@ -3558,9 +3719,64 @@ export const useAppStore = create<AppState>()(
          */
         carryProgressForwardInPlace(persistedState);
 
+        /**
+         * v38 - THE TWO QUESTIONS EVERY EXISTING USER WAS NEVER ASKED.
+         *
+         * THE LEVEL. Sessions are built from the exercise library now, and the
+         * library's own level ceiling decides which movements somebody is ever
+         * shown. For a new account that ceiling comes from an answer given on
+         * the experience page minutes earlier. For everybody already here it
+         * comes from an answer given to a different question, in some cases
+         * years ago, about an app that prescribed different exercises - so the
+         * first thing they will notice is that their sessions have changed.
+         * Archie's decision 13: ask them once, on Home, to check it is right.
+         * Re-rating them silently was the alternative and it is the worse one,
+         * because the app would be overwriting something they told it.
+         *
+         * THE BENCH. Decision 6 adds a sixth answer to the equipment question,
+         * and it is the one that unlocks the most work for somebody training at
+         * home: every box squat, step-up, step-down, split squat and bench
+         * press in the library needs it. Nobody who signed up before this
+         * release has been offered the tile, and a full gym already has one, so
+         * the card goes to home users alone.
+         *
+         * THE STEP-UP CLOCK. Stamped sixteen sessions ahead of whatever is
+         * already on record, so the offer measures training done at the level
+         * they are on FROM HERE. Stamping it at plain sixteen would have put
+         * the offer in front of every long-standing user on their next session,
+         * on the strength of sessions trained under the old catalogue.
+         *
+         * THE CLOCK IS MIRRORED IN mergeServerData, and a migration that is not
+         * mirrored there is a migration that does not hold: a sign-in that
+         * hands back a longer history moves the very count the clock is
+         * measured against. The two card flags need no mirror because they are
+         * not synced at all - they say what this device has shown somebody,
+         * which is not a fact about the person.
+         */
+        if (!('levelStepDueAt' in persistedState) || persistedState.levelStepDueAt == null) {
+          persistedState.levelStepDueAt =
+            countLiftingSessions(
+              Array.isArray(persistedState.completedSessions)
+                ? persistedState.completedSessions
+                : []
+            ) + LEVEL_STEP_AFTER;
+        }
+        if (!('levelCheckCardPending' in persistedState)) {
+          persistedState.levelCheckCardPending = persistedState.onboardingComplete === true;
+        }
+        if (!('benchPromptPending' in persistedState)) {
+          const tiers: string[] = Array.isArray(persistedState.equipmentTiers)
+            ? persistedState.equipmentTiers
+            : [];
+          persistedState.benchPromptPending =
+            persistedState.onboardingComplete === true &&
+            !tiers.includes('fullgym') &&
+            !tiers.includes('bench');
+        }
+
         return persistedState;
       },
-      version: 37,
+      version: 38,
     }
   )
 );

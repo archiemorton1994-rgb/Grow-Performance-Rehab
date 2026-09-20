@@ -67,6 +67,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors, useGoColors } from '@/constants/colors';
 import { GrowIcon, GrowIconTile } from '@/components/GrowIcon';
+import { EquipmentIcon } from '@/components/EquipmentIcon';
 import type { GrowIconName } from '@/lib/icon-art';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { EXPERIENCE_OPTIONS, EXPERIENCE_LABELS } from '@/lib/experience-options';
@@ -84,6 +85,7 @@ import {
   toSignUpAnswers,
   toggleRegion,
   toggleTier,
+  EQUIPMENT_TILES,
   type SignUpDraftAnswers,
   type SignUpPage,
 } from '@/lib/sign-up';
@@ -146,16 +148,8 @@ const EXPERIENCE_ICONS: Record<ExperienceLevel, GrowIconName> = {
   athlete: 'medal',
 };
 
-const EQUIPMENT_OPTIONS: { value: EquipmentTier; label: string; description: string }[] = [
-  { value: 'bodyweight', label: 'No equipment', description: 'Just you and the floor' },
-  { value: 'bands', label: 'Resistance bands', description: 'Bands or tubes' },
-  { value: 'dumbbells', label: 'Dumbbells', description: 'Fixed or adjustable' },
-  { value: 'kettlebells', label: 'Kettlebells', description: 'One or a set' },
-  { value: 'fullgym', label: 'Full gym', description: 'Racks, cables and machines' },
-];
-
-// Partial on purpose: EQUIPMENT_OPTIONS above is the list of tiles, and there
-// is no bench tile yet, so there is no bench photograph either.
+// Partial on purpose: there is no bench photograph, so that tile draws the line
+// icon every other picker draws for it. See the tile itself.
 const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
@@ -682,7 +676,7 @@ function SignUpFlow() {
                 pay for is something to grow into. See lib/sign-up.ts.
               */}
               <View style={[styles.optionList, styles.optionListCompact]}>
-                {EQUIPMENT_OPTIONS.map((opt) => {
+                {EQUIPMENT_TILES.map((opt) => {
                   const selected = answers.equipment.includes(opt.value);
                   return (
                     <Pressable
@@ -702,12 +696,21 @@ function SignUpFlow() {
                       ]}
                       testID={`equipment-${opt.value}`}
                     >
+                      {/* A photograph where there is one, and the same line
+                          icon the sheets use where there is not. A missing
+                          source renders an empty box, which would have left
+                          the bench tile looking broken beside five that are
+                          not. */}
                       <View style={styles.equipIcon}>
-                        <Image
-                          source={EQUIPMENT_IMAGES[opt.value]}
-                          style={styles.equipImage}
-                          resizeMode="contain"
-                        />
+                        {EQUIPMENT_IMAGES[opt.value] ? (
+                          <Image
+                            source={EQUIPMENT_IMAGES[opt.value]}
+                            style={styles.equipImage}
+                            resizeMode="contain"
+                          />
+                        ) : (
+                          <EquipmentIcon tier={opt.value} size={26} color={C.primaryText} />
+                        )}
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text

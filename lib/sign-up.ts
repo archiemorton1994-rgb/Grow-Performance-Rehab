@@ -35,7 +35,6 @@
 import { bodyweightIssue } from './bodyweight';
 import { ageIssue } from './one-rep-max-input';
 import {
-  TIER_ORDER,
   type EquipmentTier,
   type ExperienceLevel,
   type FitnessGoal,
@@ -45,7 +44,7 @@ import {
   type SignUpAnswers,
   type WeightUnit,
 } from './store';
-import { withKeptSupplies } from './kit';
+import { hasRung, toggleEquipment } from './equipment-picker';
 
 /**
  * The pages, in the order they are put to somebody.
@@ -185,8 +184,15 @@ export function canContinue(
       return answers.experience !== null;
     case 'goals':
       return answers.goals.length > 0;
+    /**
+     * A RUNG, not merely a tick. "Bench, box or sturdy step" is kit rather than
+     * a rung on the equipment ladder, so somebody who ticks only that has told
+     * us what they can put a foot on and nothing about what they can lift. The
+     * session would be built at the bottom of the ladder by default, which is
+     * a guess we do not have to make when the question is still on screen.
+     */
     case 'equipment':
-      return answers.equipment.length > 0;
+      return hasRung(answers.equipment);
     case 'around':
       return answers.sore !== undefined && answers.avoid !== undefined;
   }
@@ -228,14 +234,49 @@ export function canContinue(
  * than left unused: a spare `experience` sitting in this signature is an
  * invitation to filter by it again.
  */
+/**
+ * THE SIX TILES ON THE EQUIPMENT PAGE, AND WHAT EACH ONE SAYS.
+ *
+ * Here rather than in the screen because a screen cannot be run, and the tile
+ * that matters most is the newest one: Archie's sixth decision adds "Bench, box
+ * or sturdy step", and a bench is what every step-up, step-down, box squat,
+ * split squat and bench press in the library needs. A check that could only
+ * match a regular expression over app/onboarding.tsx would pass on the comment
+ * explaining the tile as readily as on the tile.
+ *
+ * THE BENCH IS THE SIXTH ANSWER AND NOT THE SIXTH RUNG. It supplies kit and
+ * says nothing about how well equipped somebody is, so it never becomes the
+ * tier a session is drawn from and it is the one tile that does not turn the
+ * full gym off when it comes off. See lib/equipment-picker.ts for the rules and
+ * lib/kit.ts for what it supplies.
+ *
+ * Ordered to match PICKER_TIERS, the list the five "Equipment today" sheets
+ * draw, so somebody who ticks the fourth tile here finds the same answer in the
+ * fourth row there. tests/bench-choice.check.mjs holds the two together.
+ */
+export const EQUIPMENT_TILES: {
+  value: EquipmentTier;
+  label: string;
+  description: string;
+}[] = [
+  { value: 'bodyweight', label: 'No equipment', description: 'Just you and the floor' },
+  { value: 'bands', label: 'Resistance bands', description: 'Bands or tubes' },
+  { value: 'dumbbells', label: 'Dumbbells', description: 'Fixed or adjustable' },
+  { value: 'kettlebells', label: 'Kettlebells', description: 'One or a set' },
+  { value: 'fullgym', label: 'Full gym', description: 'Racks, cables and machines' },
+  {
+    value: 'bench',
+    label: 'Bench, box or sturdy step',
+    description: 'Anything solid to sit, press or step on',
+  },
+];
+
 export function toggleTier(tiers: EquipmentTier[], tier: EquipmentTier): EquipmentTier[] {
-  if (tier === 'fullgym') {
-    return tiers.includes('fullgym')
-      ? tiers.filter((t) => t !== 'fullgym')
-      : withKeptSupplies(TIER_ORDER, tiers);
-  }
-  if (tiers.includes(tier)) return tiers.filter((t) => t !== tier && t !== 'fullgym');
-  return [...tiers, tier];
+  // The rules themselves are shared with the five "Equipment today" sheets, so
+  // a bench ticked here behaves exactly as a bench ticked anywhere else. The
+  // pager does not keep the last rung: Continue is disabled until the answer is
+  // usable, so somebody clearing the page to start again may clear it.
+  return toggleEquipment(tiers, tier);
 }
 
 /**

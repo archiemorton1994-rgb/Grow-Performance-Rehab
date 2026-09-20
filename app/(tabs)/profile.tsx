@@ -38,11 +38,11 @@ import {
   MAX_BODYWEIGHT_KG,
   MIN_BODYWEIGHT_KG,
   Sex,
-  TIER_ORDER,
   WeightUnit,
   useAppStore,
 } from '@/lib/store';
-import { withKeptSupplies } from '@/lib/kit';
+import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
+import { levelStandingFor } from '@/lib/level-step';
 import { THEME_OPTIONS } from '@/lib/theme-options';
 import { EXPERIENCE_LABELS, EXPERIENCE_OPTIONS, experienceNote } from '@/lib/experience-options';
 import { uploadUserData } from '@/lib/sync';
@@ -76,8 +76,8 @@ import { keepProfilePhoto, photoSource } from '@/lib/profile-photo';
 import { strengthScore, strengthScoreLabel } from '@/lib/strength-score';
 import { xpStanding, xpBandName } from '@/lib/xp';
 
-// Partial on purpose: the tiles are TIER_ORDER, which has no bench in it yet,
-// so there is no bench photograph to name here.
+// Partial on purpose: there is no bench photograph, so that tile draws the same
+// line icon every other picker draws for it.
 const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),
   bands: require('@/assets/images/equipment/bands.png'),
@@ -402,6 +402,9 @@ export default function ProfileScreen() {
     resetProgress,
     userProfile,
     setUserProfile,
+    stepLevelDown,
+    benchPromptPending,
+    dismissBenchPrompt,
     getEffectiveTier: storeGetEffectiveTier,
     weightUnit,
     setWeightUnit,
@@ -554,6 +557,10 @@ export default function ProfileScreen() {
   // question, same answer, so it is asked the same way here.
   const hasFullGym = (equipmentTiers ?? []).includes('fullgym');
 
+  // What the level card prints, and whether there is a rung to hand back. The
+  // rule is shared with the session summary's offer. See lib/level-step.ts.
+  const levelStanding = levelStandingFor(userProfile);
+
   const openEquipment = () => {
     setEditTiers(
       equipmentTiers && equipmentTiers.length > 0 ? [...equipmentTiers] : ['bodyweight']
@@ -584,20 +591,8 @@ export default function ProfileScreen() {
    */
   const toggleEditTier = (tier: EquipmentTier) => {
     if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setEditTiers((prev) => {
-      if (tier === 'fullgym') {
-        if (prev.includes('fullgym')) {
-          return prev.filter((t) => t !== 'fullgym');
-        } else {
-          return withKeptSupplies([...TIER_ORDER], prev);
-        }
-      }
-      if (prev.includes(tier)) {
-        const next = prev.filter((t) => t !== tier && t !== 'fullgym');
-        return next.length > 0 ? next : [tier];
-      }
-      return [...prev, tier];
-    });
+    // One shared rule for all six equipment questions. See lib/equipment-picker.
+    setEditTiers((prev) => toggleEquipment(prev, tier, { keepLastRung: true }));
   };
 
   const editWeightTrimmed = editWeight.trim();
@@ -1261,6 +1256,111 @@ export default function ProfileScreen() {
         )}
         </View>
 
+        {/* THE LEVEL EVERY SESSION IS BUILT FROM, AND THE WAY BACK DOWN.
+
+            Until now the only place in the app that said what movement level
+            somebody was on was the programme hub, which most people never open
+            because most people are not on a programme. The level decides which
+            exercises they are ever shown, so it belongs on the screen that
+            describes them.
+
+            THE CEILING, NOT THE EXPERIENCE ANSWER. What is printed is what they
+            said plus the rungs they have taken, because that is the number the
+            generator reads. Showing the answer alone would tell somebody who
+            has stepped up twice that nothing had changed.
+
+            AND A WAY DOWN THAT MATCHES THE WAY UP. The session summary can
+            offer a step up, so there has to be a step back that is just as
+            plain. It hands back an EARNED rung; with none left, the door is
+            the edit sheet, because the experience answer is theirs to change
+            and not something this button should overwrite. */}
+        <Animated.View entering={FadeInDown.delay(105).duration(400)} style={{ marginBottom: 12 }}>
+          <View style={styles.infoCard} testID="profile-level-card">
+            <View style={styles.infoCardIconWrap}>
+              <Ionicons name="trending-up" size={22} color={C.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.infoCardTitle}>Exercise level: {levelStanding.name}</Text>
+              <Text style={styles.infoCardSub}>
+                {levelStanding.earned > 0
+                  ? `Your sessions are built from ${levelStanding.name.toLowerCase()} movements, including ${levelStanding.earned === 1 ? 'a rung' : 'rungs'} you took by training.`
+                  : `Your sessions are built from ${levelStanding.name.toLowerCase()} movements.`}
+              </Text>
+            </View>
+            {levelStanding.down ? (
+              <Pressable
+                onPress={() => {
+                  if (Platform.OS !== 'web')
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  stepLevelDown();
+                }}
+                testID="profile-level-down"
+                accessibilityRole="button"
+                accessibilityLabel={`Step down to ${levelStanding.down.name}`}
+                style={({ pressed }) => [styles.levelDownBtn, pressed && { opacity: 0.8 }]}
+              >
+                <Text style={styles.levelDownText}>Step down</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={openEdit}
+                testID="profile-level-change"
+                accessibilityRole="button"
+                accessibilityLabel="Change your experience level"
+                style={({ pressed }) => [styles.levelDownBtn, pressed && { opacity: 0.8 }]}
+              >
+                <Text style={styles.levelDownText}>Change</Text>
+              </Pressable>
+            )}
+          </View>
+        </Animated.View>
+
+        {/* THE BENCH, OFFERED ONCE TO THE PEOPLE WHO NEVER SAW THE TILE.
+
+            Decision 6 added a sixth answer to the equipment question, and it is
+            the one that unlocks the most work for somebody training at home:
+            every step-up, step-down, box squat, split squat and bench press in
+            the library needs something to put a foot or a back on. Anybody who
+            signed up before this release answered the question without it.
+
+            Shown to home users alone, because a full gym has one already, and
+            once: ticking the tile or dismissing the card both put it away for
+            good. See benchPromptPending. */}
+        {benchPromptPending && (
+          <Animated.View entering={FadeInDown.delay(110).duration(400)} style={{ marginBottom: 12 }}>
+            <View style={styles.infoCard} testID="profile-bench-card">
+              <View style={styles.infoCardIconWrap}>
+                <EquipmentIcon tier="bench" size={22} color={C.primaryDark} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.infoCardTitle}>Have you got a bench or a step?</Text>
+                <Text style={styles.infoCardSub}>
+                  A bench, a box or a sturdy step opens up step-ups, split squats and presses at
+                  home. Add it to your equipment and we will use it.
+                </Text>
+                <Pressable
+                  onPress={openEquipment}
+                  testID="profile-bench-add"
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.levelDownBtn, { alignSelf: 'flex-start', marginTop: 8 }, pressed && { opacity: 0.8 }]}
+                >
+                  <Text style={styles.levelDownText}>Add it</Text>
+                </Pressable>
+              </View>
+              <Pressable
+                onPress={dismissBenchPrompt}
+                hitSlop={10}
+                testID="profile-bench-dismiss"
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                style={({ pressed }) => [{ padding: 2 }, pressed && { opacity: 0.6 }]}
+              >
+                <Ionicons name="close" size={16} color={C.textTertiary} />
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
+
         {/* Subscription card */}
         <Animated.View entering={FadeInDown.delay(120).duration(400)} style={{ marginBottom: 12 }}>
           {hasActiveSubscription ? (
@@ -1594,7 +1694,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
             )}
-            {TIER_ORDER.map((tier) => {
+            {PICKER_TIERS.map((tier) => {
               const isActive = editTiers.includes(tier);
               return (
                 <Pressable
@@ -1610,13 +1710,23 @@ export default function ProfileScreen() {
                       borderRadius: 12,
                       overflow: 'hidden',
                       backgroundColor: C.surfaceTertiary,
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
-                    <Image
-                      source={EQUIPMENT_IMAGES[tier]}
-                      style={{ width: 60, height: 60 }}
-                      resizeMode="contain"
-                    />
+                    {/* A photograph where there is one, and the line icon where
+                        there is not. An Image with no source draws an empty
+                        box, which would have left the bench row looking broken
+                        beside five that are not. */}
+                    {EQUIPMENT_IMAGES[tier] ? (
+                      <Image
+                        source={EQUIPMENT_IMAGES[tier]}
+                        style={{ width: 60, height: 60 }}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <EquipmentIcon tier={tier} size={26} color={C.primaryText} />
+                    )}
                   </View>
                   <Text style={[styles.equipLabel, isActive && styles.equipLabelActive]}>
                     {getEquipmentLabel(tier)}
@@ -2826,6 +2936,23 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
       backgroundColor: C.surfaceTertiary,
+    },
+    // The small control on the level and bench cards. Quiet on purpose: neither
+    // is something the app is pushing somebody towards.
+    levelDownBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      // 12, from this screen's four-step radius scale. See
+      // tests/profile-settings.check.mjs section 6.
+      borderRadius: 12,
+      backgroundColor: C.surfaceTertiary,
+      borderWidth: 1,
+      borderColor: C.borderLight,
+    },
+    levelDownText: {
+      fontSize: 12,
+      fontFamily: 'Inter_600SemiBold',
+      color: C.textSecondary,
     },
     infoCardTitle: {
       fontSize: 15,
