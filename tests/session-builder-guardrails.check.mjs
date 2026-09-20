@@ -19,7 +19,13 @@
  *     work for the same muscles the KPI lift trains".
  *  4. Two blocks defaulted to whatever sorted first alphabetically: every
  *     session in the app finished with an Alternating Jump Lunge, and every
- *     pressing session's Core & Prehab slot was a light band curl.
+ *     pressing session's core and prehab slot was a light band curl.
+ *  5. The same alphabetical accident came back to the main exercise step the
+ *     moment the index became the library's, because the rule that fixed it
+ *     ranked by the lift the OLD generator would have programmed and not one of
+ *     those lifts is in the library. A beginner's default lower-body lift was
+ *     Alternating Reverse Lunges. Section 4 now asserts the library's own
+ *     order: a main movement, at the hardest rung that person is allowed.
  *
  * Run:  npx tsx tests/session-builder-guardrails.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -27,10 +33,12 @@
 
 globalThis.__DEV__ = false;
 
-import { getAllPickableExercises, getMainLift } from '../lib/exercise-db.ts';
+import { LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import { canPerformWith } from '../lib/kit.ts';
 import {
   assembleSession,
   blocksForGoal,
+  builderExercises,
   muscleGroupsOf,
   optionsForBlock,
   ownedTiersFor,
@@ -50,50 +58,116 @@ function check(label, condition, detail) {
   }
 }
 
-const all = getAllPickableExercises();
+const TOP = 4;
+const FULL_GYM = ['fullgym'];
+const all = builderExercises(TOP, FULL_GYM);
 const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
 const get = (n) => byName.get(n.toLowerCase());
+const levelOf = new Map(LIBRARY_EXERCISES.map((e) => [e.name.toLowerCase(), e.level]));
+const roleOf = new Map(LIBRARY_EXERCISES.map((e) => [e.name.toLowerCase(), e.role]));
 
 const blockOf = (goal, id) => blocksForGoal(goal).find((b) => b.id === id);
 const pickOf = (t) => ({ template: t, sets: t.sets, reps: t.reps });
 
 // ─── 1. Nobody is offered equipment they do not have ─────────────────────────
-console.log('\n[1] The cardio step respects the equipment the user actually owns');
+console.log('\n[1] Every step respects the equipment the user actually ticked');
 
-const GYM_ONLY = /^(fullgym|full gym|machine|cable machine)$/i;
 const cardioBlock = blockOf('athletic', 'cardio');
 
-for (const tier of ['bodyweight', 'dumbbells']) {
-  const { options, all: everything } = optionsForBlock(
-    cardioBlock,
-    { focus: 'lower', kpi: null },
-    ownedTiersFor(tier)
-  );
-  const leaked = [...options, ...everything].filter((t) =>
-    GYM_ONLY.test(t.equipmentRequired ?? '')
-  );
+/**
+ * Asked of lib/kit.ts, which is the table the rest of the app runs on.
+ *
+ * The old form of this check read `equipmentRequired`, and on a library record
+ * that field is a holding answer that says 'fullgym' for anything needing any
+ * kit at all — so a Dumbbell Bench Press and a Barbell Back Squat carry the
+ * same word. Asking the record's own `kit` list is the only version of this
+ * question that still means anything.
+ */
+const KITS = [
+  ['no equipment', ['bodyweight']],
+  ['resistance bands', ['bodyweight', 'bands']],
+  ['dumbbells', ['bodyweight', 'dumbbells']],
+];
+
+for (const [label, kit] of KITS) {
+  const owned = ownedTiersFor(kit.includes('dumbbells') ? 'dumbbells' : 'bodyweight');
+  let leaked = [];
+  for (const block of blocksForGoal('athletic')) {
+    const { options, all: everything } = optionsForBlock(
+      block,
+      { focus: 'lower', kpi: null, ceiling: TOP },
+      owned,
+      new Set(),
+      kit
+    );
+    for (const t of [...options, ...everything]) {
+      if (t.kit && !canPerformWith(t, kit)) leaked.push(`${block.id}/${t.name}`);
+    }
+  }
   check(
-    `a ${tier} user is never offered a gym cardio machine`,
+    `somebody with ${label} is never offered work they cannot do`,
     leaked.length === 0,
-    [...new Set(leaked.map((t) => t.name))].join(', ')
+    [...new Set(leaked)].slice(0, 6).join(', ')
   );
+
+  const { options } = optionsForBlock(
+    cardioBlock,
+    { focus: 'lower', kpi: null, ceiling: TOP },
+    owned,
+    new Set(),
+    kit
+  );
+  check(`somebody with ${label} still has a warm-up to choose from`, options.length >= 3, `${options.length}`);
   check(
-    `a ${tier} user still has a warm-up to choose from`,
-    options.length >= 3,
-    `${options.length}`
+    `and none of it is a machine they do not own`,
+    !options.some((t) => /assault bike|treadmill|rowing machine|sled/i.test(t.name)),
+    options.map((t) => t.name).join(', ')
   );
 }
 
 {
   const { options } = optionsForBlock(
     cardioBlock,
-    { focus: 'lower', kpi: null },
-    ownedTiersFor('fullgym')
+    { focus: 'lower', kpi: null, ceiling: TOP },
+    ownedTiersFor('fullgym'),
+    new Set(),
+    ['fullgym']
   );
   check(
     'a full gym user still gets the machines',
-    options.some((t) => /treadmill|rowing machine|stationary bike|cardio machine/i.test(t.name)),
-    ''
+    options.some((t) => /treadmill|rowing machine|assault bike/i.test(t.name)),
+    options.map((t) => t.name).join(', ')
+  );
+  // A sled is the hardest thing in the app. It belongs in the finisher, not in
+  // front of somebody who has not moved yet.
+  check(
+    'and a sled is never the warm-up a full gym user is handed by default',
+    !/sled|prowler/i.test(options[0]?.name ?? ''),
+    options.slice(0, 3).map((t) => t.name).join(', ')
+  );
+}
+
+/**
+ * And a sled must not CROWD OUT the machines either.
+ *
+ * The warm-up universe is ten movements. A sled matches no pattern rule, so
+ * treating it as a general warm-up makes it a direct match for every lift, and
+ * six of them are then enough to fill the step strictly — which quietly hides
+ * the assault bike, the treadmill and the rower from a pressing day altogether.
+ * Ranking alone does not catch that: a demoted sled still fills the list.
+ */
+for (const focus of ['lower', 'push', 'pull']) {
+  const { options } = optionsForBlock(
+    cardioBlock,
+    { focus, kpi: null, ceiling: TOP },
+    ownedTiersFor('fullgym'),
+    new Set(),
+    FULL_GYM
+  );
+  check(
+    `a ${focus} warm-up step still reaches a machine`,
+    options.some((t) => /assault bike|treadmill|rowing machine/i.test(t.name)),
+    options.map((t) => t.name).join(', ')
   );
 }
 
@@ -112,8 +186,10 @@ for (const g of SESSION_GOALS) {
   for (const b of blocks) {
     const { options } = optionsForBlock(
       b,
-      { focus: 'lower', kpi: picks.kpi?.[0]?.template ?? null },
-      ownedTiersFor('fullgym')
+      { focus: 'lower', kpi: picks.kpi?.[0]?.template ?? null, ceiling: TOP },
+      ownedTiersFor('fullgym'),
+      new Set(),
+      FULL_GYM
     );
     picks[b.id] = options.slice(0, b.picks).map(pickOf);
   }
@@ -129,8 +205,8 @@ for (const g of SESSION_GOALS) {
 console.log('\n[3] The later blocks follow the KPI lift when it changes');
 
 const deadlift = get('Barbell Deadlift');
-const bench = get('Barbell Bench Press');
-const backSquat = get('Back Squat');
+const bench = get('Dumbbell Bench Press');
+const backSquat = get('Barbell Back Squat');
 const owned = ownedTiersFor('fullgym');
 
 check('the fixtures this section needs exist', !!(deadlift && bench && backSquat), '');
@@ -147,8 +223,10 @@ check('the fixtures this section needs exist', !!(deadlift && bench && backSquat
     }
     const { options } = optionsForBlock(
       b,
-      { focus: 'full', kpi: picks.kpi?.[0]?.template ?? null },
-      owned
+      { focus: 'full', kpi: picks.kpi?.[0]?.template ?? null, ceiling: TOP },
+      owned,
+      new Set(),
+      FULL_GYM
     );
     picks[b.id] = options.slice(0, b.picks).map(pickOf);
   }
@@ -156,7 +234,7 @@ check('the fixtures this section needs exist', !!(deadlift && bench && backSquat
   check(
     'a deadlift session fills its accessories with lower-body work',
     (picks.accessory ?? []).every(
-      (p) => relevanceOf('accessory', p.template, { focus: 'full', kpi: deadlift }) !== 'none'
+      (p) => relevanceOf('accessory', p.template, { focus: 'full', kpi: deadlift, ceiling: TOP }) !== 'none'
     ),
     beforeAccessories.join(', ')
   );
@@ -164,14 +242,14 @@ check('the fixtures this section needs exist', !!(deadlift && bench && backSquat
   const swapped = refreshForKpi(
     'athletic',
     { ...picks, kpi: [pickOf(bench)] },
-    { focus: 'full', kpi: bench },
+    { focus: 'full', kpi: bench, ceiling: TOP },
     owned
   );
   const after = swapped.accessory ?? [];
   check(
     'swapping the deadlift for a bench press drops the leg accessories',
     after.every(
-      (p) => relevanceOf('accessory', p.template, { focus: 'full', kpi: bench }) !== 'none'
+      (p) => relevanceOf('accessory', p.template, { focus: 'full', kpi: bench, ceiling: TOP }) !== 'none'
     ),
     after.map((p) => p.template.name).join(', ')
   );
@@ -201,23 +279,27 @@ check('the fixtures this section needs exist', !!(deadlift && bench && backSquat
   // A block the user has not opened is left alone, and one they emptied on
   // purpose stays empty.
   const picks = { kpi: [pickOf(bench)], accessory: [] };
-  const out = refreshForKpi('athletic', picks, { focus: 'full', kpi: bench }, owned);
+  const out = refreshForKpi('athletic', picks, { focus: 'full', kpi: bench, ceiling: TOP }, owned);
   check('a deliberately emptied block stays empty', (out.accessory ?? []).length === 0, '');
   check('an unvisited block is left undefined', out.core_prehab === undefined, '');
 }
 
 {
   // A pick that still fits the new lift survives the swap.
-  const closeGrip = get('Close-Grip Bench Press');
-  const picks = { kpi: [pickOf(bench)], accessory: [pickOf(closeGrip), pickOf(backSquat)] };
-  const out = refreshForKpi('athletic', picks, { focus: 'full', kpi: bench }, owned);
+  const floorPress = get('Dumbbell Floor Press');
+  const picks = { kpi: [pickOf(bench)], accessory: [pickOf(floorPress), pickOf(backSquat)] };
+  const out = refreshForKpi('athletic', picks, { focus: 'full', kpi: bench, ceiling: TOP }, owned);
   const names = (out.accessory ?? []).map((p) => p.template.name);
   check(
     'work that still fits the new lift is kept',
-    names.includes('Close-Grip Bench Press'),
+    names.includes('Dumbbell Floor Press'),
     names.join(', ')
   );
-  check('work that no longer fits is replaced', !names.includes('Back Squat'), names.join(', '));
+  check(
+    'work that no longer fits is replaced',
+    !names.includes('Barbell Back Squat'),
+    names.join(', ')
+  );
 }
 
 // ─── 4. Defaults are chosen, not alphabetical accidents ──────────────────────
@@ -227,7 +309,7 @@ const NAMED_FINISHERS =
   /sled|prowler|battle rope|assault bike|ski erg|rower|farmer|carry|sprint|shuttle/i;
 {
   const cond = blockOf('athletic', 'conditioning');
-  const { options } = optionsForBlock(cond, { focus: 'lower', kpi: backSquat }, owned);
+  const { options } = optionsForBlock(cond, { focus: 'lower', kpi: backSquat, ceiling: TOP }, owned);
   check(
     'a full gym conditioning finisher leads with the modalities the brief names',
     NAMED_FINISHERS.test(options[0]?.name ?? ''),
@@ -243,9 +325,9 @@ for (const [lift, label] of [
   [backSquat, 'a back squat'],
 ]) {
   const block = blockOf('athletic', 'core_prehab');
-  const { options } = optionsForBlock(block, { focus: 'full', kpi: lift }, owned);
+  const { options } = optionsForBlock(block, { focus: 'full', kpi: lift, ceiling: TOP }, owned);
   check(
-    `${label} session defaults to trunk work in the Core & Prehab step`,
+    `${label} session defaults to trunk work in the Core and prehab step`,
     muscleGroupsOf(options[0]).has('core'),
     options
       .slice(0, 3)
@@ -254,32 +336,72 @@ for (const [lift, label] of [
   );
 }
 
-// ─── The KPI step defaults to a lift worth building a session around ─────────
+// ─── The main exercise step defaults to a lift worth building around ─────────
 //
 // Every `main` template used to rank the same, so the alphabet chose: a
 // bodyweight lower-body session led with a Bodyweight Good Morning ahead of a
-// Bodyweight Squat. The order now defers to the lift the generator itself would
-// programme for that tier, which is why this asserts against getMainLift rather
-// than a list written out here — a hand-written list would just be a second
-// opinion that could drift from the app's own.
-for (const [focus, sessionType] of [
-  ['lower', 'squat'],
-  ['push', 'bench'],
-]) {
-  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-    const expected = getMainLift(sessionType, tier).name;
-    const block = blockOf('athletic', 'kpi');
-    const { options } = optionsForBlock(block, { focus, kpi: null }, [tier]);
-    check(
-      `${focus}/${tier} defaults to the programmed main lift (${expected})`,
-      options[0]?.name === expected,
-      `got ${options[0]?.name ?? '(none)'} — first three: ${options
-        .slice(0, 3)
-        .map((t) => t.name)
-        .join(', ')}`
-    );
+// Bodyweight Squat. The order used to defer to the lift the OLD generator would
+// programme, and not one of those lifts is in the library, so the rule had
+// quietly become dead weight and the alphabet was choosing again — the default
+// lower-body lift for a beginner was Alternating Reverse Lunges.
+//
+// The rule is now the library's own: a record it calls a main movement, at the
+// hardest rung this person is allowed, in the order the document lists them.
+// Asserted as three properties of what comes back rather than by re-deriving
+// the answer here, which would only be the same arithmetic agreeing with itself.
+const kpiBlock = blockOf('athletic', 'kpi');
+function kpiOptions(focus, kit, ceiling) {
+  const tier = kit.includes('fullgym') ? 'fullgym' : kit.includes('dumbbells') ? 'dumbbells' : 'bodyweight';
+  return optionsForBlock(kpiBlock, { focus, kpi: null, ceiling }, ownedTiersFor(tier), new Set(), kit)
+    .options;
+}
+
+let notAMain = [];
+let notTopRung = [];
+for (const ceiling of [1, 2, 3, 4]) {
+  for (const kit of [['bodyweight'], ['bodyweight', 'dumbbells'], FULL_GYM]) {
+    for (const focus of ['lower', 'push', 'pull', 'full']) {
+      const options = kpiOptions(focus, kit, ceiling);
+      const first = options[0];
+      if (!first) continue;
+      if (roleOf.get(first.name.toLowerCase()) !== 'main') {
+        notAMain.push(`L${ceiling}/${focus}/${first.name}`);
+      }
+      const best = Math.max(...options.map((t) => levelOf.get(t.name.toLowerCase()) ?? 0));
+      if ((levelOf.get(first.name.toLowerCase()) ?? 0) !== best) {
+        notTopRung.push(`L${ceiling}/${focus}/${first.name}`);
+      }
+    }
   }
 }
+check(
+  'the step always defaults to a record the library calls a main movement',
+  notAMain.length === 0,
+  notAMain.slice(0, 6).join(', ')
+);
+check(
+  'and always to the hardest rung that person is allowed',
+  notTopRung.length === 0,
+  notTopRung.slice(0, 6).join(', ')
+);
+
+// The concrete form of the same claim, and the regression that prompted it.
+check(
+  'a beginner with no kit gets Bodyweight Squats, not whatever sorts first',
+  kpiOptions('lower', ['bodyweight'], 1)[0]?.name === 'Bodyweight Squats',
+  kpiOptions('lower', ['bodyweight'], 1)
+    .slice(0, 3)
+    .map((t) => t.name)
+    .join(', ')
+);
+check(
+  'and an athlete in a full gym does not get the same beginner lift',
+  kpiOptions('lower', FULL_GYM, 4)[0]?.name !== 'Bodyweight Squats',
+  kpiOptions('lower', FULL_GYM, 4)
+    .slice(0, 3)
+    .map((t) => t.name)
+    .join(', ')
+);
 
 console.log(
   failures === 0

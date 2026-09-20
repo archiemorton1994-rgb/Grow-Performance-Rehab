@@ -32,16 +32,24 @@
  * lib/session-builder.ts and app/custom-session.tsx, which is the screen where
  * somebody assembles a session themselves. lib/session-builder.ts is imported
  * by that screen and by nothing else. So this file is the contract for the
- * exercises the CUSTOM builder offers as a lead, drawn from the old catalogue
- * in lib/exercise-db.ts, and all of that is still live and still reached.
+ * exercises the CUSTOM builder offers as a lead.
  *
- * It is deliberately NOT re-pointed at Archie's library, and that is worth
- * saying out loud because the rebuild plan asked for it. The library builder
- * (lib/library-session.ts) does not consult `canBeMainLift` or `tierOf` at all:
- * it walks the pattern's own pool down the level ladder, so eligibility there
- * is a property of Archie's list rather than of these rules. Re-pointing this
- * file at library records would have tested a function against data nothing
- * ever hands it, which is this repo's commonest defect wearing a new coat.
+ * WHAT THAT BUILDER NOW DRAWS ON. Its index used to be every collection in
+ * lib/exercise-db.ts. It is now Archie's exercise library, the nine conditioning
+ * records and the Restore work, and nothing else. So the two halves of this file
+ * ask different questions and both are worth asking:
+ *
+ *   sections 1 and 2 test `canBeMainLift` itself as a rule, over the whole
+ *   database, because a rule with a hole in it is worth catching wherever the
+ *   hole shows;
+ *   section 3 tests the step somebody actually opens, over the library records
+ *   it actually offers.
+ *
+ * The library builder (lib/library-session.ts) still does not consult
+ * `canBeMainLift` or `tierOf` at all: it walks the pattern's own pool down the
+ * level ladder. Where the two disagree about a library record the document wins
+ * and the builder follows it — a Wall Sit passes `canBeMainLift` and the
+ * library calls it support work, so the step does not offer it as a lead.
  *
  * The same promise for the sessions Train builds - the exercise that leads one
  * is a compound, at every level and every tier, with the single exception
@@ -56,6 +64,7 @@ globalThis.__DEV__ = false;
 
 import { getAllPickableExercises } from '../lib/exercise-db.ts';
 import { canBeMainLift, patternGroupOf, tierOf } from '../lib/exercise-classification.ts';
+import { LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
 import {
   SESSION_FOCUSES,
   blocksForGoal,
@@ -77,6 +86,8 @@ function check(label, condition, detail) {
 const all = getAllPickableExercises();
 const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
 const get = (n) => byName.get(n.toLowerCase());
+/** What the document itself calls each movement: main, accessory or power. */
+const LIBRARY_ROLE = new Map(LIBRARY_EXERCISES.map((e) => [e.name.toLowerCase(), e.role]));
 
 // ─── 1. The movements that are not lifts ─────────────────────────────────────
 console.log('\n[1] A hold, a kick and a stabiliser drill are not main lifts');
@@ -167,19 +178,69 @@ const kpiBlock = blocksForGoal('athletic').find((b) => b.id === 'kpi');
 const demotedNames = new Set(DEMOTED.map(([n]) => n.toLowerCase()));
 const thin = [];
 const leaked = [];
+/**
+ * Driven at the top rung, and at four rather than one.
+ *
+ * The floor below is a claim about the RULES not cutting too deep, so it has to
+ * be asked of the whole pool the rules see. The level ceiling is a separate cut
+ * and a deliberate one: a beginner with no kit really does have a single
+ * pressing main in the library, which is the library being honest rather than
+ * the eligibility rules being wrong. That cut is guarded in
+ * tests/session-builder.check.mjs section 4b.
+ */
+const TOP_RUNG = 4;
+
+/**
+ * THE FLOOR IS TIED TO THE LIBRARY, NOT TO A NUMBER.
+ *
+ * It used to be "at least four lifts per focus and tier", which was an honest
+ * reading of a 442-exercise catalogue and is not one of a 160-record library:
+ * the only pull a bodyweight user has in the library is Door Frame Rows, and
+ * the library puts it there on purpose so that nobody is left without a pull.
+ * Holding the step to four would have meant one of two bad answers — inventing
+ * a lift, or widening past the kit rules the step exists to respect.
+ *
+ * So the question is asked the other way round, which is the question this file
+ * was always really asking: does the step offer every main movement the library
+ * has for that person, or do the eligibility rules drop one? An eligibility
+ * rule that started refusing squats would empty the step, and that is what
+ * fails here — not a count.
+ */
+const REFUSED = [];
 for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
   const owned = ownedTiersFor(tier);
   for (const focus of SESSION_FOCUSES) {
-    const { options } = optionsForBlock(kpiBlock, { focus: focus.key, kpi: null }, owned);
-    // Four is the floor a bodyweight pull day honestly has; below that the step
-    // stops being a choice and the rules have cut too deep.
-    if (options.length < 4) thin.push(`${tier}/${focus.key}=${options.length}`);
+    const { options } = optionsForBlock(kpiBlock, { focus: focus.key, kpi: null, ceiling: TOP_RUNG }, owned);
+    const offered = new Set(options.map((t) => t.name));
+    // Everything the equipment rules already let this person see in the whole
+    // index, narrowed to the patterns this focus trains.
+    const { all: everything } = optionsForBlock(
+      blocksForGoal('athletic').find((b) => b.id === 'accessory'),
+      { focus: focus.key, kpi: null, ceiling: TOP_RUNG },
+      owned
+    );
+    for (const t of everything) {
+      if (!focus.patterns.includes(patternGroupOf(t))) continue;
+      if (offered.has(t.name)) continue;
+      // The library's own word outranks the movement rules. A Wall Sit and a
+      // Glute Bridge are both loaded enough for canBeMainLift to accept, and
+      // the document calls both support work; keeping them out of this step is
+      // the library working, not an eligibility rule cutting too deep.
+      if (LIBRARY_ROLE.get(t.name.toLowerCase()) !== 'main') continue;
+      if (canBeMainLift(t)) REFUSED.push(`${tier}/${focus.key}: ${t.name}`);
+    }
+    if (options.length === 0) thin.push(`${tier}/${focus.key}=0`);
     for (const t of options) {
       if (demotedNames.has(t.name.toLowerCase())) leaked.push(`${tier}/${focus.key}: ${t.name}`);
     }
   }
 }
-check('no focus and tier is left with fewer than four lifts', thin.length === 0, thin.join(', '));
+check('no focus and tier is left without a lift at all', thin.length === 0, thin.join(', '));
+check(
+  'and no movement the rules accept as a main lift is missing from the step',
+  REFUSED.length === 0,
+  [...new Set(REFUSED)].slice(0, 8).join(', ')
+);
 check(
   'and none of the demoted movements is still on offer there',
   leaked.length === 0,

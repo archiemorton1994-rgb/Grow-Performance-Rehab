@@ -35,7 +35,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { getAllPickableExercises } from '../lib/exercise-db.ts';
+import { builderExercises } from '../lib/session-builder.ts';
 import { bodyRegionOf } from '../lib/exercise-safety.ts';
 import {
   assembleSession,
@@ -63,7 +63,9 @@ function check(label, condition, detail) {
   }
 }
 
-const all = getAllPickableExercises();
+const TOP = 4;
+const FULL_GYM = ['fullgym'];
+const all = builderExercises(TOP, FULL_GYM);
 const byName = new Map(all.map((p) => [p.template.name.toLowerCase(), p.template]));
 const get = (n) => byName.get(n.toLowerCase());
 const pickOf = (t) => ({ template: t, sets: t.sets, reps: t.reps });
@@ -72,9 +74,9 @@ const names = (list) => (list ?? []).map((p) => p.template.name);
 const TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
 /** One lift per focus, so a swap between any two is a real change of session. */
 const LIFTS = [
-  ['lower', 'Back Squat'],
-  ['push', 'Barbell Bench Press'],
-  ['pull', 'Pull-Up'],
+  ['lower', 'Barbell Back Squat'],
+  ['push', 'Dumbbell Bench Press'],
+  ['pull', 'Pull Ups'],
 ];
 
 check(
@@ -98,7 +100,7 @@ function autoBuild(goal, focus, kpiName, tier = 'fullgym') {
     for (const list of Object.values(picks)) for (const p of list) taken.add(p.template.name);
     const { options } = optionsForBlock(
       block,
-      { focus, kpi: picks.kpi?.[0]?.template ?? null },
+      { focus, kpi: picks.kpi?.[0]?.template ?? null, ceiling: TOP },
       owned,
       taken
     );
@@ -129,14 +131,20 @@ console.log('\n[1] "Matched to <your lift>" is only printed where it is true');
       // Compared as SETS, not as ordered lists. "Matched to <your lift>" reads
       // as a filter, and a step that shuffles the same seventeen options into a
       // different order has not filtered anything.
-      const answers = LIFTS.map(([focus, name]) =>
-        optionsForBlock(block, { focus, kpi: get(name) }, owned, new Set([name]))
-          .options.map((t) => t.name)
+      const results = LIFTS.map(([focus, name]) =>
+        optionsForBlock(block, { focus, kpi: get(name), ceiling: TOP }, owned, new Set([name]), FULL_GYM)
+      );
+      const answers = results.map((r) =>
+        r.options
+          .map((t) => t.name)
           .sort()
           .join('|')
       );
       const varies = new Set(answers).size > 1;
-      if (block.followsLift && !varies) {
+      // Or the step says it could not narrow, which the screen prints beside
+      // the match note. See section 2 for why that escape exists.
+      const admitsIt = results.every((r) => r.widened);
+      if (block.followsLift && !varies && !admitsIt) {
         dishonest.push(`${g.key}/${block.id} claims to follow the lift and never changes`);
       }
     }
@@ -193,21 +201,44 @@ console.log('\n[2] The warm-up step is the day\'s warm-up, not the alphabet\'s')
 {
   const owned = ownedTiersFor('fullgym');
   const cardio = blocksForGoal('athletic').find((b) => b.id === 'cardio');
-  const listFor = (focus, name) =>
-    optionsForBlock(cardio, { focus, kpi: get(name) }, owned).options;
+  const resultFor = (focus, name) =>
+    optionsForBlock(cardio, { focus, kpi: get(name), ceiling: TOP }, owned, new Set(), FULL_GYM);
+  const listFor = (focus, name) => resultFor(focus, name).options;
 
   const lists = LIFTS.map(([focus, name]) => [name, listFor(focus, name)]);
+  /**
+   * THE WHOLE WARM-UP UNIVERSE IS NOW TEN MOVEMENTS.
+   *
+   * Nine conditioning records and one Restore walk, where it used to be
+   * seventeen warm-ups out of the old catalogue. Two lifts that share no
+   * pattern can therefore be left holding the same ten names, and that is not
+   * the step lying: `widened` is true when the filter could not hold, and the
+   * screen prints "widened, too few exact matches for your equipment" beside
+   * the match note wherever it is. So the promise is that the list narrows OR
+   * the step says out loud that it could not - never that it silently offers
+   * everything under a heading claiming a match.
+   */
+  const shapes = LIFTS.map(([focus, name]) => {
+    const { options, widened } = resultFor(focus, name);
+    return {
+      key: options.map((t) => t.name).sort().join('|'),
+      widened,
+    };
+  });
+  const honest = shapes.filter((s, i) =>
+    s.widened || shapes.every((o, j) => i === j || o.key !== s.key)
+  );
   check(
-    `the cardio list is a different list for each lift (${lists.map(([n, l]) => `${n}:${l.length}`).join(' ')})`,
-    new Set(
-      lists.map(([, l]) =>
-        l
-          .map((t) => t.name)
-          .sort()
-          .join('|')
-      )
-    ).size === lists.length,
-    ''
+    `the cardio list narrows per lift, or admits it could not (${lists.map(([n, l]) => `${n}:${l.length}`).join(' ')})`,
+    honest.length === shapes.length,
+    shapes.map((s) => `${s.widened ? 'widened' : 'strict'}:${s.key.split('|').length}`).join(' ')
+  );
+  // Non-vacuity: at least one lift really does get a narrower list than the
+  // whole block, or the rule above is satisfied by everything widening.
+  check(
+    'and at least one lift still gets a genuinely narrowed warm-up',
+    shapes.some((s) => !s.widened),
+    shapes.map((s) => (s.widened ? 'widened' : 'strict')).join(' ')
   );
 
   // The default is what someone who holds Next actually gets, so it is the one
@@ -215,18 +246,18 @@ console.log('\n[2] The warm-up step is the day\'s warm-up, not the alphabet\'s')
   // assault bike because "Assault Bike Warm-Up" sorts first alphabetically.
   const defaults = Object.fromEntries(lists.map(([n, l]) => [n, l[0]?.name]));
   check(
-    `a pulling day opens on a rower, not a bike (got "${defaults['Pull-Up']}")`,
-    /row/i.test(defaults['Pull-Up'] ?? ''),
+    `a pulling day opens on a rower, not a bike (got "${defaults['Pull Ups']}")`,
+    /row/i.test(defaults['Pull Ups'] ?? ''),
     ''
   );
   check(
-    `a squat day opens on something that drives the legs (got "${defaults['Back Squat']}")`,
-    /bike|tread|walk|skip|jump rope|cycl/i.test(defaults['Back Squat'] ?? ''),
+    `a squat day opens on something that drives the legs (got "${defaults['Barbell Back Squat']}")`,
+    /bike|tread|walk|skip|jump rope|cycl/i.test(defaults['Barbell Back Squat'] ?? ''),
     ''
   );
   check(
-    `a bench day does not open on a leg machine (got "${defaults['Barbell Bench Press']}")`,
-    !/\bbike\b|jump rope/i.test(defaults['Barbell Bench Press'] ?? ''),
+    `a bench day does not open on a leg machine (got "${defaults['Dumbbell Bench Press']}")`,
+    !/\bbike\b|jump rope/i.test(defaults['Dumbbell Bench Press'] ?? ''),
     ''
   );
 
@@ -237,7 +268,7 @@ console.log('\n[2] The warm-up step is the day\'s warm-up, not the alphabet\'s')
     for (const [focus, name] of LIFTS) {
       const { options } = optionsForBlock(
         cardio,
-        { focus, kpi: get(name) },
+        { focus, kpi: get(name), ceiling: TOP },
         ownedTiersFor(tier)
       );
       if (options.length < 3) thin.push(`${tier}/${name}=${options.length}`);
@@ -254,6 +285,7 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
   let stale = [];
   let unmoved = [];
   let strayCardio = [];
+  let halfChecked = 0;
   let comparisons = 0;
 
   for (const tier of TIERS) {
@@ -267,27 +299,57 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
         const after = refreshForKpi(
           'athletic',
           { ...picks, kpi: [pickOf(to)] },
-          { focus: toFocus, kpi: to },
+          { focus: toFocus, kpi: to, ceiling: TOP },
           owned,
           autoFilledOf('athletic')
         );
 
-        // Nothing anywhere in the session may be work the new lift has no use
-        // for — the promise every step's note makes.
+        /**
+         * Nothing anywhere in the session may be work the app would not have
+         * chosen for the NEW lift.
+         *
+         * Asked as "is this pick one the step now offers" rather than "is this
+         * pick relevant", which is both stricter and fairer. Stricter, because
+         * a pick can be graded merely 'related' and still be work chosen for
+         * the lift you are no longer doing. Fairer, because a step whose pool
+         * holds nothing relevant at all widens to everything and says so, and
+         * the honest answer there really is the best of a bad list: at
+         * bodyweight every power record in the library is a lower-body jump, so
+         * a bench press build's power primer has nothing else to give.
+         */
         for (const block of blocksForGoal('athletic')) {
           if (block.id === 'kpi') continue;
+          const nowOffers = new Set(
+            optionsForBlock(
+              block,
+              { focus: toFocus, kpi: to, ceiling: TOP },
+              owned,
+              new Set([toName])
+            ).options.map((t) => t.name)
+          );
           for (const p of after[block.id] ?? []) {
-            if (relevanceOf(block.category, p.template, { focus: toFocus, kpi: to }) === 'none') {
+            if (!nowOffers.has(p.template.name)) {
               stale.push(`${tier} ${fromName}->${toName} ${block.id}: ${p.template.name}`);
             }
           }
         }
 
         // And the warm-up specifically has to have moved: a bench press warmed
-        // up with a Cossack squat is the reported bug.
+        // up with a Cossack squat is the reported bug. Skipped where the step
+        // widened, because a step with nothing for this half of the body cannot
+        // choose better and the screen says so on the card.
         const wrongHalf = bodyRegionOf(to.primaryMuscle) === 'lower' ? 'upper' : 'lower';
         for (const id of WARM_UP) {
+          const block = blocksForGoal('athletic').find((b) => b.id === id);
+          const { widened } = optionsForBlock(
+            block,
+            { focus: toFocus, kpi: to, ceiling: TOP },
+            owned,
+            new Set([toName])
+          );
+          if (widened) continue;
           for (const p of after[id] ?? []) {
+            halfChecked++;
             if (bodyRegionOf(p.template.primaryMuscle) === wrongHalf) {
               unmoved.push(`${tier} ${fromName}->${toName} ${id}: ${p.template.name}`);
             }
@@ -300,7 +362,7 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
         // cannot see a stale one, and an assault bike chosen for a squat day
         // sat under "Matched to Barbell Bench Press" without tripping anything.
         for (const p of after.cardio ?? []) {
-          if (relevanceOf('cardio', p.template, { focus: toFocus, kpi: to }) !== 'direct') {
+          if (relevanceOf('cardio', p.template, { focus: toFocus, kpi: to, ceiling: TOP }) !== 'direct') {
             strayCardio.push(`${tier} ${fromName}->${toName}: ${p.template.name}`);
           }
         }
@@ -313,9 +375,11 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
     stale.slice(0, 6).join(' | ')
   );
   check(
-    'and no warm-up step is left preparing the opposite half of the body',
-    unmoved.length === 0,
-    unmoved.slice(0, 6).join(' | ')
+    `and no warm-up step is left preparing the opposite half of the body (${halfChecked} picks judged)`,
+    unmoved.length === 0 && halfChecked > 20,
+    unmoved.length
+      ? unmoved.slice(0, 6).join(' | ')
+      : `only ${halfChecked} picks were strict enough to judge, so this proved nothing`
   );
   check(
     'and the cardio machine the app chose is re-chosen for the new lift',
@@ -330,22 +394,22 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
   // the app would not have made it. Re-picking everything on every swap would
   // pass the checks above and be a worse app.
   const owned = ownedTiersFor('fullgym');
-  const squat = get('Back Squat');
-  const bench = get('Barbell Bench Press');
-  const closeGrip = get('Close-Grip Bench Press');
-  const picks = autoBuild('athletic', 'lower', 'Back Squat');
+  const squat = get('Barbell Back Squat');
+  const bench = get('Dumbbell Bench Press');
+  const closeGrip = get('Dumbbell Floor Press');
+  const picks = autoBuild('athletic', 'lower', 'Barbell Back Squat');
   const chosenByUser = { ...picks, accessory: [pickOf(closeGrip)] };
   const after = refreshForKpi(
     'athletic',
     { ...chosenByUser, kpi: [pickOf(bench)] },
-    { focus: 'push', kpi: bench },
+    { focus: 'push', kpi: bench, ceiling: TOP },
     owned,
     // Everything but the accessory block was filled by the app.
     new Set([...autoFilledOf('athletic')].filter((id) => id !== 'accessory'))
   );
   check(
     'a pick the user made themselves is kept when it still fits',
-    names(after.accessory).includes('Close-Grip Bench Press'),
+    names(after.accessory).includes('Dumbbell Floor Press'),
     names(after.accessory).join(', ')
   );
   check(
@@ -353,7 +417,7 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
     (refreshForKpi(
       'athletic',
       { kpi: [pickOf(bench)], power: [] },
-      { focus: 'push', kpi: bench },
+      { focus: 'push', kpi: bench, ceiling: TOP },
       owned,
       autoFilledOf('athletic')
     ).power ?? []).length === 0,
@@ -364,7 +428,7 @@ console.log('\n[3] Changing the lift late re-aims the warm-up too, not only what
     refreshForKpi(
       'athletic',
       { kpi: [pickOf(bench)] },
-      { focus: 'push', kpi: bench },
+      { focus: 'push', kpi: bench, ceiling: TOP },
       owned,
       autoFilledOf('athletic')
     ).core_prehab === undefined,
@@ -431,19 +495,19 @@ console.log('\n[4] Reopening a saved session gives back the same session, in blo
     category,
   });
   const crowded = [
-    saved('Rowing Machine Warm-Up', 'prep', 1, '4 min steady'),
-    saved("World's Greatest Stretch", 'prep', 1, '5 each side'),
-    saved('Doorway Chest Opener', 'prep', 1, '30s'),
-    saved('Cossack Squat Flow', 'prep', 1, '6 each side'),
-    saved('Back Squat', 'main', 5, '5'),
-    saved('Leg Press', 'accessory', 3, '10'),
-    saved('Leg Extension', 'accessory', 3, '12'),
-    saved('DB Bicep Curl', 'accessory', 3, '12'),
-    saved('Lying Leg Curl', 'accessory', 3, '12'),
+    saved('Cardio Warm-Up (Easy Walk / Bike)', 'prep', 1, '4 min steady'),
+    saved('Figure-4 Glute Stretch', 'prep', 1, '30s each side'),
+    saved('Legs-Up-The-Wall', 'prep', 1, '60s'),
+    saved('Side-Bend Overhead Reach', 'prep', 1, '6 each side'),
+    saved('Barbell Back Squat', 'main', 5, '5'),
+    saved('Barbell Bulgarian Split Squats', 'accessory', 3, '10'),
+    saved('Dumbbell Walking Lunges', 'accessory', 3, '12'),
+    saved('Wall Sit', 'accessory', 3, '45s'),
+    saved('Glute Bridge', 'accessory', 3, '12'),
     saved('Dead Bug', 'prehab', 2, '8 each side'),
     saved('Banded Clamshell', 'prehab', 2, '15'),
     saved('Sled Push', 'finisher', 3, '20m'),
-    saved('Farmers Carry', 'finisher', 3, '30m'),
+    saved('Dumbbell Farmers Carry', 'finisher', 3, '30m'),
   ];
   check(
     'the crowded fixture is built from exercises that exist',
@@ -479,8 +543,8 @@ console.log('\n[4] Reopening a saved session gives back the same session, in blo
   // one of its cardio machines is not an exercise in the database. Both have to
   // survive, because both are already sitting in people's saved templates.
   const flat = [
-    { id: get('Back Squat').id, name: 'Back Squat', sets: 5, reps: '5', cue: 'x', suggestedLoad: 'Heavy', category: 'main' },
-    { id: get('Leg Press').id, name: 'Leg Press', sets: 3, reps: '10', cue: 'x', suggestedLoad: 'Moderate', category: 'accessory' },
+    { id: get('Barbell Back Squat').id, name: 'Barbell Back Squat', sets: 5, reps: '5', cue: 'x', suggestedLoad: 'Heavy', category: 'main' },
+    { id: get('Barbell Bulgarian Split Squats').id, name: 'Barbell Bulgarian Split Squats', sets: 3, reps: '10', cue: 'x', suggestedLoad: 'Moderate', category: 'accessory' },
     { id: get('Dead Bug').id, name: 'Dead Bug', sets: 2, reps: '8', cue: 'x', suggestedLoad: 'Bodyweight', category: 'prehab' },
     { id: 'cardio-treadmill', name: 'Treadmill', sets: 1, reps: '', cue: 'Run or walk.', suggestedLoad: 'Cardio', category: 'accessory', type: 'cardio' },
   ];
@@ -493,7 +557,7 @@ console.log('\n[4] Reopening a saved session gives back the same session, in blo
   );
   check(
     'its main lift comes back as the KPI lift',
-    restored.picks.kpi?.[0]?.template.name === 'Back Squat',
+    restored.picks.kpi?.[0]?.template.name === 'Barbell Back Squat',
     restored.picks.kpi?.[0]?.template.name ?? '(none)'
   );
   check(

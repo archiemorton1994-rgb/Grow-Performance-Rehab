@@ -79,6 +79,16 @@ function check(label, condition, detail) {
 const TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 
 /**
+ * The builder is driven at the top rung, which is the WIDEST pool it can offer.
+ *
+ * This file asks one question — is anybody ever offered kit they do not own —
+ * and the honest way to ask it is of the largest list the builder will ever
+ * produce. A lower ceiling would only hide records from the sweep. The level
+ * rule itself is guarded in tests/session-builder.check.mjs section 4b.
+ */
+const BUILDER_CEILING = 4;
+
+/**
  * Which choices supply each kind of kit.
  *
  * Written out here rather than imported, on purpose. This file's entire value is
@@ -306,9 +316,9 @@ for (const tier of TIERS) {
       // The KPI lift is chosen first and everything after it is filtered
       // against it, so the rest of the build has to be walked with the lift the
       // step would actually have picked.
-      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned, new Set(), [tier]).options[0] ?? null;
+      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null, ceiling: BUILDER_CEILING }, owned, new Set(), [tier]).options[0] ?? null;
       for (const block of blocks) {
-        const { options, all } = sb.optionsForBlock(block, { focus, kpi }, owned, new Set(), [tier]);
+        const { options, all } = sb.optionsForBlock(block, { focus, kpi, ceiling: BUILDER_CEILING }, owned, new Set(), [tier]);
         const where = `${goal}/${focus}/${block.id}`;
         for (const t of options) steps.add(where, tier, t);
         // "Show everything" is one tap away on every step, so it is on offer too.
@@ -476,9 +486,9 @@ for (const tier of TIERS) {
     const blocks = sb.blocksForGoal(goal);
     const kpiBlock = blocks.find((b) => b.id === 'kpi');
     for (const { key: focus } of sb.SESSION_FOCUSES) {
-      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null }, owned, new Set(), [tier]).options[0] ?? null;
+      const kpi = sb.optionsForBlock(kpiBlock, { focus, kpi: null, ceiling: BUILDER_CEILING }, owned, new Set(), [tier]).options[0] ?? null;
       for (const block of blocks) {
-        const { options } = sb.optionsForBlock(block, { focus, kpi }, owned, new Set(), [tier]);
+        const { options } = sb.optionsForBlock(block, { focus, kpi, ceiling: BUILDER_CEILING }, owned, new Set(), [tier]);
         if (options.length < block.picks) {
           thin.push(`${tier}/${goal}/${focus}/${block.id} offers ${options.length}, fills ${block.picks}`);
         }

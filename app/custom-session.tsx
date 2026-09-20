@@ -23,12 +23,12 @@ import { shadowStyle } from '@/constants/shadows';
 import { EmptyState } from '@/components/EmptyState';
 import { useAppStore, CustomExercise, CustomTemplate } from '@/lib/store';
 import {
-  getAllPickableExercises,
   toInternalTier,
   ExerciseTemplate,
   ExerciseCategory,
   InternalTier,
 } from '@/lib/exercise-db';
+import { levelCeilingFor } from '@/lib/library-session';
 import {
   canBeMainLift,
   patternGroupOf,
@@ -42,10 +42,15 @@ import {
   assembleSession,
   blocksForSession,
   buildFromSession,
+  builderCategoryOf,
+  builderExercises,
+  builderRolesOf,
   durationForPicks,
   estimatedMinutes,
   optionsForBlock,
   refreshForKpi,
+  BUILDER_CATEGORIES,
+  BUILDER_CATEGORY_LABELS,
   CARDIO_MINUTES,
   DEFAULT_CARDIO_MINUTES,
   DEFAULT_DURATION,
@@ -57,6 +62,7 @@ import {
   type BuilderPick,
   type BuilderPicks,
   type SessionDuration,
+  type BuilderCategory,
   type SessionFocus,
   type SessionGoal,
 } from '@/lib/session-builder';
@@ -99,47 +105,13 @@ function blockNoun(title: string): string {
   return title.toLowerCase();
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  main: 'Main Lift',
-  accessory: 'Accessory',
-  mechanical: 'Mechanical',
-  neuro: 'Power',
-  prep: 'Warm-Up',
-  finisher: 'Finisher',
-  prehab: 'Prehab',
-  cooldown: 'Cooldown',
-  cardio: 'Cardio',
-};
-
 /**
- * Catalogue sections. Labels are curated for readability; which ones appear
- * is driven by what is actually in the pool (see catalogueSections below),
- * so widening the exercise pool cannot leave a category unreachable — which
- * is what happened when mechanical/neuro/prep/finisher/cooldown became
- * pickable but this list still named only five.
+ * The rail's headings and the pill on every card both come from
+ * BUILDER_CATEGORY_LABELS now. Three tables used to live here naming the raw
+ * `category` field — Mechanical, Neuro, Prep, Finisher — so the same exercise
+ * was called one thing while it was being browsed and another once it was in a
+ * step. See catalogueSections below.
  */
-const CATEGORY_SECTION_LABELS: Record<string, string> = {
-  main: 'Main Lifts',
-  accessory: 'Accessories',
-  mechanical: 'Mechanical',
-  neuro: 'Power',
-  prep: 'Warm-Up',
-  finisher: 'Finishers',
-  prehab: 'Prehab',
-  cooldown: 'Cooldown',
-};
-
-/** Order the rail lists sections in; anything unknown falls to the end. */
-const CATEGORY_ORDER = [
-  'main',
-  'accessory',
-  'mechanical',
-  'neuro',
-  'prep',
-  'finisher',
-  'prehab',
-  'cooldown',
-];
 
 const EQUIPMENT_FILTER_OPTIONS: { key: InternalTier; label: string }[] = [
   { key: 'bodyweight', label: 'Bodyweight' },
@@ -273,6 +245,7 @@ export default function CustomSessionScreen() {
     updateTemplate,
     completedSessions,
     equipmentTiers,
+    userProfile,
   } = useAppStore();
   const tier = getEffectiveTier();
   /**
@@ -282,12 +255,29 @@ export default function CustomSessionScreen() {
    * who ticked "No Equipment" from somebody who ticked resistance bands, and the
    * builder was offering banded work to the first of them.
    */
-  const userKit = equipmentTiers && equipmentTiers.length ? equipmentTiers : [tier];
+  const userKit = useMemo(
+    () => (equipmentTiers && equipmentTiers.length ? equipmentTiers : [tier]),
+    [equipmentTiers, tier]
+  );
 
-  const pickable = useMemo(() => getAllPickableExercises(), []);
+  /**
+   * The hardest rung this person may be offered, exactly as Train works it out.
+   *
+   * What they told us at sign-up plus any rung they have banked and accepted.
+   * Build your own used to have no opinion about level at all: it offered the
+   * whole database to everybody, so a beginner's first custom session could
+   * open with a depth jump.
+   */
+  const ceiling = useMemo(() => levelCeilingFor(userProfile), [userProfile]);
+
+  const pickable = useMemo(() => builderExercises(ceiling, userKit), [ceiling, userKit]);
   const allExercises = useMemo(() => pickable.map((p) => p.template), [pickable]);
   const tiersByName = useMemo(
     () => new Map(pickable.map((p) => [p.template.name, p.tiers])),
+    [pickable]
+  );
+  const rolesByName = useMemo(
+    () => new Map(pickable.map((p) => [p.template.name, p.roles])),
     [pickable]
   );
 
@@ -464,23 +454,28 @@ export default function CustomSessionScreen() {
     (freshFirst ? 1 : 0) +
     (equipmentFilters.size > 0 && equipmentFilters.size < ownedTiers.length ? 1 : 0);
 
-  // Built from the pool, so a category can never become unreachable just
-  // because a hardcoded list was not updated alongside it.
+  /**
+   * THE RAIL IS THE BUILD'S OWN STEPS, NOT THE DATABASE'S FILING.
+   *
+   * It listed the nine `category` values a template can carry — Mechanical,
+   * Neuro, Prep, Finisher — which are the words the generator files under, not
+   * words anybody says. The steps of the build already have plain names, and an
+   * exercise already knows which of them it may be offered in, so the browse
+   * list and the guided list now group the same way and under the same
+   * headings. Built from the pool, so a heading can never become unreachable
+   * because a hardcoded list was not updated alongside it.
+   */
   const catalogueSections = useMemo(() => {
-    const present = new Set(allExercises.map((e) => e.category as string));
-    // "Main Lifts" is now defined by movement rather than by template slot, so
-    // it must be offered whenever any compound is in the pool — not only when
-    // something happens to be filed under category 'main'. On a bodyweight tier
-    // that difference is the whole section.
-    if (allExercises.some((e) => canBeMainLift(e))) present.add('main');
-    const ordered = CATEGORY_ORDER.filter((c) => present.has(c));
-    const extras = [...present].filter((c) => !CATEGORY_ORDER.includes(c)).sort();
+    const present = new Set<BuilderCategory>();
+    for (const roles of rolesByName.values()) for (const r of roles) present.add(r);
     return [
       { key: 'all', label: 'All' },
-      ...[...ordered, ...extras].map((c) => ({ key: c, label: CATEGORY_SECTION_LABELS[c] ?? c })),
-      { key: 'cardio', label: 'Cardio' },
+      ...BUILDER_CATEGORIES.filter((c) => present.has(c)).map((c) => ({
+        key: c as string,
+        label: BUILDER_CATEGORY_LABELS[c],
+      })),
     ];
-  }, [allExercises]);
+  }, [rolesByName]);
 
   const filtered = useMemo(() => {
     // Equipment gate first: never offer a movement the user has no kit for.
@@ -490,27 +485,14 @@ export default function CustomSessionScreen() {
       // No tier recorded means the movement needs no equipment — always allow.
       return !t || t.length === 0 || t.some((x) => active.has(x));
     });
-    if (categoryFilter === 'main') {
-      /**
-       * "Main Lifts" is a question about the MOVEMENT, not about where the
-       * template happens to be filed.
-       *
-       * `category === 'main'` covers 22 of 447 exercises — essentially the
-       * barbell big three and their closest variants. So a Goblet Squat, a Lat
-       * Pulldown and a Romanian Deadlift could never be a main lift, in any
-       * split, for anyone, which is only right if every user is a powerlifter.
-       * Filed under the same heading, 187 exercises qualify, spread across all
-       * six compound patterns. See lib/exercise-classification.ts.
-       */
-      list = list.filter((e) => canBeMainLift(e));
-    } else if (categoryFilter === 'accessory') {
-      // The other side of the same coin: an accessory section that excluded
-      // every compound would be missing most of what people actually use as
-      // accessories, so this stays a category filter and simply drops the
-      // movements now surfaced above it.
-      list = list.filter((e) => e.category === 'accessory' && !canBeMainLift(e));
-    } else if (categoryFilter !== 'all') {
-      list = list.filter((e) => e.category === categoryFilter);
+    if (categoryFilter !== 'all') {
+      // Every step an exercise may be offered in, not the one it is filed
+      // under: a goblet squat is a main exercise and an ordinary accessory,
+      // and a heading that showed only its filing would hide it from one of
+      // the two steps somebody would look for it in.
+      list = list.filter((e) =>
+        (rolesByName.get(e.name) ?? []).includes(categoryFilter as BuilderCategory)
+      );
     }
     if (patternFilters.size > 0) {
       list = list.filter((e) => patternFilters.has(patternGroupOf(e)));
@@ -526,6 +508,7 @@ export default function CustomSessionScreen() {
   }, [
     allExercises,
     tiersByName,
+    rolesByName,
     ownedTiers,
     equipmentFilters,
     categoryFilter,
@@ -684,7 +667,10 @@ export default function CustomSessionScreen() {
 
   /** The lift the session is built on, once it has been chosen. */
   const kpiTemplate = picks.kpi?.[0]?.template ?? null;
-  const relevanceCtx = useMemo(() => ({ focus, kpi: kpiTemplate }), [focus, kpiTemplate]);
+  const relevanceCtx = useMemo(
+    () => ({ focus, kpi: kpiTemplate, ceiling }),
+    [focus, kpiTemplate, ceiling]
+  );
 
   /** No exercise fills two slots of the same session. */
   const pickedNames = useMemo(() => {
@@ -699,7 +685,7 @@ export default function CustomSessionScreen() {
   const stepOptions = useMemo(() => {
     if (!activeBlock) return { options: [], widened: false, all: [] };
     return optionsForBlock(activeBlock, relevanceCtx, ownedTiers, pickedNames, userKit);
-  }, [activeBlock, relevanceCtx, ownedTiers, pickedNames]);
+  }, [activeBlock, relevanceCtx, ownedTiers, pickedNames, userKit]);
 
   /**
    * The list a step shows.
@@ -746,7 +732,13 @@ export default function CustomSessionScreen() {
           if (id === block.id) continue;
           for (const p of list ?? []) others.add(p.template.name);
         }
-        const { options } = optionsForBlock(block, { focus, kpi: prev.kpi?.[0]?.template ?? null }, ownedTiers, others, userKit);
+        const { options } = optionsForBlock(
+          block,
+          { focus, kpi: prev.kpi?.[0]?.template ?? null, ceiling },
+          ownedTiers,
+          others,
+          userKit
+        );
         // The app is choosing here, not the user. Recorded so that changing the
         // KPI lift later can re-choose it rather than preserve it as if it had
         // been picked on purpose.
@@ -754,7 +746,7 @@ export default function CustomSessionScreen() {
         return { ...prev, [block.id]: options.slice(0, block.picks).map(pickOf) };
       });
     },
-    [blocks, focus, ownedTiers, pickOf]
+    [blocks, focus, ceiling, ownedTiers, userKit, pickOf]
   );
 
   const startBuild = useCallback(() => {
@@ -829,10 +821,17 @@ export default function CustomSessionScreen() {
         // Changing the lift the session is built on re-filters everything that
         // claims to be matched to it.
         if (block.id !== 'kpi') return next;
-        return refreshForKpi(goal, next, { focus, kpi: t }, ownedTiers, autoFilledRef.current);
+        return refreshForKpi(
+          goal,
+          next,
+          { focus, kpi: t, ceiling },
+          ownedTiers,
+          autoFilledRef.current,
+          userKit
+        );
       });
     },
-    [pickOf, goal, focus, ownedTiers]
+    [pickOf, goal, focus, ceiling, ownedTiers, userKit]
   );
 
   const removePick = useCallback(
@@ -1353,7 +1352,7 @@ export default function CustomSessionScreen() {
                 style={[styles.categoryPill, { backgroundColor: getCategoryBg(item.category) }]}
               >
                 <Text style={[styles.categoryPillText, { color: getCategoryColor(item.category) }]}>
-                  {CATEGORY_LABELS[item.category] ?? item.category}
+                  {BUILDER_CATEGORY_LABELS[builderCategoryOf(item)]}
                 </Text>
               </View>
               {/* The pattern GROUP, not the raw field — "Push (vertical)" tells
@@ -2083,12 +2082,33 @@ export default function CustomSessionScreen() {
             </Pressable>
           }
           ListEmptyComponent={
-            <EmptyState
-              icon="search-outline"
-              title="Nothing matches that search"
-              subtitle="Clear the search, or tap All to see the whole block"
-              testID="step-empty"
-            />
+            /**
+             * A step can now be empty because the step itself has nothing for
+             * this person, not only because a search found nothing. Every jump,
+             * throw and slam in the library is Athlete level, so the Power
+             * Primer is genuinely empty below that rung, and telling somebody
+             * to clear a search they never typed is the app blaming them for
+             * its own rule.
+             */
+            stepOptions.all.length === 0 ? (
+              <EmptyState
+                icon="information-circle-outline"
+                title={`Nothing for ${blockNoun(activeBlock.title)} yet`}
+                subtitle={
+                  activeBlock.id === 'power'
+                    ? 'Jumps, throws and slams are Athlete work. Skip this step and come back when you have earned the rung.'
+                    : 'Nothing in the library matches your level and your kit for this step. Skip it for now.'
+                }
+                testID="step-empty-pool"
+              />
+            ) : (
+              <EmptyState
+                icon="search-outline"
+                title="Nothing matches that search"
+                subtitle="Clear the search, or tap All to see the whole block"
+                testID="step-empty"
+              />
+            )
           }
         />
 

@@ -1,53 +1,59 @@
 /**
- * Contract tests: the custom session path in workout-engine.ts correctly bypasses
- * auto-generation, and the exercise pool (getAllPickableExercises) is non-empty and
- * properly wired from exercise-db.ts through custom-session.tsx to session.tsx via
- * the Zustand store.
+ * Contract test: what Build your own is allowed to put in a session.
  *
- * HOW CUSTOM SESSIONS WORK
- * ─────────────────────────
- * 1. custom-session.tsx calls getAllPickableExercises(tier) to populate the picker.
- * 2. The user selects exercises; handleStart() calls setPendingCustomExercises() on
- *    the Zustand store, then navigates to /session with sessionType: 'custom'.
- * 3. session.tsx reads pendingCustomExercises from the store and uses them directly.
- * 4. workout-engine.ts returns [] for sessionType === 'custom' — this is intentional;
- *    it is NOT a bug. The exercises are provided by the store, not auto-generated.
+ * WHAT THIS FILE USED TO DO, AND WHY IT CHANGED
+ * ─────────────────────────────────────────────
+ * It read lib/exercise-db.ts as text and checked that `getAllPickableExercises`
+ * still mentioned MAIN_LIFTS, ACCESSORIES and eighteen other collection names.
+ * That was the right guard while the builder's index WAS those collections. It
+ * is not any more: the index is Archie's exercise library, the nine conditioning
+ * records and whatever the Restore tab prescribes, and a check counting
+ * collection names in a file the builder no longer reads would have stayed green
+ * for ever while saying nothing.
  *
- * Silent failure modes this catches:
- *  - getAllPickableExercises removed / not exported — picker shows 0 exercises
- *  - MAIN_LIFTS, ACCESSORIES, or PREHAB_BY_REGION removed from the pool function —
- *    picker silently loses entire exercise categories
- *  - MAIN_LIFTS or ACCESSORIES missing an internal tier — every exercise for that
- *    tier disappears from the custom picker
- *  - workout-engine.ts custom bypass accidentally removed — generates a random
- *    session instead of using the user's picks
- *  - setPendingCustomExercises removed from store — custom-session.tsx crashes
- *  - session.tsx no longer reads pendingCustomExercises — custom exercises never load
- *  - Duplicate exercise IDs in MAIN_LIFTS / ACCESSORIES — set-logging and swap bugs
+ * Worse, it was the defect this repo keeps making — a test that pins a spelling
+ * and passes while the thing it guards is wrong. So the questions are asked of
+ * the running builder instead, by driving every step it has:
  *
- * Checks:
- *  1. POOL EXPORT      — getAllPickableExercises exported from exercise-db.ts
- *  2. POOL SOURCES     — function body references MAIN_LIFTS, ACCESSORIES, PREHAB_BY_REGION
- *  3. MAIN_LIFTS TIERS — all 3 internal tiers present in MAIN_LIFTS for each session type
- *  4. ACCESSORIES TIERS— all 3 internal tiers present in ACCESSORIES for each session type
- *  5. ENGINE BYPASS    — workout-engine.ts returns [] for 'custom' sessionType
- *  6. STORE CONTRACT   — store declares pendingCustomExercises + setPendingCustomExercises
- *  7. PICKER WIRING    — custom-session.tsx imports getAllPickableExercises and calls
- *                        setPendingCustomExercises before navigating to /session
- *  8. SESSION WIRING   — session.tsx reads pendingCustomExercises from the store
- *  9. ID UNIQUENESS    — no duplicate IDs across MAIN_LIFTS and ACCESSORIES
+ *  1. EVERYTHING IT OFFERS has a record on one of the three lists. Not the
+ *     matched list only: the widened list, the whole block behind the All
+ *     button, the flat catalogue, and what comes out the far end assembled.
+ *  2. NO OFF-LIBRARY TRAIN NAME can be added, named one by one, because a
+ *     count can pass while a specific movement leaks.
+ *  3. A BEGINNER CANNOT ADD ABOVE-LEVEL WORK by any route.
+ *  4. The wiring from the screen to the session still holds, which is the one
+ *     part of the old file that was always about plumbing rather than content.
  *
- * Run:  node tests/custom-session.check.mjs
+ * WHY IT MATTERS. A custom session is logged, charted and progressed against
+ * like any other. An exercise reachable here and nowhere else is an exercise
+ * with a personal best, a history and a chart, that the app will never programme
+ * and that Archie has never written a word about.
+ *
+ * Run:  npx tsx tests/custom-session.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
+
+globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-const __dir = dirname(fileURLToPath(import.meta.url));
+import { getRestoreExercises } from '../lib/exercise-db.ts';
+import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import {
+  assembleSession,
+  blocksForGoal,
+  builderExercises,
+  exercisesInCategory,
+  optionsForBlock,
+  ownedTiersFor,
+  BUILDER_CATEGORIES,
+  SESSION_FOCUSES,
+  SESSION_GOALS,
+} from '../lib/session-builder.ts';
 
-const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const __dir = dirname(fileURLToPath(import.meta.url));
 const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
 const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
 const customSrc = readFileSync(join(__dir, '../app/custom-session.tsx'), 'utf8');
@@ -66,267 +72,264 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Pool export — getAllPickableExercises exported from exercise-db.ts ────
-console.log('\n[1] Pool export — getAllPickableExercises exported from exercise-db.ts');
+// ─── The three lists, and the whole of what the builder may serve ────────────
 
-check(
-  'getAllPickableExercises is exported from exercise-db.ts',
-  dbSrc.includes('export function getAllPickableExercises'),
-  'function not found — custom-session.tsx import fails; picker shows 0 exercises'
-);
+/** Where a name comes from, or undefined if it comes from nowhere Archie owns. */
+const SOURCE = new Map();
+for (const e of LIBRARY_EXERCISES) SOURCE.set(e.name.toLowerCase(), 'library');
+for (const e of CONDITIONING_EXERCISES)
+  if (!SOURCE.has(e.name.toLowerCase())) SOURCE.set(e.name.toLowerCase(), 'conditioning');
+for (const e of getRestoreExercises())
+  if (!SOURCE.has(e.name.toLowerCase())) SOURCE.set(e.name.toLowerCase(), 'restore');
 
-// ─── 2. Pool sources — function body references the 3 exercise collections ───
-console.log(
-  '\n[2] Pool sources — getAllPickableExercises references MAIN_LIFTS, ACCESSORIES, PREHAB_BY_REGION'
-);
+const LEVEL = new Map(LIBRARY_EXERCISES.map((e) => [e.name.toLowerCase(), e.level]));
 
-// Locate the function body using brace-counting so we only inspect what's inside it
-const fnStart = dbSrc.indexOf('export function getAllPickableExercises');
-let poolFnBody = '';
+/**
+ * The kits somebody can actually have, as the five tiles they tick.
+ *
+ * 'bench' is included on its own because it is the one tile that is neither
+ * bodyweight nor a gym: it unlocks a third of the library's pressing work.
+ */
+const KITS = [
+  ['no equipment', ['bodyweight'], 'bodyweight'],
+  ['bands', ['bodyweight', 'bands'], 'bodyweight'],
+  ['a bench', ['bodyweight', 'bench'], 'bodyweight'],
+  ['dumbbells', ['bodyweight', 'dumbbells'], 'dumbbells'],
+  ['kettlebells', ['bodyweight', 'kettlebells'], 'dumbbells'],
+  ['a full gym', ['fullgym'], 'fullgym'],
+];
 
-if (fnStart !== -1) {
-  const bodyOpen = dbSrc.indexOf('{', fnStart);
-  let depth = 0;
-  let end = -1;
-
-  for (let i = bodyOpen; i < dbSrc.length; i++) {
-    if (dbSrc[i] === '{') depth++;
-    else if (dbSrc[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
+/**
+ * Every exercise the builder can put in front of anybody, measured rather than
+ * assumed: four levels by six kits by three goals by four focuses, and for each
+ * step both the list it shows and the whole block behind the All button.
+ */
+function sweep() {
+  const seen = new Map();
+  let steps = 0;
+  const note = (t, where, ceiling) => {
+    const key = t.name.toLowerCase();
+    if (!seen.has(key)) seen.set(key, { name: t.name, where, ceiling });
+  };
+  for (const ceiling of [1, 2, 3, 4]) {
+    for (const [, kit, tier] of KITS) {
+      const owned = ownedTiersFor(tier);
+      // The flat catalogue behind "Browse the full catalogue instead".
+      for (const e of builderExercises(ceiling, kit)) note(e.template, 'catalogue', ceiling);
+      for (const { key: goal } of SESSION_GOALS) {
+        const blocks = blocksForGoal(goal);
+        const kpiBlock = blocks.find((b) => b.id === 'kpi');
+        for (const { key: focus } of SESSION_FOCUSES) {
+          const kpi =
+            optionsForBlock(kpiBlock, { focus, kpi: null, ceiling }, owned, new Set(), kit)
+              .options[0] ?? null;
+          const picks = {};
+          for (const block of blocks) {
+            const { options, all } = optionsForBlock(
+              block,
+              { focus, kpi, ceiling },
+              owned,
+              new Set(),
+              kit
+            );
+            steps++;
+            for (const t of options) note(t, `${goal}/${focus}/${block.id}`, ceiling);
+            for (const t of all) note(t, `${goal}/${focus}/${block.id} (all)`, ceiling);
+            picks[block.id] = options
+              .slice(0, block.picks)
+              .map((t) => ({ template: t, sets: t.sets, reps: t.reps }));
+          }
+          // And what actually comes out the far end, prescribed.
+          for (const e of assembleSession(goal, picks, 3)) {
+            note({ name: e.name }, `${goal}/${focus} assembled`, ceiling);
+          }
+        }
       }
     }
   }
-
-  poolFnBody = end !== -1 ? dbSrc.slice(bodyOpen, end + 1) : '';
+  return { seen, steps };
 }
 
+const { seen: OFFERED, steps: STEPS } = sweep();
+
+// ─── 1. Everything on offer is on one of the three lists ─────────────────────
+console.log('\n[1] Build your own serves the library, the nine finishers and Restore');
+
+const strangers = [...OFFERED.values()].filter((e) => !SOURCE.has(e.name.toLowerCase()));
 check(
-  'getAllPickableExercises body references MAIN_LIFTS',
-  poolFnBody.includes('MAIN_LIFTS'),
-  'MAIN_LIFTS not referenced — main exercises (squat/bench/deadlift) missing from custom picker'
+  `${STEPS} steps offer ${OFFERED.size} distinct exercises, and every one has a record`,
+  strangers.length === 0,
+  strangers
+    .slice(0, 10)
+    .map((e) => `${e.name} (${e.where})`)
+    .join(', ')
 );
 
+// Non-vacuity: a sweep that offered nothing would pass the check above.
 check(
-  'getAllPickableExercises body references ACCESSORIES',
-  poolFnBody.includes('ACCESSORIES'),
-  'ACCESSORIES not referenced — accessory exercises missing from custom picker'
+  'and the sweep actually walked the whole builder',
+  OFFERED.size > 200 && STEPS > 500,
+  `${OFFERED.size} exercises across ${STEPS} steps`
 );
 
+// The category listings behind the browse rail are the same universe.
+const strayCategories = [];
+for (const category of BUILDER_CATEGORIES) {
+  for (const t of exercisesInCategory(category)) {
+    if (!SOURCE.has(t.name.toLowerCase())) strayCategories.push(`${category}/${t.name}`);
+  }
+}
 check(
-  'getAllPickableExercises body references PREHAB_BY_REGION',
-  poolFnBody.includes('PREHAB_BY_REGION'),
-  'PREHAB_BY_REGION not referenced — prehab exercises missing from custom picker'
+  'every category listing holds only records too',
+  strayCategories.length === 0,
+  strayCategories.slice(0, 8).join(', ')
 );
 
-// ─── 2b. Pool breadth — every collection must stay in the walk ────────────────
-// The picker originally read only the three collections above, for a single
-// equipment tier. That left 247 of 461 exercise names unreachable by any user
-// and hid every dumbbell movement from Full Gym users. These assertions exist
-// so the pool cannot be silently narrowed back down.
-console.log('\n[2b] Pool breadth — every exercise collection is walked');
+// ─── 2. Named Train movements cannot be added any more ───────────────────────
+console.log('\n[2] No off-library Train movement can be put in a session');
 
-const REQUIRED_COLLECTIONS = [
-  'CARDIO_WARMUPS',
-  'PREP',
-  'MECHANICAL',
-  'NEURO',
-  'POWER_MECHANICAL',
-  'POWER_NEURO',
-  'PREHAB',
-  'FINISHERS',
-  'COOLDOWN',
-  'CONDITIONING_WORKOUTS',
-  'GOAL_CONDITIONING_BLOCKS',
-  'STANDALONE_PREHAB',
-  'STANDALONE_FLEXIBILITY',
-  'WEEKLY_LOWER_BODY',
-  'WEEKLY_UPPER_BODY',
-  'WEEKLY_FULL_BODY',
+/**
+ * Movements that WERE reachable here and are on no list of Archie's.
+ *
+ * Named one at a time because a count can pass while a specific movement leaks,
+ * and because these are the ones that would hurt: a Leg Press and a Lying Leg
+ * Curl are machines the library deliberately does not use, a DB Bicep Curl is
+ * isolation work the library has none of, and a Back Squat is the old
+ * catalogue's own name for a movement the library spells Barbell Back Squat —
+ * so leaking it would split one lift's history across two names.
+ */
+const OFF_LIBRARY = [
+  'Back Squat',
+  'Barbell Bench Press',
+  'Pull-Up',
+  'Goblet Squat',
+  'Romanian Deadlift',
+  'Overhead Press',
+  'Lat Pulldown',
+  'Leg Press',
+  'Leg Extension',
+  'Lying Leg Curl',
+  'DB Bicep Curl',
+  'Close-Grip Bench Press',
+  'Med Ball Overhead Slam',
+  'Box Jump (Step-Down)',
+  'Cossack Squat Flow',
+  "World's Greatest Stretch",
+  'Assault Bike Warm-Up',
+  'Rowing Machine Warm-Up',
+  'Farmers Carry',
+  'Sled Drag',
 ];
 
-for (const name of REQUIRED_COLLECTIONS) {
+const leaked = OFF_LIBRARY.filter((n) => OFFERED.has(n.toLowerCase()));
+check(
+  `none of the ${OFF_LIBRARY.length} named Train movements is reachable`,
+  leaked.length === 0,
+  leaked.map((n) => `${n} via ${OFFERED.get(n.toLowerCase()).where}`).join(', ')
+);
+
+// And the list is a list of real movements, not of typos that could never leak.
+const notReal = OFF_LIBRARY.filter((n) => SOURCE.has(n.toLowerCase()));
+check(
+  'and none of them is secretly a library record under another spelling',
+  notReal.length === 0,
+  notReal.join(', ')
+);
+
+// The self-logging cardio tiles are the one thing on this screen that is not
+// drawn from the index, so they are named here too. Three are conditioning
+// records; the fourth is the blank one somebody logs their own run into.
+const tiles = [...customSrc.matchAll(/^\s*name: '([^']+)',$/gm)].map((m) => m[1]);
+const cardioTiles = tiles.filter((n) => n !== 'Other Cardio');
+check(
+  `every cardio tile is a conditioning record (${cardioTiles.join(', ')})`,
+  cardioTiles.length >= 3 &&
+    cardioTiles.every((n) =>
+      CONDITIONING_EXERCISES.some((e) => e.name.toLowerCase() === n.toLowerCase())
+    ),
+  cardioTiles
+    .filter((n) => !CONDITIONING_EXERCISES.some((e) => e.name.toLowerCase() === n.toLowerCase()))
+    .join(', ')
+);
+
+// ─── 3. A beginner cannot add work above their level ─────────────────────────
+console.log('\n[3] Nobody is offered a rung they have not reached');
+
+for (const ceiling of [1, 2, 3]) {
+  const above = [];
+  for (const [label, kit, tier] of KITS) {
+    const owned = ownedTiersFor(tier);
+    for (const e of builderExercises(ceiling, kit)) {
+      const level = LEVEL.get(e.template.name.toLowerCase());
+      if (level !== undefined && level > ceiling) above.push(`catalogue/${label}/${e.template.name}`);
+    }
+    for (const { key: goal } of SESSION_GOALS) {
+      for (const { key: focus } of SESSION_FOCUSES) {
+        for (const block of blocksForGoal(goal)) {
+          const { options, all } = optionsForBlock(
+            block,
+            { focus, kpi: null, ceiling },
+            owned,
+            new Set(),
+            kit
+          );
+          for (const t of [...options, ...all]) {
+            const level = LEVEL.get(t.name.toLowerCase());
+            if (level !== undefined && level > ceiling) {
+              above.push(`${label}/${goal}/${focus}/${block.id}/${t.name}(L${level})`);
+            }
+          }
+        }
+      }
+    }
+  }
   check(
-    `pool walks ${name}`,
-    new RegExp(`\\b${name}\\b`).test(poolFnBody),
-    `${name} dropped from the walk — those exercises become unreachable in the custom picker`
+    `at level ${ceiling}, nothing above level ${ceiling} is reachable by any route`,
+    above.length === 0,
+    [...new Set(above)].slice(0, 8).join(', ')
   );
 }
 
+// Non-vacuity: the ceiling has to be removing something, or the three checks
+// above are satisfied by a filter that does nothing.
+const beginnerCatalogue = builderExercises(1, ['fullgym']).length;
+const athleteCatalogue = builderExercises(4, ['fullgym']).length;
 check(
-  'pool does NOT include ORM_TEST',
-  !/\bORM_TEST\b/.test(poolFnBody),
-  'ORM_TEST is a 1RM testing protocol driven by test week, not a movement to add to a session'
+  `a beginner's catalogue is smaller than an athlete's (${beginnerCatalogue} vs ${athleteCatalogue})`,
+  beginnerCatalogue < athleteCatalogue && beginnerCatalogue > 100,
+  ''
 );
 
-// The old signature took a tier and returned only that tier's exercises, which
-// is what hid dumbbell work from Full Gym users. It must stay tier-agnostic,
-// with equipment applied as a filter in the UI instead.
-check(
-  'getAllPickableExercises takes no tier argument',
-  /export function getAllPickableExercises\(\s*\)/.test(dbSrc),
-  'a tier parameter means the pool is being narrowed at source again — filter by equipment in the picker instead'
+// And the hardest thing in the library really is out of a beginner's reach.
+const beginnerNames = new Set(
+  builderExercises(1, ['fullgym']).map((e) => e.template.name.toLowerCase())
 );
-
-check(
-  'pickable entries carry their equipment tiers',
-  poolFnBody.includes('tiers'),
-  'without per-exercise tiers the picker cannot offer an equipment filter'
-);
-
-// ─── 3. MAIN_LIFTS tiers — all internal tiers exist per session type ──────────
-console.log(
-  '\n[3] MAIN_LIFTS tiers — bodyweight / dumbbells / fullgym present for each session type'
-);
-
-const INTERNAL_TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
-const MAIN_SESSION_TYPES = ['squat', 'bench', 'deadlift'];
-
-// Locate MAIN_LIFTS constant in exercise-db.ts and find its boundaries
-const mainLiftsStart = dbSrc.indexOf('const MAIN_LIFTS');
-let mainLiftsBlock = '';
-
-if (mainLiftsStart !== -1) {
-  const openBrace = dbSrc.indexOf('{', mainLiftsStart);
-  let depth = 0;
-  let end = -1;
-
-  for (let i = openBrace; i < dbSrc.length; i++) {
-    if (dbSrc[i] === '{') depth++;
-    else if (dbSrc[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-  mainLiftsBlock = end !== -1 ? dbSrc.slice(openBrace, end + 1) : '';
+for (const name of ['Depth Jumps', 'Barbell Back Squat', 'Pull Ups', 'Reeves Deadlift']) {
+  check(
+    `a beginner cannot add "${name}"`,
+    !beginnerNames.has(name.toLowerCase()),
+    'it is in the beginner catalogue'
+  );
 }
 
+// ─── 4. Ids are unique, so set logging and swaps cannot cross wires ──────────
+console.log('\n[4] No two offerable exercises share an id');
+
+const byId = new Map();
+const idDupes = [];
+for (const e of builderExercises(4, ['fullgym'])) {
+  const prior = byId.get(e.template.id);
+  if (prior && prior !== e.template.name) idDupes.push(`${e.template.id}: ${prior} / ${e.template.name}`);
+  else byId.set(e.template.id, e.template.name);
+}
 check(
-  'MAIN_LIFTS constant found in exercise-db.ts',
-  mainLiftsStart !== -1,
-  'constant not found — custom picker has no main lift exercises'
+  `all ${byId.size} offerable exercises have an id of their own`,
+  idDupes.length === 0,
+  idDupes.slice(0, 6).join(', ')
 );
-
-if (mainLiftsBlock) {
-  for (const sessionType of MAIN_SESSION_TYPES) {
-    // Find the session-type block (e.g. squat: { ... }) and check it has all tiers
-    const stIdx = mainLiftsBlock.indexOf(`${sessionType}:`);
-    if (stIdx === -1) {
-      check(
-        `MAIN_LIFTS['${sessionType}'] key exists`,
-        false,
-        `'${sessionType}' key not found in MAIN_LIFTS — all ${sessionType} exercises missing from custom picker`
-      );
-      continue;
-    }
-
-    const stObjOpen = mainLiftsBlock.indexOf('{', stIdx);
-    let stDepth = 0;
-    let stEnd = -1;
-
-    for (let i = stObjOpen; i < mainLiftsBlock.length; i++) {
-      if (mainLiftsBlock[i] === '{') stDepth++;
-      else if (mainLiftsBlock[i] === '}') {
-        stDepth--;
-        if (stDepth === 0) {
-          stEnd = i;
-          break;
-        }
-      }
-    }
-
-    const stBlock = stEnd !== -1 ? mainLiftsBlock.slice(stObjOpen, stEnd + 1) : '';
-
-    for (const tier of INTERNAL_TIERS) {
-      check(
-        `MAIN_LIFTS['${sessionType}']['${tier}'] exists`,
-        stBlock.includes(`${tier}:`),
-        `tier '${tier}' missing from MAIN_LIFTS['${sessionType}'] — ${sessionType} exercises vanish from custom picker for this tier`
-      );
-    }
-  }
-}
-
-// ─── 4. ACCESSORIES tiers — all internal tiers exist per session type ─────────
-console.log(
-  '\n[4] ACCESSORIES tiers — bodyweight / dumbbells / fullgym present for each session type'
-);
-
-const accessoriesStart = dbSrc.indexOf('const ACCESSORIES');
-let accessoriesBlock = '';
-
-if (accessoriesStart !== -1) {
-  const openBrace = dbSrc.indexOf('{', accessoriesStart);
-  let depth = 0;
-  let end = -1;
-
-  for (let i = openBrace; i < dbSrc.length; i++) {
-    if (dbSrc[i] === '{') depth++;
-    else if (dbSrc[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-  accessoriesBlock = end !== -1 ? dbSrc.slice(openBrace, end + 1) : '';
-}
-
-check(
-  'ACCESSORIES constant found in exercise-db.ts',
-  accessoriesStart !== -1,
-  'constant not found — custom picker has no accessory exercises'
-);
-
-if (accessoriesBlock) {
-  for (const sessionType of MAIN_SESSION_TYPES) {
-    const stIdx = accessoriesBlock.indexOf(`${sessionType}:`);
-    if (stIdx === -1) {
-      check(
-        `ACCESSORIES['${sessionType}'] key exists`,
-        false,
-        `'${sessionType}' key not found in ACCESSORIES — all ${sessionType} accessories missing from custom picker`
-      );
-      continue;
-    }
-
-    const stObjOpen = accessoriesBlock.indexOf('{', stIdx);
-    let stDepth = 0;
-    let stEnd = -1;
-
-    for (let i = stObjOpen; i < accessoriesBlock.length; i++) {
-      if (accessoriesBlock[i] === '{') stDepth++;
-      else if (accessoriesBlock[i] === '}') {
-        stDepth--;
-        if (stDepth === 0) {
-          stEnd = i;
-          break;
-        }
-      }
-    }
-
-    const stBlock = stEnd !== -1 ? accessoriesBlock.slice(stObjOpen, stEnd + 1) : '';
-
-    for (const tier of INTERNAL_TIERS) {
-      check(
-        `ACCESSORIES['${sessionType}']['${tier}'] exists`,
-        stBlock.includes(`${tier}:`),
-        `tier '${tier}' missing from ACCESSORIES['${sessionType}'] — ${sessionType} accessories disappear from custom picker for this tier`
-      );
-    }
-  }
-}
 
 // ─── 5. Engine bypass — workout-engine.ts returns [] for 'custom' ─────────────
-console.log(
-  "\n[5] Engine bypass — workout-engine.ts explicitly returns [] for sessionType === 'custom'"
-);
+console.log("\n[5] Engine bypass — workout-engine.ts returns [] for sessionType === 'custom'");
 
 check(
   "workout-engine.ts has explicit 'custom' bypass returning []",
@@ -334,18 +337,17 @@ check(
   "bypass missing — engine may generate a random session instead of using the user's picked exercises"
 );
 
-// Verify the [] return is in close proximity to the 'custom' check (not a coincidence)
 const customBypassIdx = engineSrc.indexOf("sessionType === 'custom'");
 const returnEmptyIdx =
   customBypassIdx !== -1 ? engineSrc.indexOf('return [];', customBypassIdx) : -1;
 check(
   "return [] follows immediately after the 'custom' check (within 50 chars)",
   returnEmptyIdx !== -1 && returnEmptyIdx - customBypassIdx < 50,
-  "return [] is too far from the 'custom' check — may not be the custom bypass; verify workout-engine.ts lines"
+  "return [] is too far from the 'custom' check — may not be the custom bypass"
 );
 
 // ─── 6. Store contract — pendingCustomExercises + setPendingCustomExercises ───
-console.log('\n[6] Store contract — Zustand store declares pendingCustomExercises and setter');
+console.log('\n[6] Store contract — the store carries the picks to the session screen');
 
 check(
   'store.ts declares pendingCustomExercises field',
@@ -359,21 +361,38 @@ check(
   'action missing — custom-session.tsx cannot save selected exercises to the store'
 );
 
-// ─── 7. Picker wiring — custom-session.tsx imports pool and calls store action ─
-console.log(
-  '\n[7] Picker wiring — custom-session.tsx imports getAllPickableExercises and setPendingCustomExercises'
+// ─── 7. Picker wiring — the screen reads the builder's index, not the database ─
+console.log("\n[7] Picker wiring — the screen's pool is the builder's index");
+
+/**
+ * Source-read, and disclosed as such.
+ *
+ * app/custom-session.tsx is a React screen these checks cannot run, so the last
+ * few centimetres between the index and the list on screen are read rather than
+ * driven. Everything above this line is measured by running the real code.
+ */
+check(
+  'custom-session.tsx builds its pool from builderExercises',
+  /builderExercises\(ceiling, userKit\)/.test(customSrc),
+  'the screen is not reading the builder index — it may be back on the whole database'
 );
 
 check(
-  'custom-session.tsx imports getAllPickableExercises',
-  customSrc.includes('getAllPickableExercises'),
-  'import not found — picker has no exercise pool to display'
+  'and it no longer reads the whole exercise database',
+  !customSrc.includes('getAllPickableExercises'),
+  'getAllPickableExercises is back in the screen, so every Train movement is pickable again'
 );
 
 check(
-  'custom-session.tsx calls getAllPickableExercises to populate the picker',
-  customSrc.includes('getAllPickableExercises('),
-  'call site not found — picker never fetches exercises even if the import exists'
+  'the level ceiling comes from the profile, the way Train works it out',
+  /levelCeilingFor\(userProfile\)/.test(customSrc),
+  'the screen is not asking for a ceiling, so every rung is on offer to everybody'
+);
+
+check(
+  'and the ceiling is carried into every step',
+  (customSrc.match(/ceiling\b/g) ?? []).length >= 6 && /kpi: kpiTemplate, ceiling/.test(customSrc),
+  'the steps are not being given the ceiling'
 );
 
 check(
@@ -389,38 +408,12 @@ check(
 );
 
 // ─── 8. Session wiring — session.tsx reads pendingCustomExercises from store ──
-console.log('\n[8] Session wiring — session.tsx reads pendingCustomExercises from the store');
+console.log('\n[8] Session wiring — session.tsx reads the picks back');
 
 check(
   'session.tsx references pendingCustomExercises',
   sessionSrc.includes('pendingCustomExercises'),
-  'reference not found — custom exercises are saved to the store but never loaded into the session'
-);
-
-// ─── 9. ID uniqueness — no duplicate IDs across MAIN_LIFTS and ACCESSORIES ────
-console.log('\n[9] ID uniqueness — no duplicate IDs across MAIN_LIFTS and ACCESSORIES');
-
-// IDs in these collections follow the pattern: id: 'some-id'
-// We scope the search to MAIN_LIFTS and ACCESSORIES blocks to avoid false positives
-// from other collections.  If we can't isolate the blocks, fall back to the full file.
-const searchBlock = (mainLiftsBlock || '') + (accessoriesBlock || '') || dbSrc;
-
-const idMatches = searchBlock.match(/id:\s*'[^']+'/g) ?? [];
-const ids = idMatches.map((m) => m.replace(/id:\s*'/, '').replace(/'$/, ''));
-
-// Filter to IDs that look like exercise IDs (exclude conditioning, prehab, etc.)
-const seen = new Set();
-const dupes = [];
-
-for (const id of ids) {
-  if (seen.has(id)) dupes.push(id);
-  else seen.add(id);
-}
-
-check(
-  `all ${ids.length} exercise IDs in MAIN_LIFTS + ACCESSORIES are unique (no duplicates)`,
-  dupes.length === 0,
-  dupes.length > 0 ? `duplicate IDs: ${dupes.join(', ')}` : ''
+  'reference not found — custom exercises are saved to the store but never loaded'
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

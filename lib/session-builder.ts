@@ -1,12 +1,20 @@
 import type { CustomExercise, EquipmentTier, ExerciseCategory, PainRegion } from './store';
 import {
-  getAllPickableExercises,
-  getMainLift,
+  getRestoreExercises,
   tierRequiredFor,
   canPerformWith,
   type ExerciseTemplate,
   type InternalTier,
 } from './exercise-db';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  hasAuthoredContent,
+  type KitRequirement,
+  type LibraryLevel,
+  type LibraryRole,
+} from './exercise-library';
+import { canPerformWith as kitAllows, type KitDemand } from './kit';
 import {
   canBeMainLift,
   patternGroupOf,
@@ -73,14 +81,22 @@ export const BUILDER_CATEGORIES: BuilderCategory[] = [
   'conditioning',
 ];
 
+/**
+ * The heading each slice of the index is shown under.
+ *
+ * Plain step names, the words somebody would use out loud. "Active Stretch"
+ * and "Core & Prehab" were the app naming its own internals at the user: the
+ * step is a stretch and the step is core and prehab work, and neither needs a
+ * capital letter in the middle or an ampersand to say so.
+ */
 export const BUILDER_CATEGORY_LABELS: Record<BuilderCategory, string> = {
-  cardio: 'Cardio',
-  active_stretch: 'Active Stretch',
+  cardio: 'Warm-up',
+  active_stretch: 'Stretch',
   activation: 'Activation',
   power: 'Power',
   kpi: 'Main exercise',
-  accessory: 'Accessory',
-  core_prehab: 'Core & Prehab',
+  accessory: 'Accessories',
+  core_prehab: 'Core and prehab',
   conditioning: 'Conditioning',
 };
 
@@ -256,6 +272,61 @@ const STABILISER_MUSCLES =
 const TRUNK_MUSCLES = /\bcore\b|abdomin|oblique|transversus|erector spinae|diaphragm/i;
 
 /**
+ * What job the library itself says a record does, where the record is one.
+ *
+ * The library carries `role` on every movement record and `role: 'conditioning'`
+ * on all nine conditioning records. That is a written answer from the physio,
+ * and it beats anything this file can derive from a name or a filing: the nine
+ * conditioning records are all filed `category: 'cardio'`, so the derivation
+ * alone put Sled Push in the warm-up step and left the Conditioning step unable
+ * to reach a single one of them.
+ */
+/**
+ * The three library fields a plain ExerciseTemplate does not carry.
+ *
+ * Written out rather than intersecting the two record types: a LibraryExercise
+ * and a ConditioningExercise disagree about `role`, so their intersection is
+ * `never` and every field read through it silently stops compiling.
+ */
+type LibraryFields = {
+  role?: LibraryRole | 'conditioning';
+  level?: LibraryLevel;
+  kit?: KitRequirement;
+  libraryName?: string;
+};
+
+function libraryRoleOf(t: ExerciseTemplate): LibraryRole | 'conditioning' | undefined {
+  return (t as LibraryFields).role;
+}
+
+/** The rung a library record sits on. Restore and conditioning records have none. */
+function libraryLevelOf(t: ExerciseTemplate): LibraryLevel | undefined {
+  return (t as LibraryFields).level;
+}
+
+/**
+ * Where the document itself lists a record, as a tie-break with an opinion.
+ *
+ * The library is written pattern by pattern and easiest first inside each, so
+ * its own order is a coaching order. Anything not in it sorts last, which only
+ * ever applies to the nine finishers and the Restore rows, and neither is
+ * ranked by this.
+ */
+let _libraryOrder: Map<string, number> | null = null;
+function libraryOrderOf(t: ExerciseTemplate): number {
+  if (!_libraryOrder) {
+    _libraryOrder = new Map(LIBRARY_EXERCISES.map((e, i) => [e.name.toLowerCase(), i]));
+  }
+  return _libraryOrder.get(t.name.toLowerCase()) ?? LIBRARY_EXERCISES.length;
+}
+
+/** What a record asks for, in the library's own kit keys, where it says. */
+function kitDemandOf(t: ExerciseTemplate): KitDemand | undefined {
+  const fields = t as LibraryFields;
+  return fields.kit ? { kit: fields.kit, libraryName: fields.libraryName } : undefined;
+}
+
+/**
  * The one block an exercise belongs to.
  *
  * Total: every pickable exercise lands somewhere. The default arm is
@@ -265,6 +336,26 @@ const TRUNK_MUSCLES = /\bcore\b|abdomin|oblique|transversus|erector spinae|diaph
  * entirely is a real problem.
  */
 export function builderCategoryOf(t: ExerciseTemplate): BuilderCategory {
+  // The library's own word first, ahead of both the overrides and the rules:
+  // those exist to correct a derivation, and a record that states its job needs
+  // no derivation to correct.
+  const role = libraryRoleOf(t);
+  if (role === 'conditioning') return 'conditioning';
+  if (role === 'power') return 'power';
+  if (role === 'main') return canBeMainLift(t) ? 'kpi' : derivedCategoryOf(t);
+  if (role === 'accessory') {
+    // The document calls it support work, so it is support work whatever the
+    // movement rules make of it. A Wall Sit and a Glute Bridge are both loaded
+    // enough for canBeMainLift to accept, and offering either as the lift a
+    // training block is built on is the thing the library exists to stop.
+    const derived = derivedCategoryOf(t);
+    return derived === 'kpi' ? 'accessory' : derived;
+  }
+  return derivedCategoryOf(t);
+}
+
+/** The rules, for a record that does not say what job it does. */
+function derivedCategoryOf(t: ExerciseTemplate): BuilderCategory {
   const override = CATEGORY_OVERRIDES[t.name.toLowerCase()];
   if (override) return override;
 
@@ -323,10 +414,22 @@ export function builderCategoryOf(t: ExerciseTemplate): BuilderCategory {
 export function builderRolesOf(t: ExerciseTemplate): BuilderCategory[] {
   const primary = builderCategoryOf(t);
   const roles = new Set<BuilderCategory>([primary]);
+  const role = libraryRoleOf(t);
 
   // Every compound is an accessory in someone's programme — that is what a
   // second and third compound in a session is.
   if (primary === 'kpi') roles.add('accessory');
+
+  // The nine conditioning records are the only machines and locomotion the app
+  // still owns, so they are also the whole of the warm-up step. Without this
+  // the Cardio Warm-Up block has one option in it, a Restore walk, and the
+  // first step of every built session is the same card for everybody.
+  if (role === 'conditioning') roles.add('cardio');
+
+  // A record the library calls an accessory is offerable as one wherever else
+  // it also lands. Eight of them are carries, which the pattern rules read as
+  // conditioning; that is a fair finisher and a fair accessory both.
+  if (role === 'accessory') roles.add('accessory');
 
   // Prehab splits cleanly in two by what the movement actually asks of you: a
   // stretch prepares range, a contraction primes a muscle.
@@ -584,7 +687,7 @@ const CORE_PREHAB_BLOCK: BuilderBlock = {
   id: 'core_prehab',
   category: 'core_prehab',
   sessionCategory: 'prehab',
-  title: 'Core & Prehab',
+  title: 'Core and prehab',
   purpose: 'Trunk stability and joint work for what you just loaded.',
   picks: 1,
   optional: true,
@@ -878,6 +981,22 @@ export interface RelevanceContext {
   focus: SessionFocus;
   /** Null until the KPI step is done — before then, the focus stands in for it. */
   kpi: ExerciseTemplate | null;
+  /**
+   * The hardest library rung this person may be offered, from levelCeilingFor.
+   *
+   * Carried here rather than passed alongside because every caller already
+   * builds a context and the ceiling is the same kind of fact as the focus: it
+   * is part of what the session is being built for. A caller that leaves it out
+   * gets `1`, the Beginner rung, because the two ways of being wrong are not
+   * the same size — a thin step is a poor screen, and an Athlete-only depth
+   * jump in front of a beginner is a hurt person.
+   */
+  ceiling: LibraryLevel;
+}
+
+/** Beginner unless told otherwise. See RelevanceContext.ceiling. */
+function ceilingOf(ctx: RelevanceContext): LibraryLevel {
+  return ctx.ceiling ?? 1;
 }
 
 /**
@@ -1032,6 +1151,18 @@ function cardioAffinity(t: ExerciseTemplate): Set<PatternGroup> {
  */
 const CARDIO_MACHINES = /\bbike\b|tread|\brow(ing|er)?\b|ski ?erg|elliptical|jump rope|\bskip\b/i;
 
+/**
+ * Work that raises the pulse and is not a warm-up.
+ *
+ * The warm-up step reads a general drill — one with no pattern of its own — as
+ * suiting any lift, which was right when the pool was seventeen warm-ups. The
+ * pool is now the nine conditioning records, and three of them are sleds: no
+ * affinity rule names a sled, so all three read as general warm-ups and a bench
+ * press session opened by pushing a loaded sled. Pushing a prowler is the
+ * hardest thing in the app; it is not how you start.
+ */
+const HEAVY_HAUL = /sled|prowler|yoke/i;
+
 /** The finishing modalities the brief names, plus their obvious siblings. */
 const FINISHER_MODALITIES =
   /sled|prowler|battle rope|rope slam|assault bike|air bike|ski erg|rower|farmer|carry|yoke|sprint|shuttle/i;
@@ -1074,7 +1205,7 @@ export function relevanceOf(
       // is the grade that hides an option from the step and deletes it from a
       // session when the lift changes. Ranking is what separates the two.
       const affinity = cardioAffinity(t);
-      if (affinity.size === 0) return 'direct';
+      if (affinity.size === 0) return HEAVY_HAUL.test(t.name) ? 'related' : 'direct';
       return contextPatterns(ctx).some((p) => affinity.has(p)) ? 'direct' : 'related';
     }
 
@@ -1146,32 +1277,131 @@ interface IndexedExercise {
   tiers: InternalTier[];
   roles: BuilderCategory[];
   groups: Set<MuscleGroup>;
+  /** Undefined where the record has no rung: Restore work and the nine finishers. */
+  level?: LibraryLevel;
+}
+
+/**
+ * The equipment each rung of the old three-rung ladder supplies, in kit keys.
+ *
+ * The ladder is what the catalogue's three filter chips are, so it has to keep
+ * answering; the library does not think in rungs, it thinks in the five things
+ * somebody ticked. This maps one onto the other for the chips alone. Every real
+ * offer is decided by `equipmentAllows` against the user's own ticks.
+ */
+const TIER_KIT: Record<InternalTier, EquipmentTier[]> = {
+  bodyweight: ['bodyweight'],
+  dumbbells: ['bodyweight', 'dumbbells', 'kettlebells'],
+  fullgym: ['fullgym'],
+};
+
+const TIER_LADDER: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
+
+/** Which rungs of the chip ladder can supply what this record asks for. */
+function tiersFor(t: ExerciseTemplate): InternalTier[] {
+  const demand = kitDemandOf(t);
+  if (demand) return TIER_LADDER.filter((rung) => kitAllows(demand, TIER_KIT[rung]));
+  const need = TIER_RANK[tierRequiredFor(t.equipmentRequired)];
+  return TIER_LADDER.filter((rung) => TIER_RANK[rung] >= need);
 }
 
 let _indexCache: IndexedExercise[] | null = null;
 
+/**
+ * EVERYTHING BUILD YOUR OWN MAY OFFER, AND NOTHING ELSE.
+ *
+ * Three sources and no others: the exercise library, the nine conditioning
+ * records, and whatever the Restore tab itself prescribes. That is the whole of
+ * what the app serves anywhere else, and until now it was not what this screen
+ * served: the index was `getAllPickableExercises`, which deep-walks every
+ * collection in exercise-db, so a session built here could be assembled
+ * entirely out of movements on no list of Archie's — and then logged, charted
+ * and progressed against like any other.
+ *
+ * Deduplicated by name, library first, because a name is what a personal best,
+ * a chart and a recalled note are keyed on. Where the same movement exists as
+ * both a library record and a Restore row, the library record is the one with
+ * the level, the kit and the written prescription, so it wins.
+ *
+ * Unwritten library records are left out: `hasAuthoredContent` is false when a
+ * record has no cue, and a card with no coaching line on it is the app
+ * admitting it has nothing to say about the exercise it just asked for.
+ */
 function index(): IndexedExercise[] {
   if (_indexCache) return _indexCache;
-  _indexCache = getAllPickableExercises().map((p) => ({
-    template: p.template,
-    tiers: p.tiers,
-    roles: builderRolesOf(p.template),
-    groups: muscleGroupsOf(p.template),
+  const byName = new Map<string, ExerciseTemplate>();
+  const add = (t: ExerciseTemplate) => {
+    const key = t.name.toLowerCase();
+    if (!byName.has(key)) byName.set(key, t);
+  };
+  for (const e of LIBRARY_EXERCISES) if (hasAuthoredContent(e)) add(e);
+  for (const e of CONDITIONING_EXERCISES) if (hasAuthoredContent(e)) add(e);
+  for (const e of getRestoreExercises()) add(e);
+
+  _indexCache = [...byName.values()].map((t) => ({
+    template: t,
+    tiers: tiersFor(t),
+    roles: builderRolesOf(t),
+    groups: muscleGroupsOf(t),
+    level: libraryLevelOf(t),
   }));
   return _indexCache;
 }
 
-/** Every pickable exercise whose primary category is this one. */
+/** Every exercise the builder knows, whatever block it belongs to. */
+export interface BuilderExercise {
+  template: ExerciseTemplate;
+  /** Which of the three catalogue chips this record answers to. */
+  tiers: InternalTier[];
+  /** Every step it may be offered in. */
+  roles: BuilderCategory[];
+  level?: LibraryLevel;
+}
+
+/**
+ * The catalogue behind the "browse everything" escape hatch.
+ *
+ * Takes the ceiling and the kit rather than leaving them to the caller, because
+ * the escape hatch is the one screen where forgetting either is invisible: a
+ * flat list of three hundred names looks exactly as right when it holds an
+ * Athlete depth jump for a beginner as when it does not.
+ */
+export function builderExercises(
+  ceiling: LibraryLevel,
+  userKit: readonly EquipmentTier[]
+): BuilderExercise[] {
+  return index()
+    .filter((e) => withinCeiling(e, ceiling) && equipmentAllows(e.template, userKit))
+    .map((e) => ({ template: e.template, tiers: e.tiers, roles: e.roles, level: e.level }));
+}
+
+/** Every pickable exercise whose primary category is this one, at any level. */
 export function exercisesInCategory(category: BuilderCategory): ExerciseTemplate[] {
   return index()
     .filter((e) => builderCategoryOf(e.template) === category)
     .map((e) => e.template);
 }
 
-function availableIn(e: IndexedExercise, owned: InternalTier[]): boolean {
-  // No tier recorded means the movement needs no equipment.
-  if (e.tiers.length === 0) return true;
-  return e.tiers.some((t) => owned.includes(t));
+/** Is this record on a rung this person is allowed to be given? */
+function withinCeiling(e: { level?: LibraryLevel }, ceiling: LibraryLevel): boolean {
+  return e.level === undefined || e.level <= ceiling;
+}
+
+/**
+ * The kit to judge against: the user's own ticks, or the rung standing in.
+ *
+ * Every caller that has the real answer passes it. The rest — `refreshForKpi`
+ * called from a screen that has only the effective tier, and the checks that
+ * drive a rung at a time — get what that rung supplies, which is the most an
+ * answer of "dumbbells" can honestly be read as.
+ */
+function kitFor(
+  owned: InternalTier[],
+  userKit?: readonly EquipmentTier[]
+): readonly EquipmentTier[] {
+  if (userKit && userKit.length > 0) return userKit;
+  const best = TIER_LADDER.filter((rung) => owned.includes(rung)).pop() ?? 'bodyweight';
+  return TIER_KIT[best];
 }
 
 /**
@@ -1183,30 +1413,21 @@ function availableIn(e: IndexedExercise, owned: InternalTier[]): boolean {
  * everywhere and the first thing a bodyweight user was offered was a machine.
  *
  * Every other block leaked the same way and less visibly, because a leak is
- * only obvious when the exercise is NAMED after its equipment. The Core &
- * Prehab step's top-ranked option — the one it auto-fills with — was an Ab
+ * only obvious when the exercise is NAMED after its equipment. The Core and
+ * prehab step's top-ranked option — the one it auto-fills with — was an Ab
  * Wheel Rollout for all twelve bodyweight builds and all twelve dumbbell ones,
  * and it read as harmless because its suggested load is the word "Bodyweight".
  *
- * The requirement is now checked directly rather than inferred from where the
- * catalogue happens to file a movement, so the two cannot disagree again.
+ * A LIBRARY RECORD IS ASKED ITS OWN QUESTION. `equipmentRequired` on a library
+ * record is a holding answer that says 'fullgym' for anything needing any kit
+ * at all, so reading it would hide every dumbbell movement in the library from
+ * somebody holding dumbbells. `kit` is the real requirement, an AND of ORs, and
+ * lib/kit.ts is what the rest of the app already asks.
  */
-function equipmentAllows(
-  t: ExerciseTemplate,
-  owned: InternalTier[],
-  userKit?: readonly EquipmentTier[]
-): boolean {
-  /**
-   * The user's OWN five choices where the caller has them.
-   *
-   * tierRequiredFor answers on a three-rung internal ladder where bands and
-   * bodyweight share a rung, so this returned true for a banded lateral walk
-   * offered to somebody who had ticked "No Equipment" and nothing else. Given
-   * the real selection, canPerformWith asks whether anything they own supplies
-   * what the movement needs, which is the question that was always meant.
-   */
-  if (userKit) return canPerformWith(t.equipmentRequired, userKit);
-  return owned.includes(tierRequiredFor(t.equipmentRequired));
+function equipmentAllows(t: ExerciseTemplate, kit: readonly EquipmentTier[]): boolean {
+  const demand = kitDemandOf(t);
+  if (demand) return kitAllows(demand, kit);
+  return canPerformWith(t.equipmentRequired, kit);
 }
 
 /**
@@ -1246,31 +1467,7 @@ export interface StepOptions {
  * Deterministic, so the same build offers the same order twice — a list that
  * reshuffles between visits is one nobody can learn.
  */
-/**
- * The lift the app itself would programme for this tier, by name.
- *
- * The KPI step used to rank every `main` template the same and let the
- * alphabet break the tie, so a bodyweight lower-body session led with — and
- * defaulted to — a Bodyweight Good Morning ahead of a Bodyweight Squat. Rather
- * than invent a second opinion about which lift is the centrepiece, borrow the
- * one the generator already acts on.
- */
-function programmedMainLiftNames(owned: InternalTier[]): Set<string> {
-  const names = new Set<string>();
-  for (const tier of owned) {
-    for (const sessionType of ['squat', 'bench', 'deadlift'] as const) {
-      names.add(getMainLift(sessionType, tier).name.toLowerCase());
-    }
-  }
-  return names;
-}
-
-function rankOf(
-  block: BuilderBlock,
-  t: ExerciseTemplate,
-  ctx: RelevanceContext,
-  programmed: Set<string>
-): number {
+function rankOf(block: BuilderBlock, t: ExerciseTemplate, ctx: RelevanceContext): number {
   const target = contextGroups(ctx);
   let shared = 0;
   for (const g of muscleGroupsOf(t)) if (target.has(g)) shared++;
@@ -1289,16 +1486,40 @@ function rankOf(
       const affinity = cardioAffinity(t);
       const machine = CARDIO_MACHINES.test(t.name);
       const matches = affinity.size > 0 && contextPatterns(ctx).some((p) => affinity.has(p));
-      const base = matches ? (machine ? 0 : 1) : affinity.size === 0 ? 2 : machine ? 3 : 4;
+      // A sled sorts last whatever else is true of it. See HEAVY_HAUL.
+      const base = HEAVY_HAUL.test(t.name)
+        ? 5
+        : matches
+          ? machine
+            ? 0
+            : 1
+          : affinity.size === 0
+            ? 2
+            : machine
+              ? 3
+              : 4;
       // The cool-down walks sit in this block because they are continuous
       // locomotion, but a warm-up beats one at warming up.
       return base * 2 + (t.category === 'prep' ? 0 : 1);
     }
-    case 'kpi':
-      // The exact lift the generator would programme leads, then the rest of
-      // the main lifts, then everything else eligible to carry a session.
-      if (programmed.has(t.name.toLowerCase())) return 0;
-      return t.category === 'main' ? 1 : 2;
+    case 'kpi': {
+      // The library's own answer, in the library's own order: a record it calls
+      // a main movement leads, then the rung nearest this person's ceiling,
+      // then the order the document itself lists them in. That is exactly the
+      // walk slotPool makes when the app programmes a session, so the lift this
+      // step defaults to is the lift Train would have reached for.
+      //
+      // The document order matters as much as the two rules above it, because
+      // without it the tie falls through to the alphabet: at Beginner every
+      // lower-body main sits on the same rung, and a bodyweight build led with
+      // — and defaulted to — Alternating Reverse Lunges ahead of the squat.
+      // This step used to be ordered by the lift the OLD generator would have
+      // programmed, and not one of those names is in the library.
+      const ceiling = ceilingOf(ctx);
+      const rung = Math.min(libraryLevelOf(t) ?? 1, ceiling);
+      const job = libraryRoleOf(t) === 'main' ? 0 : 1;
+      return (job * 8 + (ceiling - rung)) * 1000 + libraryOrderOf(t);
+    }
     case 'volume':
       // An extra volume block is where isolation work belongs.
       return (tierOf(t) === 'isolation' ? 0 : 20) + onTarget;
@@ -1342,15 +1563,24 @@ export function optionsForBlock(
   userKit?: readonly EquipmentTier[]
 ): StepOptions {
   const taken = new Set([...exclude].map((n) => n.toLowerCase()));
+  const ceiling = ceilingOf(ctx);
+  const kit = kitFor(owned, userKit);
+  /**
+   * THE CEILING IS APPLIED HERE, ONCE, BEFORE ANYTHING WIDENS.
+   *
+   * `options`, the widened `options` and the whole-block `all` behind the All
+   * button are all drawn from this one list, so there is no route through this
+   * function that reaches a rung above the ceiling. Widening trades relevance
+   * for breadth; it may never trade safety for it.
+   */
   const pool = index().filter(
     (e) =>
       e.roles.includes(block.category) &&
-      availableIn(e, owned) &&
-      equipmentAllows(e.template, owned, userKit) &&
+      withinCeiling(e, ceiling) &&
+      equipmentAllows(e.template, kit) &&
       !taken.has(e.template.name.toLowerCase())
   );
 
-  const programmed = programmedMainLiftNames(owned);
   const sort = (list: IndexedExercise[]) =>
     [...list]
       .sort(
@@ -1364,7 +1594,7 @@ export function optionsForBlock(
           // plyometrics the step exists to offer.
           RELEVANCE_RANK[relevanceOf(block.category, a.template, ctx)] -
             RELEVANCE_RANK[relevanceOf(block.category, b.template, ctx)] ||
-          rankOf(block, a.template, ctx, programmed) - rankOf(block, b.template, ctx, programmed) ||
+          rankOf(block, a.template, ctx) - rankOf(block, b.template, ctx) ||
           a.template.name.localeCompare(b.template.name)
       )
       .map((e) => e.template);
@@ -1382,13 +1612,12 @@ export function optionsForBlock(
    * sheet; an impossible one costs the session.
    */
   const usable = (t: ExerciseTemplate): ExerciseTemplate => {
-    if (!userKit) return t;
     const swapOk =
       !t.swapAlternative ||
-      canPerformWith(t.swapAlternative.equipmentRequired ?? t.equipmentRequired, userKit);
+      canPerformWith(t.swapAlternative.equipmentRequired ?? t.equipmentRequired, kit);
     const comfortOk =
       !t.comfortVariant ||
-      canPerformWith(t.comfortVariant.equipmentRequired ?? t.equipmentRequired, userKit);
+      canPerformWith(t.comfortVariant.equipmentRequired ?? t.equipmentRequired, kit);
     if (swapOk && comfortOk) return t;
     const out: ExerciseTemplate = { ...t };
     if (!swapOk) delete out.swapAlternative;
@@ -1456,7 +1685,9 @@ export function refreshForKpi(
   picks: BuilderPicks,
   ctx: RelevanceContext,
   owned: InternalTier[],
-  autoFilled: ReadonlySet<BlockId> = new Set()
+  autoFilled: ReadonlySet<BlockId> = new Set(),
+  /** The five choices the user actually made. See equipmentAllows. */
+  userKit?: readonly EquipmentTier[]
 ): BuilderPicks {
   const blocks = blocksForGoal(goal);
   if (!blocks.some((b) => b.id === 'kpi')) return picks;
@@ -1483,7 +1714,7 @@ export function refreshForKpi(
     }
     for (const p of kept) exclude.add(p.template.name);
 
-    const { options } = optionsForBlock(block, ctx, owned, exclude);
+    const { options } = optionsForBlock(block, ctx, owned, exclude, userKit);
     const topped = [...kept];
     for (const t of options) {
       if (topped.length >= current.length) break;
@@ -1700,7 +1931,12 @@ export function buildFromSession(exercises: CustomExercise[]): RestoredBuild {
       // The catalogue's five self-logging machines are cardio whatever they
       // were filed as — they are saved with category 'accessory'.
       if (ex.type === 'cardio') return 'cardio';
-      if (ex.category === 'prep' && builderCategoryOf(template) === 'cardio') return 'cardio';
+      // Asked as "could this have been offered in the warm-up step", not "is it
+      // filed there". The nine conditioning records ARE the warm-up step now,
+      // and every one of them is filed as conditioning first, so asking for the
+      // primary category put a saved Bear Crawl warm-up into the mobility step
+      // and lost the minutes the user had chosen with it.
+      if (ex.category === 'prep' && builderRolesOf(template).includes('cardio')) return 'cardio';
       const candidates = (BLOCKS_FOR_SESSION_CATEGORY[ex.category] ?? []).filter((b) =>
         blocks.has(b)
       );
