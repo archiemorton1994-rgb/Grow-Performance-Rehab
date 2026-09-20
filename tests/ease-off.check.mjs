@@ -215,11 +215,30 @@ check(
   'carrying on must not touch the sets or the weight'
 );
 
+/**
+ * THE ORDER, ASKED AS AN ORDER.
+ *
+ * This used to be one regex holding the whole argument list of the onFeedback
+ * call, which made it a spelling pin: it went red the day the call grew a fifth
+ * argument and moved onto five lines, while the rule it guards - record the
+ * answer first, offer second - had not changed at all. What matters is that the
+ * answer is reported before anything looks at what the answer was.
+ */
+const feedbackHandler = (() => {
+  const start = session.indexOf('const handleFeedback = (f: SetFeedback) => {');
+  if (start === -1) return '';
+  const end = session.indexOf('\n  };', start);
+  return end === -1 ? session.slice(start) : session.slice(start, end);
+})();
+const answerReported = feedbackHandler.indexOf('onFeedback(');
+const offerConsidered = feedbackHandler.indexOf("f === 'challenging'");
 check(
   'the answer is recorded before any of this',
-  /onFeedback\(showFeedback\.exerciseId, showFeedback\.setIndex, f, showFeedback\.kg\);[\s\S]{0,400}f === 'challenging'/.test(
-    session
-  ),
+  feedbackHandler.length > 0 &&
+    answerReported !== -1 &&
+    offerConsidered !== -1 &&
+    answerReported < offerConsidered &&
+    feedbackHandler.includes('showFeedback.exerciseId'),
   'the rating shapes the next session and must not depend on what the user does with the offer'
 );
 

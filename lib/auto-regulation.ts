@@ -413,6 +413,49 @@ export function nextAnchorKg(
   return Math.max(heaviestThisSession, anchorOnFile);
 }
 
+/**
+ * THE ANCHORS A FINISHED SESSION FILES, one per exercise that was loaded.
+ *
+ * Lifted out of the session screen so it can be run rather than read. What it
+ * decides is which exercise each weight lands on, and that question got the
+ * wrong answer for years: a card the user had swapped was logged under the
+ * exercise it replaced, so the weight of the stand-in was filed as the
+ * original's anchor and the stand-in itself built no history at all. The log's
+ * own exerciseId is the whole answer, and the session screen now writes the
+ * swap's id there - see loggedExerciseFor in lib/exercise-swaps.ts.
+ *
+ * Unweighted work files nothing: there is no anchor to move.
+ */
+export interface AnchorLog {
+  exerciseId: string;
+  sets: { weight: number; completed: boolean; skipped?: boolean }[];
+  feedbackRating?: 'very_easy' | 'easy' | 'hard' | null;
+}
+
+export function anchorsFromLogs(
+  logs: AnchorLog[],
+  anchorsOnFile?: Record<string, number>
+): Record<string, number> {
+  const sessionWeights: Record<string, number> = {};
+  for (const log of logs) {
+    const completedWeights = log.sets
+      .filter((s) => s.completed && !s.skipped && s.weight > 0)
+      .map((s) => s.weight);
+    if (completedWeights.length === 0) continue;
+    // Filing the heaviest set outright treated "the most you lifted" as "the
+    // most you can lift", which is a feedback loop: a light session prescribes
+    // a lighter one, and that one is lighter still. See nextAnchorKg — a
+    // session can raise this number freely, and only lower it when the user
+    // actually said a set was too much.
+    sessionWeights[log.exerciseId] = nextAnchorKg(
+      Math.max(...completedWeights),
+      anchorsOnFile?.[log.exerciseId] ?? 0,
+      log.feedbackRating
+    );
+  }
+  return sessionWeights;
+}
+
 /** Button labels, fixed in one place so the UI and the tests cannot drift. */
 export const SET_FEEDBACK_LABELS: Record<SetFeedback, string> = {
   easy: 'Easy',

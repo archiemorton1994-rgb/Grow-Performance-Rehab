@@ -521,10 +521,14 @@ export function generateLibraryConditioningSession(
       const second = spare.length > 1 ? spare[(offset + 1) % spare.length] : undefined;
       offset++;
       card.hasSwap = true;
+      // Each alternative carries the record's own id, so a block tapped into a
+      // different one of the nine records its sets under that one.
+      card.swapId = first.id;
       card.swapName = first.name;
       card.swapCue = first.cue;
       card.swapLoad = first.suggestedLoad;
       if (second) {
+        card.swap2Id = second.id;
         card.swap2Name = second.name;
         card.swap2Cue = second.cue;
         card.swap2Load = second.suggestedLoad;

@@ -154,9 +154,25 @@ export interface Exercise {
    */
   youtubeUrl?: string;
   hasSwap: boolean;
+  /**
+   * THE RECORD EACH ALTERNATIVE IS, so a swap can be logged as itself.
+   *
+   * Filled in wherever the alternative is chosen, from the record that was
+   * chosen. Everything that keys off an exercise - the log, the
+   * double-progression anchor, the previous-best line on the card - reads it
+   * through swapSlotFor in lib/exercise-swaps.ts, so a swapped card moves its
+   * own weight and leaves the exercise it replaced alone.
+   *
+   * Not looked up from the name afterwards: two names resolve to different
+   * records depending on which list is asked (Sled Push and Bear Crawl sit in
+   * both Archie's library and the old catalogue, under different ids), so the
+   * id travels with the choice.
+   */
+  swapId?: string;
   swapName?: string;
   swapCue?: string;
   swapLoad?: string;
+  swap2Id?: string;
   swap2Name?: string;
   swap2Cue?: string;
   swap2Load?: string;
@@ -628,6 +644,13 @@ export function templateToExercise(
   // swap2 = comfortVariant when swapAlternative is also present (gives two distinct alternatives)
   const swap1 = t.swapAlternative ?? t.comfortVariant;
   const swap2 = t.swapAlternative && t.comfortVariant ? t.comfortVariant : undefined;
+  // An authored variant is written as a name, a cue and a load, with no id of
+  // its own, so the id is the catalogue entry of that name where there is one.
+  // The variants are catalogue movements, which is why this lookup is the
+  // right one here and the wrong one for the alternatives fillSwapAlternatives
+  // picks - those carry the id of the record actually chosen.
+  const authoredId = (name?: string) =>
+    name ? pickableByName().get(name.toLowerCase())?.template.id : undefined;
   return {
     id: t.id,
     name: t.name,
@@ -640,9 +663,11 @@ export function templateToExercise(
     videoId: t.videoId,
     youtubeUrl: t.youtubeUrl,
     hasSwap: !!swap1,
+    swapId: authoredId(swap1?.name),
     swapName: swap1?.name,
     swapCue: swap1?.cue,
     swapLoad: swap1?.suggestedLoad,
+    swap2Id: authoredId(swap2?.name),
     swap2Name: swap2?.name,
     swap2Cue: swap2?.cue,
     swap2Load: swap2?.suggestedLoad,
@@ -2161,6 +2186,7 @@ export function generateWorkout(
       );
       const kept = [
         {
+          id: ex.swapId,
           name: ex.swapName,
           cue: ex.swapCue,
           load: ex.swapLoad,
@@ -2168,6 +2194,7 @@ export function generateWorkout(
           reason: ex.swapReason,
         },
         {
+          id: ex.swap2Id,
           name: ex.swap2Name,
           cue: ex.swap2Cue,
           load: ex.swap2Load,
@@ -2178,11 +2205,13 @@ export function generateWorkout(
       return {
         ...ex,
         hasSwap: kept.length > 0,
+        swapId: kept[0]?.id,
         swapName: kept[0]?.name,
         swapCue: kept[0]?.cue,
         swapLoad: kept[0]?.load,
         swapKind: kept[0]?.kind,
         swapReason: kept[0]?.reason,
+        swap2Id: kept[1]?.id,
         swap2Name: kept[1]?.name,
         swap2Cue: kept[1]?.cue,
         swap2Load: kept[1]?.load,
@@ -2405,6 +2434,11 @@ function alternativePool(
     // forced injury substitutions. canPerformWith asks the real question.
     canPerformWith(p.template.equipmentRequired, [tier]) &&
     !usedNames.has(p.template.name.toLowerCase()) &&
+    // The set carries ids as well as names — see fillSwapAlternatives. An
+    // exercise already on another card cannot be offered as an alternative
+    // here, whichever of its names that card happens to be wearing, because
+    // both cards would then log their sets against one id.
+    !usedNames.has(p.template.id) &&
     canSubstituteFor(region, p.template.primaryMuscle) &&
     isClean(p.template);
 
@@ -2594,6 +2628,9 @@ function findSafeReplacement(
 const SWAP_OPTIONS = 2;
 
 interface SwapOption {
+  /** The record this option is, carried from the record that was chosen, so the
+   *  card can log the swap under its own name. See swapSlotFor. */
+  id?: string;
   name: string;
   cue?: string;
   load?: string;
@@ -2884,6 +2921,7 @@ function atEarnedLevel(pool: ExerciseTemplate[], profile?: UserProfile): Exercis
 
 function describe(kind: SwapKind, t: ExerciseTemplate): SwapOption {
   return {
+    id: t.id,
     name: t.name,
     cue: t.cue,
     load: t.suggestedLoad,
@@ -2915,7 +2953,24 @@ export function fillSwapAlternatives(
   const banned = substitutionRestrictedTags(
     restrictedTagsFor(regions, profile?.experienceLevel, readiness?.painSeverity)
   );
-  const inSession = new Set(exercises.map((e) => e.name.toLowerCase()));
+  /**
+   * WHAT IS ALREADY IN TODAY'S SESSION - BY NAME AND BY ID.
+   *
+   * Names alone are not enough now that a swap is logged as itself. A record
+   * can be in the session under a name the offer does not share: measured
+   * across 2,430 generated sessions, 40 swap slots offered an exercise that was
+   * already on another card - a lower body session offered "Bodyweight Squat"
+   * behind its hinge while the main lift was that very record under another of
+   * its names. Two cards logging against one id write their sets on top of each
+   * other, so the id is asked as well as the name.
+   *
+   * Both live in one set. An id is not a lowercased exercise name, so nothing
+   * can be excluded by accident.
+   */
+  const inSession = new Set([
+    ...exercises.map((e) => e.name.toLowerCase()),
+    ...exercises.map((e) => e.id),
+  ]);
 
   return exercises.map((ex, i) => {
     // A safety substitution carries the exercise it REPLACED as its swap, on
@@ -2930,11 +2985,13 @@ export function fillSwapAlternatives(
       if (options.length === 0) return ex;
       return {
         ...ex,
+        swapId: options[0]?.id,
         swapName: options[0]?.name,
         swapCue: options[0]?.cue,
         swapLoad: options[0]?.load,
         swapKind: options[0]?.kind,
         swapReason: options[0]?.reason,
+        swap2Id: options[1]?.id,
         swap2Name: options[1]?.name,
         swap2Cue: options[1]?.cue,
         swap2Load: options[1]?.load,
@@ -2993,7 +3050,25 @@ export function fillSwapAlternatives(
     };
     const ownsAuthored = (name?: string) => canPerformWith(authoredKit(name), [tier]);
 
-    const authored: { name: string; cue?: string; load?: string }[] = [];
+    /**
+     * ...and it is not something already on another card today.
+     *
+     * The name test below cannot see this: the card holding that record may be
+     * wearing a different one of its names. Both would then log their sets
+     * against the same id, which is the collision the swapped-in id exists to
+     * avoid rather than to create.
+     */
+    const elsewhereToday = (id?: string, name?: string) => {
+      const own = byName.get((name ?? '').toLowerCase())?.template.id;
+      const resolved = id ?? own;
+      return !!resolved && resolved !== ex.id && inSession.has(resolved);
+    };
+
+    // The id travels with the authored option. A card can reach this point
+    // already knowing which record its alternative is - the conditioning
+    // builder writes its own from Archie's nine - and re-deriving it from the
+    // name here would swap a known answer for a guess between two lists.
+    const authored: { id?: string; name: string; cue?: string; load?: string }[] = [];
     if (
       ex.swapName &&
       ex.swapName !== ex.name &&
@@ -3003,18 +3078,20 @@ export function fillSwapAlternatives(
       // "Bodyweight Good Morning" reads as a hinge until you get to "feel the
       // hamstring stretch", which is what the protocol withholds from a strain.
       restrictedTagsOn(ex.swapName, banned, undefined, ex.swapCue).length === 0 &&
-      ownsAuthored(ex.swapName)
+      ownsAuthored(ex.swapName) &&
+      !elsewhereToday(ex.swapId, ex.swapName)
     ) {
-      authored.push({ name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
+      authored.push({ id: ex.swapId, name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
     }
     if (
       ex.swap2Name &&
       ex.swap2Name !== ex.name &&
       ex.swap2Name !== authored[0]?.name &&
       restrictedTagsOn(ex.swap2Name, banned, undefined, ex.swap2Cue).length === 0 &&
-      ownsAuthored(ex.swap2Name)
+      ownsAuthored(ex.swap2Name) &&
+      !elsewhereToday(ex.swap2Id, ex.swap2Name)
     ) {
-      authored.push({ name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
+      authored.push({ id: ex.swap2Id, name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
     }
 
     let equipment: SwapOption | null = null;
@@ -3030,6 +3107,8 @@ export function fillSwapAlternatives(
       const kind: SwapKind = isKit ? 'equipment' : 'movement';
       const filled: SwapOption = {
         ...option,
+        // What the card already knew, or the catalogue entry of that name.
+        id: option.id ?? t?.id,
         kind,
         reason: swapReasonFor(
           kind,
@@ -3125,11 +3204,13 @@ export function fillSwapAlternatives(
 
     return {
       ...ex,
+      swapId: options[0]?.id,
       swapName: options[0]?.name,
       swapCue: options[0]?.cue,
       swapLoad: options[0]?.load,
       swapKind: options[0]?.kind,
       swapReason: options[0]?.reason,
+      swap2Id: options[1]?.id,
       swap2Name: options[1]?.name,
       swap2Cue: options[1]?.cue,
       swap2Load: options[1]?.load,
@@ -3247,9 +3328,13 @@ export function applyInjurySafety(
       // The revert. Uses the swap slot every card already has, so "put it back"
       // costs no new UI and behaves exactly like every other swap.
       hasSwap: true,
+      // Reverting puts the original exercise back, so the sets logged after
+      // that belong to the original - its own id rides along in the slot.
+      swapId: ex.id,
       swapName: ex.name,
       swapCue: ex.cue,
       swapLoad: ex.suggestedLoad,
+      swap2Id: undefined,
       swap2Name: undefined,
       swap2Cue: undefined,
       swap2Load: undefined,

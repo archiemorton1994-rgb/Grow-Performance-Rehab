@@ -122,10 +122,10 @@ import {
   expandSetTargets,
   REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
-import { SWAP_KIND_HEADINGS } from '@/lib/exercise-swaps';
+import { SWAP_KIND_HEADINGS, loggedExerciseFor, swapSlotFor } from '@/lib/exercise-swaps';
 import {
+  anchorsFromLogs,
   feedbackRatingFor,
-  nextAnchorKg,
   suggestSetWeight,
   SET_FEEDBACK_LABELS,
   type LoadPlan,
@@ -590,7 +590,16 @@ interface SessionActiveBarProps {
    * the NEXT set's load, and `activeSetIndex` has already advanced by the time
    * the buttons are tapped.
    */
-  onFeedback: (exerciseId: string, setIndex: number, f: SetFeedback, loggedKg: number) => void;
+  /** The exercise id is the one on screen, which is the SWAP'S id on a swapped
+   *  card, so the index comes with it: that is what says which card asked, and
+   *  the prescription behind the rating is the card's whatever it is showing. */
+  onFeedback: (
+    exerciseId: string,
+    setIndex: number,
+    f: SetFeedback,
+    loggedKg: number,
+    exerciseIndex: number
+  ) => void;
   /**
    * The way out of a set that was harder than the plan expected.
    *
@@ -906,7 +915,13 @@ export function SessionActiveBar({
 
   const handleFeedback = (f: SetFeedback) => {
     if (showFeedback) {
-      onFeedback(showFeedback.exerciseId, showFeedback.setIndex, f, showFeedback.kg);
+      onFeedback(
+        showFeedback.exerciseId,
+        showFeedback.setIndex,
+        f,
+        showFeedback.kg,
+        showFeedback.exerciseIndex
+      );
       // The answer is recorded either way. What follows is an offer, not a
       // consequence: there has to be a later set for it to change and a weight
       // for it to move. Whether the ramp is over decides WHAT is offered, not
@@ -3373,7 +3388,13 @@ export default function SessionScreen() {
   );
 
   const handleBarFeedback = useCallback(
-    (exerciseId: string, setIndex: number, f: SetFeedback, _loggedKg: number) => {
+    (
+      exerciseId: string,
+      setIndex: number,
+      f: SetFeedback,
+      _loggedKg: number,
+      exerciseIndex: number
+    ) => {
       setSetAnswers((prev) => {
         const answers = [...(prev[exerciseId] ?? [])];
         answers[setIndex] = f;
@@ -3389,7 +3410,20 @@ export default function SessionScreen() {
         // Passed with its gaps intact: which set an answer belongs to is what
         // decides whether it counts, and squeezing the unanswered sets out
         // would shift every later answer onto the wrong one.
-        const rated = exercises.find((ex) => ex.id === exerciseId);
+        /**
+         * THE CARD, FOUND BY POSITION RATHER THAN BY ID.
+         *
+         * The id arriving here is the one on screen, and on a swapped card
+         * that is the swap's - no card in `exercises` carries it, so a lookup
+         * by id quietly found nothing and the rating was then worked out as if
+         * the exercise had no ramp and as many sets as answers so far. Both
+         * wrong, and silently: a main lift's warm-up rungs would have started
+         * counting toward "this was easy".
+         *
+         * The prescription is the card's whichever exercise it is showing: a
+         * swap keeps the sets and the role of the slot it filled.
+         */
+        const rated = exercises[exerciseIndex];
         const rating = feedbackRatingFor(answers, {
           isRamped: rated?.category === 'main',
           sets: rated?.sets ?? answers.length,
@@ -4273,24 +4307,22 @@ export default function SessionScreen() {
     // weights computed for the original no longer describe it. Dropping
     // loadKg falls the guide back to reading the swap's own load text —
     // which is the only thing that has ever described a swap.
-    if (swapCount === 1 && exercise.swapName) {
+    //
+    // AND IT IS A DIFFERENT EXERCISE, so it carries its own id from here on.
+    // Everything on this screen that keys off an exercise reads this one
+    // object: the sets logged, the weight offered next time, the previous best
+    // shown on the card. Before, the screen showed the goblet squat and filed
+    // it under the back squat, so a swap dragged the lift it replaced down to
+    // its own weight and built no history of its own. See swapSlotFor.
+    const slot = swapSlotFor(exercise, swapCount);
+    if (slot) {
       return {
         ...exercise,
-        name: exercise.swapName,
-        cue: exercise.swapCue ?? exercise.cue,
-        suggestedLoad: exercise.swapLoad ?? exercise.suggestedLoad,
-        loadKg: exercise.swapLoad ? undefined : exercise.loadKg,
-        hasSwap: true,
-        badge: undefined,
-      };
-    }
-    if (swapCount === 2 && exercise.swap2Name) {
-      return {
-        ...exercise,
-        name: exercise.swap2Name,
-        cue: exercise.swap2Cue ?? exercise.cue,
-        suggestedLoad: exercise.swap2Load ?? exercise.suggestedLoad,
-        loadKg: exercise.swap2Load ? undefined : exercise.loadKg,
+        id: slot.id,
+        name: slot.name,
+        cue: slot.cue ?? exercise.cue,
+        suggestedLoad: slot.load ?? exercise.suggestedLoad,
+        loadKg: slot.load ? undefined : exercise.loadKg,
         hasSwap: true,
         badge: undefined,
       };
@@ -4383,18 +4415,30 @@ export default function SessionScreen() {
       // A resumed session has no per-set answers (they are scratch working and
       // deliberately not persisted), so it keeps the live value, which is the
       // conservative one.
-      const answers = setAnswers[ex.id];
+      /**
+       * WHAT WAS ACTUALLY DONE HERE, which is not always what was prescribed.
+       *
+       * A swapped card is a different exercise, so its sets, its rating and the
+       * weight filed for next time all belong to the exercise the user chose.
+       * Filing them against the original moved the wrong lift: a back squat
+       * swapped for a goblet squat came back next session as a barbell squat at
+       * the goblet squat's weight, and the goblet squat itself never appeared
+       * in the history at all. The answers are keyed the same way, because the
+       * card and the logging bar both raise them under the name on screen.
+       */
+      const logged = loggedExerciseFor(ex, exerciseData[i]?.swapCount ?? 0);
+      const answers = setAnswers[logged.id];
       const rating = answers?.some((a) => a != null)
         ? feedbackRatingFor(answers, {
             isRamped: ex.category === 'main',
             sets: ex.sets,
             loggedKg: (exerciseData[i]?.sets ?? []).map((set) => set.weight),
           })
-        : inSessionFeedback[ex.id];
+        : inSessionFeedback[logged.id];
       const cardio = exerciseData[i]?.cardioData ?? undefined;
       return {
-        exerciseId: ex.id,
-        exerciseName: ex.name,
+        exerciseId: logged.id,
+        exerciseName: logged.name,
         sets: exerciseData[i].sets,
         note: exerciseNotes[i] || undefined,
         ...(rating != null ? { feedbackRating: rating } : {}),
@@ -4417,25 +4461,12 @@ export default function SessionScreen() {
     // prescribed at a load for a reason, and creeping it upward on a timer is
     // the wrong default. History yes, progressive overload no.
     if (!isPrehabOrFlex && exerciseLogs.length > 0) {
-      const sessionWeights: Record<string, number> = {};
-      for (const log of exerciseLogs) {
-        const completedWeights = log.sets
-          .filter((s) => s.completed && !s.skipped && s.weight > 0)
-          .map((s) => s.weight);
-        if (completedWeights.length > 0) {
-          // Key by exerciseId (stable, unaffected by KB name relabeling).
-          // Filing the heaviest set outright treated "the most you lifted" as
-          // "the most you can lift", which is a feedback loop: a light session
-          // prescribes a lighter one, and that one is lighter still. See
-          // nextAnchorKg — a session can raise this number freely, and only
-          // lower it when the user actually said a set was too much.
-          sessionWeights[log.exerciseId] = nextAnchorKg(
-            Math.max(...completedWeights),
-            lastLoggedWeights?.[log.exerciseId] ?? 0,
-            log.feedbackRating
-          );
-        }
-      }
+      // Keyed by the log's exerciseId, which is stable (kettlebell relabelling
+      // cannot move it) and is the id of what was ACTUALLY done: a swapped card
+      // moves its own anchor and leaves the exercise it replaced alone. The
+      // rule itself lives in lib/auto-regulation.ts, where it can be run by
+      // tests/swap-logs-own-id.check.mjs and tests/ramp-collapse.check.mjs.
+      const sessionWeights = anchorsFromLogs(exerciseLogs, lastLoggedWeights);
       if (Object.keys(sessionWeights).length > 0) {
         updateLastLoggedWeights(sessionWeights);
       }
@@ -4802,10 +4833,12 @@ export default function SessionScreen() {
                   }
                 }
               }}
-              previousBest={previousBest[exercise.id]}
-              previousSessionWeight={previousSessionWeights[exercise.id]}
-              lastSessionHint={previousSessionData[exercise.id]}
-              feedbackMultiplier={exerciseFeedbackAtStart.current[exercise.id]?.multiplier}
+              previousBest={previousBest[displayExercise.id]}
+              previousSessionWeight={previousSessionWeights[displayExercise.id]}
+              lastSessionHint={previousSessionData[displayExercise.id]}
+              feedbackMultiplier={
+                exerciseFeedbackAtStart.current[displayExercise.id]?.multiplier
+              }
               weightUnit={weightUnit}
               note={exerciseNotes[index] ?? ''}
               onNoteChange={isDemo ? () => {} : (text) => handleNoteChange(index, text)}
@@ -4821,7 +4854,9 @@ export default function SessionScreen() {
               showPbFlash={pbFlashIndex === index}
               headerRef={index === 0 ? firstCardHeaderRef : undefined}
               detailsBtnRef={index === 0 ? detailsBtnRef : undefined}
-              previousNote={isDemo ? null : getLastExerciseNote(exercise.id, exercise.name)}
+              previousNote={
+                isDemo ? null : getLastExerciseNote(displayExercise.id, displayExercise.name)
+              }
               onOpenPlates={isDemo ? undefined : () => setPlateModalIndex(index)}
               goals={userProfile.goals}
             />
@@ -4901,8 +4936,8 @@ export default function SessionScreen() {
               weightGuidesKg={weightGuidesForBar}
               isBandExercise={isBandEx}
               isTimeExercise={isTimeEx}
-              previousBest={previousBest[activeEx?.id ?? '']}
-              previousSessionWeight={previousSessionWeights[activeEx?.id ?? '']}
+              previousBest={previousBest[displayEx?.id ?? '']}
+              previousSessionWeight={previousSessionWeights[displayEx?.id ?? '']}
               weightUnit={weightUnit}
               isLastExercise={activeIndex === exercises.length - 1}
               sessionAllDone={allDone}

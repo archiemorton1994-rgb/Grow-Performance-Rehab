@@ -425,10 +425,22 @@ check(
     /\{lastSessionHint\.reps\}/.test(sessionCode),
   'the weight was already fed back twice over; the rep count was nowhere'
 );
+/**
+ * ...for the exercise ON THE CARD.
+ *
+ * The spelling used to be pinned to `previousSessionData[exercise.id]`, which
+ * is now wrong rather than merely brittle: a swapped card is a different
+ * exercise and logs under its own id, so the hint has to be looked up under
+ * the id the card is showing or it would report the back squat's last session
+ * above a goblet squat. What is asked is that the hint is handed over at all,
+ * and that it is read under the same id the personal best is.
+ */
+const hintKey = /lastSessionHint=\{previousSessionData\[([\w.?' ]+)\]\}/.exec(sessionCode)?.[1];
+const bestKey = /previousBest=\{previousBest\[([\w.?' ]+)\]\}/.exec(sessionCode)?.[1];
 check(
-  'and it is still handed the data',
-  /lastSessionHint=\{previousSessionData\[exercise\.id\]\}/.test(sessionCode),
-  ''
+  'and it is still handed the data, for the exercise on the card',
+  !!hintKey && hintKey === bestKey,
+  `the hint reads ${hintKey}, the personal best reads ${bestKey} — one card, one exercise`
 );
 
 console.log('\n[4] The screen stays awake while you train');

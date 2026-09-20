@@ -37,6 +37,7 @@ import ReadinessScreen from '../app/readiness';
 // MUSCLE_SET — used in section [6] to assert bicep/tricep are in muscles mode.
 import { MUSCLE_SET } from '../components/BodyDiagram';
 import type { PainRegion } from '../lib/store';
+import { swapSlotFor } from '../lib/exercise-swaps';
 
 // Real generateWorkout — imported via relative path to bypass the
 // `^@/lib/workout-engine$` mock mapping in jest-component.config.js.
@@ -766,24 +767,23 @@ type SwappableExercise = Parameters<typeof ExerciseCard>[0]['exercise'] & {
 /**
  * Mirrors the getDisplayExercise logic from session.tsx.
  * Returns the exercise with its badge cleared whenever a swap is active.
+ *
+ * WHICH exercise a swap resolves to is not mirrored: it comes from the real
+ * swapSlotFor, the same function the screen calls, so this fixture cannot go
+ * on showing something the app has stopped showing. The badge rule is the part
+ * that lives here, because it is what these tests are about.
  */
 function applySwap(
   exercise: SwappableExercise,
   swapCount: 0 | 1 | 2
 ): Parameters<typeof ExerciseCard>[0]['exercise'] {
-  if (swapCount === 1 && exercise.swapName) {
+  const slot = swapSlotFor(exercise, swapCount);
+  if (slot) {
     return {
       ...exercise,
-      name: exercise.swapName,
-      cue: exercise.swapCue ?? exercise.cue,
-      hasSwap: true,
-      badge: undefined,
-    };
-  }
-  if (swapCount === 2 && exercise.swap2Name) {
-    return {
-      ...exercise,
-      name: exercise.swap2Name,
+      id: slot.id,
+      name: slot.name,
+      cue: slot.cue ?? exercise.cue,
       hasSwap: true,
       badge: undefined,
     };

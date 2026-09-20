@@ -30,6 +30,7 @@
 
 import { readFileSync } from 'fs';
 import {
+  anchorsFromLogs,
   suggestSetWeight,
   feedbackRatingFor,
   nextAnchorKg,
@@ -249,13 +250,64 @@ console.log('\n[5] Four sessions of answering Challenging, honestly, every time'
 }
 
 {
-  // The simulation above is only the truth if the session screen actually
-  // files its anchors through this rule. It used to file Math.max outright.
+  /**
+   * The simulation above is only the truth if the session filing its anchors
+   * applies this rule. It used to file Math.max outright, and it used to do it
+   * inside the session screen, where nothing could run it.
+   *
+   * The rule now lives in anchorsFromLogs, so it is measured here rather than
+   * read: a light session that nobody called too hard must leave the anchor
+   * where it was, which is the exact thing Math.max gets wrong.
+   */
+  const log = (exerciseId, weights, feedbackRating = null) => ({
+    exerciseId,
+    sets: weights.map((weight, i) => ({ setNumber: i + 1, weight, reps: 5, completed: true })),
+    feedbackRating,
+  });
+
+  const light = anchorsFromLogs([log('squat', [60, 70, 80])], { squat: WORKING_KG });
+  check(
+    'a session lighter than the anchor leaves it alone',
+    light.squat === WORKING_KG,
+    `got ${light.squat} — Math.max(...completedWeights) is the loop this file exists to close`
+  );
+
+  const heavier = anchorsFromLogs([log('squat', [60, 110])], { squat: WORKING_KG });
+  check(
+    'a heavier session raises it',
+    heavier.squat === 110,
+    `got ${heavier.squat}`
+  );
+
+  const backedOff = anchorsFromLogs([log('squat', [60, 80], 'hard')], { squat: WORKING_KG });
+  check(
+    'and saying it was too hard brings it down',
+    backedOff.squat === 80,
+    `got ${backedOff.squat}`
+  );
+
+  const bodyweight = anchorsFromLogs(
+    [
+      {
+        exerciseId: 'push-up',
+        sets: [{ setNumber: 1, weight: 0, reps: 12, completed: true }],
+        feedbackRating: null,
+      },
+    ],
+    {}
+  );
+  check(
+    'unweighted work files no anchor at all',
+    bodyweight['push-up'] === undefined,
+    `got ${bodyweight['push-up']} — there is no weight there to move`
+  );
+
+  // ...and the session screen takes that route rather than keeping a copy.
   const src = readFileSync(new URL('../app/session.tsx', import.meta.url), 'utf8');
   check(
-    'the session screen files its anchors through nextAnchorKg',
-    /sessionWeights\[log\.exerciseId\] = nextAnchorKg\(/.test(src),
-    'writing Math.max(...completedWeights) straight in is the loop this file exists to close'
+    'the session screen files its anchors through anchorsFromLogs',
+    /anchorsFromLogs\(exerciseLogs, lastLoggedWeights\)/.test(src),
+    'a second copy of the rule inside the screen is a second copy to go stale'
   );
 }
 

@@ -305,6 +305,32 @@ check(
     .map((e) => `${e.name} offers ${e.swapName} / ${e.swap2Name}`)
     .join(' | ')
 );
+/**
+ * ...under the id of the record it names, because that is what gets logged.
+ *
+ * A conditioning block tapped into another of the nine records its sets against
+ * that record. The nine are one of the two lists whose names also exist in the
+ * old catalogue under different ids - Sled Push and Bear Crawl - so a slot that
+ * carried the catalogue's id would file a sled push somewhere nothing else can
+ * find it. See tests/swap-logs-own-id.check.mjs for the sweep across every
+ * session type; this is the conditioning half of it, where it is easiest to get
+ * wrong.
+ */
+const NINE_BY_NAME = new Map(CONDITIONING_EXERCISES.map((r) => [r.name, r.id]));
+check(
+  'and it offers that record, not the old catalogue exercise of the same name',
+  conditioningSwaps.length > 0 &&
+    conditioningSwaps.every(
+      (e) =>
+        e.swapId === NINE_BY_NAME.get(e.swapName) &&
+        (!e.swap2Name || e.swap2Id === NINE_BY_NAME.get(e.swap2Name))
+    ),
+  conditioningSwaps
+    .filter((e) => e.swapId !== NINE_BY_NAME.get(e.swapName))
+    .slice(0, 5)
+    .map((e) => `${e.name} offers ${e.swapName} as ${e.swapId}`)
+    .join(' | ')
+);
 check(
   'hasSwap agrees with actually having a swap',
   sessions.every(({ ex }) => ex.every((e) => !e.hasSwap || !!e.swapName)),
@@ -330,23 +356,38 @@ check(
   dupSwaps.slice(0, 5).join(' | ')
 );
 
+/**
+ * NOTHING ON OFFER IS ALREADY IN TODAY'S SESSION — BY NAME OR BY RECORD.
+ *
+ * This used to allow a dozen, on the reading that a hand-authored alternative
+ * was a deliberate choice made without knowing what else was in the session.
+ * That is no longer a tolerable answer: a swap is logged under its own id now,
+ * so taking an offer that is already on another card would have both cards
+ * writing their sets against one id, and the weight filed for next time would
+ * be whichever of them was written last.
+ *
+ * The id is asked as well as the name, because the name is not enough to see
+ * it: a library record answers to more than one name, and the measurement that
+ * prompted this found a lower body session offering "Bodyweight Squat" behind
+ * its hinge while the main lift was that very record under another name.
+ */
 const collisions = [];
 for (const { type, tier, ex } of sessions) {
   const inSession = new Set(ex.map((e) => e.name.toLowerCase()));
-  for (const e of ex) {
-    for (const alt of [e.swapName, e.swap2Name]) {
-      if (!alt) continue;
-      if (alt.toLowerCase() === e.name.toLowerCase()) continue;
-      // A derived alternative should not be something already programmed today.
-      // Hand-authored ones are exempt: someone chose them deliberately, and the
-      // database is not aware of what else is in the session.
-      if (inSession.has(alt.toLowerCase())) collisions.push(`${type}/${tier}: ${e.name} → ${alt}`);
-    }
+  const idsInSession = new Set(ex.map((e) => e.id));
+  for (const [alt, altId, e] of ex.flatMap((e) => [
+    [e.swapName, e.swapId, e],
+    [e.swap2Name, e.swap2Id, e],
+  ])) {
+    if (!alt) continue;
+    if (alt.toLowerCase() === e.name.toLowerCase()) continue;
+    if (inSession.has(alt.toLowerCase()) || (altId && altId !== e.id && idsInSession.has(altId)))
+      collisions.push(`${type}/${tier}: ${e.name} → ${alt}`);
   }
 }
 check(
-  `alternatives rarely duplicate something already in the session (${collisions.length})`,
-  collisions.length <= 12,
+  `no alternative duplicates something already in the session (${collisions.length})`,
+  collisions.length === 0,
   collisions.slice(0, 6).join(' | ')
 );
 

@@ -479,3 +479,105 @@ export const SWAP_KIND_HEADINGS: Record<SwapKind, string> = {
   equipment: 'Same exercise, different kit',
   movement: 'Different exercise, same muscles',
 };
+
+/**
+ * A CARD, ONCE A SWAP IS LIVE: WHICH EXERCISE IS ACTUALLY BEING DONE.
+ *
+ * WHY THIS IS A FUNCTION RATHER THAN THREE LINES ON THE SESSION SCREEN
+ * ───────────────────────────────────────────────────────────────────
+ * The screen showed the swap and logged the original. Somebody whose rack was
+ * taken tapped "Goblet Squat", did five sets of 24 kg, and the app wrote 24 kg
+ * against their BACK SQUAT - so the next session offered a barbell back squat
+ * at the weight of a goblet squat, their squat history bent downward, and the
+ * goblet squat itself had no history at all. The same in reverse for a swap
+ * that is harder than the card it replaced.
+ *
+ * So the swap carries its own id, and everything that keys off an exercise -
+ * the log, the double-progression anchor, the previous-best line on the card -
+ * reads the id through here. One function, because three places deciding this
+ * separately is how two of them end up disagreeing.
+ *
+ * The slot ids are filled in where the alternatives are chosen, from the record
+ * that was chosen, rather than by looking the name up again afterwards: two
+ * names in the catalogue resolve to different records depending on which list
+ * you ask (Sled Push and Bear Crawl are both in Archie's library and in the old
+ * catalogue under different ids), and a lookup is a coin toss between them.
+ */
+export interface SwappableCard {
+  id: string;
+  name: string;
+  swapId?: string;
+  swapName?: string;
+  swapCue?: string;
+  swapLoad?: string;
+  swap2Id?: string;
+  swap2Name?: string;
+  swap2Cue?: string;
+  swap2Load?: string;
+}
+
+/** The exercise a swapped card is showing: its own id, name and wording. */
+export interface SwapSlot {
+  id: string;
+  name: string;
+  cue?: string;
+  load?: string;
+}
+
+/**
+ * The last resort, for a swap whose record could not be named at build time.
+ *
+ * Not a fallback to the ORIGINAL'S id, which is the bug this whole piece of
+ * work is about: an alternative we cannot identify is still not the exercise on
+ * the card, and filing its sets there would move the wrong weight. A key
+ * derived from the name is stable between sessions and belongs to nothing else,
+ * so the history at least holds together under its own name.
+ *
+ * tests/swap-logs-own-id.check.mjs sweeps generated sessions and asserts this
+ * is never actually reached, so it stays a backstop rather than a route.
+ */
+export function swapProgressId(name: string): string {
+  return `swap-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
+}
+
+/**
+ * Which exercise slot `swapCount` is showing, or null when the card is showing
+ * the exercise it was built with.
+ *
+ * 0 is the original, 1 the first alternative, 2 the second - the same meaning
+ * swapCount has everywhere else, including in a resumed session.
+ */
+export function swapSlotFor(ex: SwappableCard, swapCount: number): SwapSlot | null {
+  if (swapCount === 1 && ex.swapName) {
+    return {
+      id: ex.swapId ?? swapProgressId(ex.swapName),
+      name: ex.swapName,
+      cue: ex.swapCue,
+      load: ex.swapLoad,
+    };
+  }
+  if (swapCount === 2 && ex.swap2Name) {
+    return {
+      id: ex.swap2Id ?? swapProgressId(ex.swap2Name),
+      name: ex.swap2Name,
+      cue: ex.swap2Cue,
+      load: ex.swap2Load,
+    };
+  }
+  return null;
+}
+
+/**
+ * The id and name this card's sets are logged under.
+ *
+ * Every reader of a session's history keys off the id - the muscle map, the
+ * progress chart, the previous-best line, and the double-progression anchor -
+ * so this is the single answer to "what did they actually do here".
+ */
+export function loggedExerciseFor(
+  ex: SwappableCard,
+  swapCount: number
+): { id: string; name: string } {
+  const slot = swapSlotFor(ex, swapCount);
+  return slot ? { id: slot.id, name: slot.name } : { id: ex.id, name: ex.name };
+}

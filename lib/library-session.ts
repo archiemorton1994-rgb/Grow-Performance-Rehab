@@ -750,7 +750,7 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      */
     const swappedFrom =
       wanted && chosen && wanted.name !== chosen.name && hitsOn(wanted, banned).length > 0
-        ? wanted.name
+        ? wanted
         : null;
 
     if (!chosen) {
@@ -786,13 +786,17 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     };
     if (swappedFrom) {
       card.badge = 'comfort';
-      card.safetyNote = substitutionNote(swappedFrom, regionLabel);
+      card.safetyNote = substitutionNote(swappedFrom.name, regionLabel);
       // The revert, through the swap slot every card already has, so "put it
-      // back" costs no new screen and behaves like every other swap.
+      // back" costs no new screen and behaves like every other swap. The
+      // record's own id rides along, so sets logged after a revert are filed
+      // against the exercise that was put back rather than its stand-in.
       card.hasSwap = true;
-      card.swapName = swappedFrom;
+      card.swapId = swappedFrom.id;
+      card.swapName = swappedFrom.name;
       card.swapCue = undefined;
       card.swapLoad = undefined;
+      card.swap2Id = undefined;
       card.swap2Name = undefined;
       card.swap2Cue = undefined;
       card.swap2Load = undefined;

@@ -292,10 +292,21 @@ check(
     /loggedKg: \(exerciseData\[i\]\?\.sets \?\? \[\]\)\.map\(\(set\) => set\.weight\)/.test(sessionCode),
   'the live value is worked out one tap at a time, when only the answers are to hand - and whether a Too Hard warm-up fails the whole lift depends on what the working set then carried'
 );
+/**
+ * The fallback, and the key it reads.
+ *
+ * This used to pin the exact spelling `inSessionFeedback[ex.id]`, which went
+ * red the day a swapped card started logging under its own id while the rule
+ * had not changed. What matters is that the fallback is there AND that it is
+ * keyed exactly as the per-set answers above it are: two different keys would
+ * silently hand a resumed session somebody else's rating, or none.
+ */
+const answersKey = /const answers = setAnswers\[([\w.]+)\];/.exec(sessionCode)?.[1];
+const liveKey = /: inSessionFeedback\[([\w.]+)\];/.exec(sessionCode)?.[1];
 check(
   'and a session with no per-set answers keeps the conservative live value',
-  /: inSessionFeedback\[ex\.id\];/.test(sessionCode),
-  'per-set answers are scratch working and are not persisted, so a resumed session has none to recompute from'
+  !!answersKey && answersKey === liveKey,
+  `per-set answers are scratch working and are not persisted, so a resumed session has none to recompute from - answers read ${answersKey}, the live value reads ${liveKey}`
 );
 
 console.log('\n[9] Rehab is never programmed to failure');
