@@ -11,6 +11,7 @@ import { carryProgressForwardInPlace } from '@/lib/exercise-id-merge';
 // Which equipment answers are kit rather than a rung on the ladder. Its own
 // imports from here are type-only, so this adds no cycle.
 import { isSupplyTier } from '@/lib/kit';
+import { levelStepDownBonus } from '@/lib/level-step';
 // Type-only against this file, so there is no runtime edge back here and no
 // cycle. See the note at the top of lib/session-type.ts.
 import { countLiftingSessions, isLiftingSession, rotatesSessions } from '@/lib/session-type';
@@ -810,6 +811,11 @@ interface AppState {
    * same number of weeks. The same warning applies too - a count only means
    * anything against the session list it was stamped from, so mergeServerData
    * moves it when a sign-in lengthens that list.
+   *
+   * SYNCED, and it has to be. The rung a person has taken travels inside
+   * userProfile.earnedLevelBonus, so a second handset that adopted the level
+   * and kept its own clock would measure the new level against sessions trained
+   * at the old one and offer the next rung four sessions later.
    *
    * Null only until it is stamped: the migration stamps every existing device
    * and completeOnboarding stamps every new account. A null is read as "do not
@@ -2549,25 +2555,31 @@ export const useAppStore = create<AppState>()(
       clearPendingProgrammeReport: () => set({ pendingProgrammeReportId: null }),
 
       acceptLevelStep: (toBonus) => {
+        // Clamped here as well as in the report, because this is reachable from
+        // a screen and a screen is reachable from a stale report.
+        const next = Math.max(0, Math.min(MAX_EARNED_BONUS, Math.trunc(toBonus)));
+        const was = get().userProfile.earnedLevelBonus ?? 0;
         // Only pays when the rung actually moves, so re-opening a report and
         // tapping an offer that was already taken does not pay for it twice.
-        if (Math.trunc(toBonus) > (get().userProfile.earnedLevelBonus ?? 0)) {
-          get().awardXp(XP.levelStep);
-        }
+        if (next > was) get().awardXp(XP.levelStep);
         set((st) => ({
-          userProfile: {
-            ...st.userProfile,
-            // Clamped here as well as in the report, because this is reachable
-            // from a screen and a screen is reachable from a stale report.
-            earnedLevelBonus: Math.max(0, Math.min(MAX_EARNED_BONUS, Math.trunc(toBonus))),
-          },
-          // The clock restarts wherever the offer was taken. Sixteen sessions
-          // at a level means sixteen at THIS level, so an offer accepted from
-          // the summary or from a block report cannot be followed by another
-          // one next week on the strength of the same sessions.
-          levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
-          // They have just answered the question the card was asking.
-          levelCheckCardPending: false,
+          userProfile: { ...st.userProfile, earnedLevelBonus: next },
+          /**
+           * The clock restarts wherever the offer was taken, but ONLY if the
+           * rung really moved. Sixteen sessions at a level means sixteen at
+           * THIS level, so an offer accepted from the summary or from a block
+           * report cannot be followed by another one next week on the strength
+           * of the same sessions - and equally, re-opening a frozen report and
+           * tapping a step already taken must not push the next offer sixteen
+           * sessions further out for nothing.
+           */
+          ...(next !== was
+            ? {
+                levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
+                // They have just answered the question the card was asking.
+                levelCheckCardPending: false,
+              }
+            : {}),
         }));
         // TAKING the rung is the achievement. Being offered one is not: the
         // report never applies a step by itself, on purpose.
@@ -2580,14 +2592,23 @@ export const useAppStore = create<AppState>()(
         })),
 
       stepLevelDown: () =>
-        set((st) => ({
-          userProfile: {
-            ...st.userProfile,
-            earnedLevelBonus: Math.max(0, (st.userProfile.earnedLevelBonus ?? 0) - 1),
-          },
-          levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
-          levelCheckCardPending: false,
-        })),
+        set((st) => {
+          /**
+           * Hands back whatever it takes to move the level, not a fixed one.
+           *
+           * Earned rungs can pile up past the ceiling they are clamped to -
+           * Athlete is chosen, never given - so "minus one" could leave the
+           * person on exactly the level they just asked to come down from. See
+           * levelStepDownBonus.
+           */
+          const to = levelStepDownBonus(st.userProfile);
+          if (to === null) return {};
+          return {
+            userProfile: { ...st.userProfile, earnedLevelBonus: to },
+            levelStepDueAt: countLiftingSessions(st.completedSessions) + LEVEL_STEP_AFTER,
+            levelCheckCardPending: false,
+          };
+        }),
 
       dismissLevelCheckCard: () => set({ levelCheckCardPending: false }),
       dismissBenchPrompt: () => set({ benchPromptPending: false }),
@@ -2895,6 +2916,14 @@ export const useAppStore = create<AppState>()(
            * them as training done since this library.
            */
           libraryEpochSessionCount: s.libraryEpochSessionCount,
+          /**
+           * And so does the step-up clock, for the same reason plus a sharper
+           * one: the rung itself travels inside userProfile.earnedLevelBonus.
+           * A second handset that adopted the rung and kept its own count of
+           * sessions trained at the OLD level would offer the next step after
+           * four sessions instead of sixteen. See levelStepDueAt.
+           */
+          levelStepDueAt: s.levelStepDueAt,
           oneRepMaxes: s.oneRepMaxes,
           exerciseFeedback: s.exerciseFeedback,
           weightUnit: s.weightUnit,
@@ -3133,15 +3162,43 @@ export const useAppStore = create<AppState>()(
          * the app would offer a level step on the first session after signing
          * in, having watched none of it.
          *
-         * Raised by exactly the sessions the merge brought in, so "sessions
-         * since the level was set" is unchanged by a restore. An unstamped
-         * device - one whose migration has not run, or whose payload arrived
-         * before it did - is stamped here on the same rule the migration uses.
+         * Three cases, and all of them end up conservative:
+         *
+         *   THE PAYLOAD CARRIES A CLOCK, so it was written by a device that had
+         *   this build. Take whichever clock is further ahead. The device that
+         *   has TAKEN a rung is the one that is ahead, and its rung arrives in
+         *   this same payload inside userProfile: adopting the level and not
+         *   the clock is how "sixteen sessions at this level" quietly became
+         *   four on the second handset.
+         *
+         *   IT DOES NOT, because it was uploaded by a build from before any of
+         *   this existed. Then it says nothing about the level anybody is on,
+         *   and the clock rises by exactly the sessions the merge brought in,
+         *   so "sessions since the level was set" is unchanged by a restore.
+         *
+         *   THIS DEVICE WAS NEVER STAMPED - its migration has not run, or the
+         *   payload arrived before it did. Stamped here on the migration's own
+         *   rule, and never behind a clock the account is already carrying.
          */
-        if (typeof s.levelStepDueAt !== 'number' || !Number.isFinite(s.levelStepDueAt)) {
-          set({ levelStepDueAt: countLiftingSessions(mergedSessions) + LEVEL_STEP_AFTER });
-        } else if (restoredLifting > 0) {
-          set({ levelStepDueAt: s.levelStepDueAt + restoredLifting });
+        const serverDue =
+          typeof data.levelStepDueAt === 'number' && Number.isFinite(data.levelStepDueAt)
+            ? Math.max(0, Math.floor(data.levelStepDueAt))
+            : null;
+        const localDue =
+          typeof s.levelStepDueAt === 'number' && Number.isFinite(s.levelStepDueAt)
+            ? s.levelStepDueAt
+            : null;
+        const nextDue =
+          localDue === null
+            ? Math.max(
+                countLiftingSessions(mergedSessions) + LEVEL_STEP_AFTER,
+                serverDue ?? 0
+              )
+            : serverDue === null
+              ? localDue + restoredLifting
+              : Math.max(serverDue, localDue);
+        if (nextDue !== s.levelStepDueAt) {
+          set({ levelStepDueAt: nextDue });
         }
 
         if (serverCount > localCount) {

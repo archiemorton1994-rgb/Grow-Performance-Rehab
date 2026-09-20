@@ -515,11 +515,19 @@ console.log('\n[10] The level window');
     `levels ${[...new Set(beginnerSquat.map((e) => e.level))].join('/')}`
   );
   check(
-    'and the ceiling itself is the experience answer plus what has been earned, capped at Athlete',
+    'and the ceiling itself is the experience answer plus what has been earned, stopping below Athlete',
     levelCeilingFor({ experienceLevel: 'beginner' }) === 1 &&
       levelCeilingFor({ experienceLevel: 'beginner', earnedLevelBonus: 1 }) === 2 &&
-      levelCeilingFor({ experienceLevel: 'advanced', earnedLevelBonus: 5 }) === 4 &&
-      levelCeilingFor({ experienceLevel: 'athlete' }) === 4
+      /**
+       * SAME CLINICAL RULE, TIGHTER. This used to read `advanced + 5 === 4`,
+       * from when the only cap was the top of the library. Decision 8 puts
+       * jumps, throws and depth work behind the Athlete answer, which is
+       * something a person says about themselves, so earned rungs now stop one
+       * below it however many of them there are. Athlete itself is unchanged.
+       */
+      levelCeilingFor({ experienceLevel: 'advanced', earnedLevelBonus: 5 }) === 3 &&
+      levelCeilingFor({ experienceLevel: 'athlete' }) === 4,
+    `beginner ${levelCeilingFor({ experienceLevel: 'beginner' })}, beginner+1 ${levelCeilingFor({ experienceLevel: 'beginner', earnedLevelBonus: 1 })}, advanced+5 ${levelCeilingFor({ experienceLevel: 'advanced', earnedLevelBonus: 5 })}, athlete ${levelCeilingFor({ experienceLevel: 'athlete' })}`
   );
 }
 

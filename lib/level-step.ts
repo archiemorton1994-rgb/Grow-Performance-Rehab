@@ -19,7 +19,10 @@ import { levelCeilingFor } from './library-session';
  * they have turned up sixteen times. Athlete is a thing a person chooses about
  * themselves on the experience page; it is never a reward. So the offer caps
  * at Advanced, which is also why Advanced itself is never offered a step: there
- * is nowhere above it this rule is willing to go.
+ * is nowhere above it this rule is willing to go. The ceiling itself says the
+ * same thing - see levelCeilingFor in lib/library-session.ts, where earned
+ * rungs stop one below Athlete - so no combination of taken rungs and a later
+ * edit to the experience answer can carry somebody there by arithmetic either.
  *
  * IT NEVER FIRES ON A PROGRAMME. A block is a plan somebody agreed to, and its
  * own report already offers the rung at the end of it. Two offers from two
@@ -109,8 +112,35 @@ export interface LevelStanding {
   name: string;
   /** Rungs taken on top of the experience answer. */
   earned: number;
-  /** The level they would be on after handing one back, or null if there is none. */
-  down: { level: LibraryLevel; name: string } | null;
+  /** Where a step down lands, or null when there is no rung that would move it. */
+  down: { level: LibraryLevel; name: string; toBonus: number } | null;
+}
+
+/**
+ * The earned-rung count that would actually lower the ceiling, or null.
+ *
+ * WHY THIS IS NOT SIMPLY "one less". A rung can buy nothing. The ceiling stops
+ * below Athlete for everybody who did not choose it, so an Advanced person's
+ * first earned rung, and an Intermediate's second, leave the ceiling exactly
+ * where it was. Handing one of those back would change nothing on the screen,
+ * and a Step down button that appears to do nothing is worse than no button.
+ *
+ * So the rule is "hand back rungs until the level moves", which makes the
+ * control honest in both directions: the offer raises the level by one and this
+ * lowers it by one. The store's stepLevelDown writes what this returns, and the
+ * Profile card shows the button only when it is not null, so the two cannot
+ * disagree about whether there is a way down.
+ */
+export function levelStepDownBonus(profile: {
+  experienceLevel: ExperienceLevel;
+  earnedLevelBonus?: number;
+}): number | null {
+  const level = levelCeilingFor(profile);
+  const earned = Math.max(0, Math.floor(profile.earnedLevelBonus ?? 0));
+  for (let bonus = earned - 1; bonus >= 0; bonus--) {
+    if (levelCeilingFor({ ...profile, earnedLevelBonus: bonus }) < level) return bonus;
+  }
+  return null;
 }
 
 export function levelStandingFor(profile: {
@@ -119,12 +149,13 @@ export function levelStandingFor(profile: {
 }): LevelStanding {
   const level = levelCeilingFor(profile);
   const earned = Math.max(0, Math.floor(profile.earnedLevelBonus ?? 0));
+  const toBonus = levelStepDownBonus(profile);
   const down =
-    earned > 0
-      ? (() => {
-          const lower = levelCeilingFor({ ...profile, earnedLevelBonus: earned - 1 });
-          return { level: lower, name: LIBRARY_LEVEL_NAMES[lower] };
-        })()
-      : null;
+    toBonus === null
+      ? null
+      : (() => {
+          const lower = levelCeilingFor({ ...profile, earnedLevelBonus: toBonus });
+          return { level: lower, name: LIBRARY_LEVEL_NAMES[lower], toBonus };
+        })();
   return { level, name: LIBRARY_LEVEL_NAMES[level], earned, down };
 }

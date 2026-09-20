@@ -52,10 +52,11 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Available',
   kettlebells: 'Available',
   fullgym: 'Everything',
-  // Two or three words, like every line above it: this tile's caption is drawn
-  // with numberOfLines={1} in a narrow column, so the fuller sentence the wide
-  // sheets and the sign-up pager use would be cut off mid-word here.
-  bench: 'Bench, box or step',
+  // The fuller sentence, the same one the sign-up pager and the wide sheets
+  // use. It fits because this tile spans the whole row rather than sharing it,
+  // and it has to be different from the label above it: repeating "Bench, box
+  // or step" under "Bench, Box or Step" is a caption that says nothing.
+  bench: 'Anything solid to sit, press or step on',
 };
 
 // ─── Readiness tutorial content ───────────────────────────────────────────

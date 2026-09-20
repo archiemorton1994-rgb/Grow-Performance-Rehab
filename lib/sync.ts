@@ -57,6 +57,21 @@ export interface SyncPayload {
    * rather than blanking it. mergeServerData handles that case explicitly.
    */
   libraryEpochSessionCount?: number;
+  /**
+   * The session count at which the next level step-up may be offered. See
+   * levelStepDueAt in lib/store.ts.
+   *
+   * It travels for the same reason the mark above does, and one more. The rung
+   * somebody has taken rides along in userProfile.earnedLevelBonus, so without
+   * the clock beside it a second handset adopts the new level and keeps the old
+   * device's count of sessions trained at the previous one: "sixteen sessions
+   * at this level" becomes four, and the next rung is offered in a fortnight.
+   *
+   * Optional for the reason every field here is: a payload written by an older
+   * build does not carry it, and an absent field must leave the device alone
+   * rather than blanking it. mergeServerData handles that case explicitly.
+   */
+  levelStepDueAt?: number | null;
   oneRepMaxes: any[];
   exerciseFeedback: Record<string, any>;
   weightUnit: string;

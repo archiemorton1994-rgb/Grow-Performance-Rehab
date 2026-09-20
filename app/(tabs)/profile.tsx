@@ -1273,7 +1273,11 @@ export default function ProfileScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.infoCardTitle}>Exercise level: {levelStanding.name}</Text>
               <Text style={styles.infoCardSub}>
-                {levelStanding.earned > 0
+                {/* The rung is mentioned only when it is the reason for the
+                    level. A rung that is clamped away buys nothing, so saying
+                    it lifted them would be the card claiming credit for a
+                    movement nobody was given. */}
+                {levelStanding.down
                   ? `Your sessions are built from ${levelStanding.name.toLowerCase()} movements, including ${levelStanding.earned === 1 ? 'a rung' : 'rungs'} you took by training.`
                   : `Your sessions are built from ${levelStanding.name.toLowerCase()} movements.`}
               </Text>

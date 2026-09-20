@@ -46,7 +46,8 @@ globalThis.__DEV__ = false;
 import './_persist-shim.mjs';
 import { useAppStore } from '../lib/store.ts';
 import { levelStepOffer, levelStandingFor, LEVEL_STEP_CEILING } from '../lib/level-step.ts';
-import { LIBRARY_LEVEL_NAMES } from '../lib/exercise-library.ts';
+import { LIBRARY_LEVEL_NAMES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import { generateLibrarySession, levelCeilingFor } from '../lib/library-session.ts';
 
 let passed = 0;
 let failed = 0;
@@ -152,13 +153,122 @@ check(
 check(
   'no reachable combination is ever offered a step to Athlete',
   ['beginner', 'intermediate', 'advanced', 'athlete'].every((lvl) =>
-    [0, 1, 2].every((bonus) => {
+    [0, 1, 2, 3, 9].every((bonus) => {
       const o = offer({ experienceLevel: lvl, earnedLevelBonus: bonus, liftingCount: 999 });
-      return o === null || o.to <= LEVEL_STEP_CEILING;
+      /**
+       * Pinned to the LEVEL, not to LEVEL_STEP_CEILING. This assertion used to
+       * read `o.to <= LEVEL_STEP_CEILING`, which compares the offer against the
+       * very constant it is guarding: raise the constant to 4 and the bound
+       * moves with it, so the one assertion carrying the clinical sentence was
+       * the one assertion that could not fail.
+       */
+      return o === null || (o.to < 4 && LIBRARY_LEVEL_NAMES[o.to] !== 'Athlete');
     })
   ),
   'this is the clinical rule of the phase: jumps and throws are chosen, never given'
 );
+check(
+  'and the cap constant really is the rung below Athlete',
+  LIBRARY_LEVEL_NAMES[LEVEL_STEP_CEILING] === 'Advanced' &&
+    LIBRARY_LEVEL_NAMES[LEVEL_STEP_CEILING + 1] === 'Athlete',
+  `the offer caps at ${LIBRARY_LEVEL_NAMES[LEVEL_STEP_CEILING]}`
+);
+
+// ─── 2b. Nor does any other route reach Athlete ──────────────────────────────
+console.log('\n[2b] Athlete is chosen, never given - by any route at all');
+
+/**
+ * THE HOLE THIS CLOSED. The offer caps itself, but the CEILING used to be
+ * experience plus earned rungs clamped at the top of the library, so the rungs
+ * outlived the answer they were added to: take both offers as a beginner (rungs
+ * 2, ceiling Advanced), then correct your experience to Advanced in the edit
+ * sheet - which the new level card openly invites, since it prints Advanced
+ * while the edit sheet still says Beginner - and 3 + 2 clamped to 4. Athlete.
+ * Depth jumps and medicine ball throws, prescribed to somebody who never said
+ * they were training for sport, by two decisions neither of which was about
+ * jumping.
+ */
+const EXPERIENCE_ANSWERS = ['beginner', 'intermediate', 'advanced', 'athlete'];
+const REACHABLE_BONUSES = [0, 1, 2, 3, 9];
+
+check(
+  'the ceiling reaches Athlete only for somebody who said Athlete',
+  EXPERIENCE_ANSWERS.every((experienceLevel) =>
+    REACHABLE_BONUSES.every(
+      (earnedLevelBonus) =>
+        (LIBRARY_LEVEL_NAMES[levelCeilingFor({ experienceLevel, earnedLevelBonus })] ===
+          'Athlete') ===
+        (experienceLevel === 'athlete')
+    )
+  ),
+  EXPERIENCE_ANSWERS.map(
+    (e) => `${e}: ${REACHABLE_BONUSES.map((b) => levelCeilingFor({ experienceLevel: e, earnedLevelBonus: b })).join('')}`
+  ).join(' | ')
+);
+check(
+  'and a rung still buys a level for everybody below the cap',
+  levelCeilingFor({ experienceLevel: 'beginner', earnedLevelBonus: 1 }) === 2 &&
+    levelCeilingFor({ experienceLevel: 'beginner', earnedLevelBonus: 2 }) === 3,
+  'clamping must not flatten the step-up this whole phase exists to make'
+);
+
+/**
+ * And the same rule read off REAL SESSIONS rather than off the ceiling
+ * function, because the ceiling is only a promise until the generator keeps it.
+ */
+const keyOf = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const LIB_BY_KEY = new Map(LIBRARY_EXERCISES.map((e) => [keyOf(e.name), e]));
+const EVERY_KIT = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym', 'bench'];
+function levelsPrescribed(experienceLevel, earnedLevelBonus) {
+  const levels = new Set();
+  for (const sessionType of ['lower_body', 'upper_body', 'full_body']) {
+    for (const seed of [0, 1, 2, 3, 4, 5]) {
+      const session = generateLibrarySession({
+        sessionType,
+        equipment: EVERY_KIT,
+        readiness: { hasAches: false, energy: 'normal', timeAvailable: '60' },
+        profile: {
+          name: 'Probe',
+          sex: 'male',
+          experienceLevel,
+          goals: ['strength'],
+          bodyweightKg: 80,
+          ageYears: 30,
+          standingSoreRegions: [],
+          clinicalAvoid: [],
+          earnedLevelBonus,
+        },
+        sessionTypeCount: seed,
+        strengthSessionCount: seed,
+        daysSinceLastSession: null,
+      });
+      for (const ex of session.exercises) {
+        const record = LIB_BY_KEY.get(keyOf(ex.name));
+        if (record) levels.add(record.level);
+      }
+    }
+  }
+  return levels;
+}
+
+check(
+  'somebody who said Athlete is really given Athlete movements',
+  levelsPrescribed('athlete', 0).has(4),
+  'without this the two checks below could pass on a generator that never prescribes level 4 at all'
+);
+for (const [who, experience, bonus] of [
+  ['a beginner who has taken every rung the app will ever offer', 'beginner', 2],
+  ['somebody who took those rungs and then edited themselves to Advanced', 'advanced', 2],
+  ['an Intermediate with two finished blocks behind them', 'intermediate', 2],
+  ['and anybody a stale profile hands an absurd rung to', 'beginner', 9],
+]) {
+  const levels = [...levelsPrescribed(experience, bonus)];
+  check(
+    `${who} is never prescribed one`,
+    levels.every((l) => l < 4),
+    `levels prescribed: ${levels.sort().join(', ')}`
+  );
+}
 
 // ─── 3. Not while a block is running ─────────────────────────────────────────
 console.log('\n[3] A programme owns its own offer');
@@ -284,6 +394,56 @@ check(
   'the card points at the edit sheet instead'
 );
 
+/**
+ * A STEP ALREADY TAKEN COSTS NOTHING TO TAP AGAIN.
+ *
+ * A programme report is frozen and can be re-opened for ever, and its card
+ * still offers the rung it offered on the day. The XP award was already guarded
+ * against paying twice; the clock was not, so re-reading an old report pushed
+ * the next offer sixteen sessions into the future for nothing.
+ */
+freshAccount({ completedSessions: trainSessions(16) });
+S().acceptLevelStep(1);
+const dueAfterAccepting = S().levelStepDueAt;
+useAppStore.setState({ completedSessions: trainSessions(24) });
+S().acceptLevelStep(1);
+check(
+  'tapping a step that was already taken moves neither the rung nor the clock',
+  S().levelStepDueAt === dueAfterAccepting && S().userProfile.earnedLevelBonus === 1,
+  `due at ${S().levelStepDueAt}, and it was ${dueAfterAccepting} before the second tap`
+);
+
+/**
+ * THE WAY DOWN HAS TO MOVE THE LEVEL, not just the rung.
+ *
+ * Rungs can pile up above the ceiling they are clamped to, so "minus one" can
+ * leave somebody on exactly the level they asked to come down from, with a
+ * button that appears to do nothing.
+ */
+check(
+  'a rung the cap swallows is not offered as a way down at all',
+  levelStandingFor({ experienceLevel: 'advanced', earnedLevelBonus: 1 }).down === null,
+  JSON.stringify(levelStandingFor({ experienceLevel: 'advanced', earnedLevelBonus: 1 }))
+);
+freshAccount({
+  completedSessions: trainSessions(10),
+  userProfile: { ...FRESH.userProfile, experienceLevel: 'intermediate', earnedLevelBonus: 2 },
+  levelStepDueAt: 26,
+});
+check(
+  'and where there are two, stepping down names the level it really lands on',
+  levelStandingFor(S().userProfile).name === 'Advanced' &&
+    levelStandingFor(S().userProfile).down?.name === 'Intermediate',
+  JSON.stringify(levelStandingFor(S().userProfile))
+);
+S().stepLevelDown();
+check(
+  'and it hands back as many rungs as that takes',
+  levelStandingFor(S().userProfile).name === 'Intermediate' &&
+    (S().userProfile.earnedLevelBonus ?? 0) === 0,
+  `bonus ${S().userProfile.earnedLevelBonus}, level ${levelStandingFor(S().userProfile).name}`
+);
+
 freshAccount({ completedSessions: trainSessions(40), levelStepDueAt: 40 });
 S().setUserProfile({ experienceLevel: 'intermediate' });
 check(
@@ -389,6 +549,36 @@ check(
   'one-time means one time'
 );
 
+/**
+ * AND "FOR GOOD" MEANS ACROSS A RESTART, which is the half a dismissal in
+ * memory alone would pass. Driven through the real write and a real rehydrate
+ * of whatever that write produced, rather than a hand-made payload: a flag left
+ * out of the persisted state would be dismissed on the screen and back on the
+ * next cold start, and a fixture written by the test would hide that.
+ */
+await new Promise((resolve) => setTimeout(resolve, 20));
+const writtenToDisk = JSON.parse(globalThis.window.localStorage.getItem(STORAGE_KEY) ?? '{}');
+check(
+  'and the dismissal is written to storage, not only to the screen',
+  writtenToDisk.state?.levelCheckCardPending === false &&
+    writtenToDisk.state?.benchPromptPending === false,
+  `stored: ${JSON.stringify({
+    level: writtenToDisk.state?.levelCheckCardPending,
+    bench: writtenToDisk.state?.benchPromptPending,
+  })}`
+);
+// Both flags forced back on, then the bytes the app really wrote are put back
+// underneath them - the store writes on every change, so the storage has to be
+// restored after the setState or the cold start reads what this line just saved.
+useAppStore.setState({ levelCheckCardPending: true, benchPromptPending: true });
+globalThis.window.localStorage.setItem(STORAGE_KEY, JSON.stringify(writtenToDisk));
+await useAppStore.persist.rehydrate();
+check(
+  'so neither card comes back on the next cold start',
+  S().levelCheckCardPending === false && S().benchPromptPending === false,
+  'the stored answer has to win over whatever the fresh state starts at'
+);
+
 freshAccount({ benchPromptPending: true });
 S().setEquipmentTiers(['dumbbells', 'bench']);
 check(
@@ -439,6 +629,64 @@ check(
   'and a payload that reaches an unstamped device stamps it',
   typeof S().levelStepDueAt === 'number' &&
     S().levelStepDueAt === 22,
+  `due at ${S().levelStepDueAt}`
+);
+
+/**
+ * THE OTHER HALF, AND THE ONE THAT WAS BROKEN: the other phone took the rung.
+ *
+ * The rung itself has always travelled, inside userProfile.earnedLevelBonus.
+ * The clock it is measured against did not, so a routine sign-in on a second
+ * handset adopted the new level and kept its own count of sessions trained at
+ * the OLD one: "sixteen sessions at this level" became four, and the app
+ * offered the next rung on the next summary.
+ *
+ * Driven through the real payload rather than a hand-written object, so a field
+ * missing from getDataForSync fails here rather than passing on a fixture that
+ * carries what the app does not.
+ */
+freshAccount({ completedSessions: trainSessions(16) });
+S().acceptLevelStep(1);
+useAppStore.setState({ completedSessions: trainSessions(20) });
+const fromOtherPhone = JSON.parse(JSON.stringify(S().getDataForSync()));
+check(
+  'the clock is in the payload a phone uploads',
+  fromOtherPhone.levelStepDueAt === 32,
+  `payload says ${JSON.stringify(fromOtherPhone.levelStepDueAt)}; the rung beside it says ${JSON.stringify(fromOtherPhone.userProfile?.earnedLevelBonus)}`
+);
+
+freshAccount({ completedSessions: trainSessions(16), levelStepDueAt: 16 });
+S().mergeServerData(fromOtherPhone);
+check(
+  'signing in on a second phone takes the rung AND the clock it was measured against',
+  (S().userProfile.earnedLevelBonus ?? 0) === 1 && S().levelStepDueAt === 32,
+  `bonus ${S().userProfile.earnedLevelBonus}, due at ${S().levelStepDueAt} against ${S().completedSessions.length} sessions`
+);
+check(
+  'so the next session summary on that phone offers nothing',
+  liveOffer() === null,
+  JSON.stringify(liveOffer())
+);
+check(
+  'and the next rung is still twelve sessions away, not here',
+  (() => {
+    useAppStore.setState({ completedSessions: trainSessions(31) });
+    const early = liveOffer();
+    useAppStore.setState({ completedSessions: trainSessions(32) });
+    return early === null && liveOffer()?.toName === 'Advanced';
+  })(),
+  `due at ${S().levelStepDueAt}`
+);
+
+/**
+ * And the clock never travels backwards. A phone that has been trained on for
+ * months must not have its clock pulled back by a stale copy on the server.
+ */
+freshAccount({ completedSessions: trainSessions(20), levelStepDueAt: 32 });
+S().mergeServerData({ completedSessions: trainSessions(20), levelStepDueAt: 16 });
+check(
+  'a stale payload never drags the clock backwards',
+  S().levelStepDueAt === 32,
   `due at ${S().levelStepDueAt}`
 );
 

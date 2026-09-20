@@ -140,11 +140,29 @@ const NOT_SYNCED = {
   pendingProgrammeReportId:
     'a nudge saying a report has not been opened on THIS device, not a fact about the user. The report itself is in completedProgrammes, which is synced, so a new phone finds it on the shelf rather than being handed it again',
 };
-const syncBody = store.slice(
-  store.indexOf('getDataForSync: () => {'),
-  store.indexOf('getInternalTier:') > store.indexOf('getDataForSync: () => {')
-    ? store.indexOf('}, ', store.indexOf('getDataForSync: () => {'))
-    : store.length
+/**
+ * THE BODY OF getDataForSync, AND NOTHING AFTER IT.
+ *
+ * This slice used to end at `indexOf('getInternalTier:')`, which sits ABOVE
+ * getDataForSync in the file, so the ternary guarding it fell through to
+ * `store.length` and the "slice" was the whole rest of the store - mergeServerData
+ * included. The rule below then matched `levelStepDueAt: s.levelStepDueAt +
+ * restoredLifting` inside the merge and reported a field as synced that was
+ * missing from the payload entirely. A rule that cannot fail is worse than no
+ * rule, because it is counted as covering something.
+ *
+ * Ended on the action's OWN closing brace - the first line that closes at the
+ * six-space indent every action in this store is written at - so it cannot be
+ * quietly widened by whatever gets added after it. Asserted below as well as
+ * computed, because this is the second time the anchor has gone wrong.
+ */
+const syncStart = store.indexOf('getDataForSync: () => {');
+const syncEndOffset = store.slice(syncStart).search(/\r?\n {6}\},/);
+const syncBody = syncStart < 0 || syncEndOffset < 0 ? '' : store.slice(syncStart, syncStart + syncEndOffset);
+check(
+  'the slice really is getDataForSync and stops there',
+  /userProfile: s\.userProfile/.test(syncBody) && !/mergeServerData/.test(syncBody),
+  `${syncBody.length} characters; if this has swallowed the merge, every rule below passes for the wrong reason`
 );
 const clearedFields = [...new Set([...resetBody.matchAll(/^\s{10}([a-zA-Z]+):/gm)].map((m) => m[1]))];
 check(

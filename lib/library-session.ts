@@ -199,16 +199,31 @@ const LEVEL_FOR_EXPERIENCE: Record<ExperienceLevel, LibraryLevel> = {
  * The hardest level this person may be prescribed.
  *
  * What they told us, plus what they have shown us. `earnedLevelBonus` is rungs
- * banked by finishing blocks and accepted by the person, capped here at the top
- * of the library rather than left to run past it.
+ * banked by finishing blocks and by taking the step-up offer, capped here at
+ * the top of the library rather than left to run past it.
+ *
+ * ATHLETE IS CHOSEN, NEVER GIVEN. Level 4 is jumps, throws and depth work
+ * (Archie's decision 8), and the Athlete answer on the experience page means
+ * "training for sport or peak performance" - a fact about somebody's life, not
+ * a score. So earned rungs stop one below it: the only route to level 4 is
+ * saying so about yourself.
+ *
+ * Without this clamp the ceiling was simply base + bonus, and the rungs
+ * outlived the answer they were added to. Somebody who reached two rungs as a
+ * beginner and then corrected their experience to Advanced in the edit sheet
+ * came out on 3 + 2, which the old `min(4, ...)` rounded down to Athlete: depth
+ * jumps prescribed to somebody who had never claimed to be an athlete, by two
+ * separate decisions neither of which was about jumping.
  */
 export function levelCeilingFor(profile?: {
   experienceLevel?: ExperienceLevel;
   earnedLevelBonus?: number;
 }): LibraryLevel {
-  const base = LEVEL_FOR_EXPERIENCE[profile?.experienceLevel ?? 'intermediate'] ?? 2;
+  const experience = profile?.experienceLevel ?? 'intermediate';
+  const base = LEVEL_FOR_EXPERIENCE[experience] ?? 2;
   const bonus = Math.max(0, Math.floor(profile?.earnedLevelBonus ?? 0));
-  return Math.min(4, base + bonus) as LibraryLevel;
+  const top: LibraryLevel = experience === 'athlete' ? 4 : 3;
+  return Math.min(top, base + bonus) as LibraryLevel;
 }
 
 /**
