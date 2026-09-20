@@ -20,10 +20,10 @@ const TIER_ICONS: Record<EquipmentTier, keyof typeof Ionicons.glyphMap> = {
   dumbbells: 'barbell-outline',
   kettlebells: 'fitness-outline',
   fullgym: 'business-outline',
-  // Nothing shows this yet: a bench is kit rather than a rung on the equipment
-  // ladder, and the ladder is what every picker lists. The flattest glyph in
-  // the family stands in for a bench, box or step until there is a tile to
-  // judge it on.
+  // This is what the bench tile draws wherever there is no photograph, which is
+  // everywhere: the other five tiers have artwork and a bench, box or step has
+  // none. See components/EquipmentTileArt. The flattest glyph in the family is
+  // the nearest thing the set has to something you sit or stand on.
   bench: 'tablet-landscape-outline',
 };
 

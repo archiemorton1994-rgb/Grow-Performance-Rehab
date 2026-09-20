@@ -67,7 +67,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useColors, useGoColors } from '@/constants/colors';
 import { GrowIcon, GrowIconTile } from '@/components/GrowIcon';
-import { EquipmentIcon } from '@/components/EquipmentIcon';
+import { EquipmentTileArt } from '@/components/EquipmentTileArt';
 import type { GrowIconName } from '@/lib/icon-art';
 import { useReducedMotion } from '@/lib/use-reduced-motion';
 import { EXPERIENCE_OPTIONS, EXPERIENCE_LABELS } from '@/lib/experience-options';
@@ -146,16 +146,6 @@ const EXPERIENCE_ICONS: Record<ExperienceLevel, GrowIconName> = {
   intermediate: 'dumbbell',
   advanced: 'trophy',
   athlete: 'medal',
-};
-
-// Partial on purpose: there is no bench photograph, so that tile draws the line
-// icon every other picker draws for it. See the tile itself.
-const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
-  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
-  bands: require('@/assets/images/equipment/bands.png'),
-  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
-  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
-  fullgym: require('@/assets/images/equipment/fullgym.png'),
 };
 
 /** Every area the app can adapt around, from the one list that owns them. */
@@ -697,20 +687,16 @@ function SignUpFlow() {
                       testID={`equipment-${opt.value}`}
                     >
                       {/* A photograph where there is one, and the same line
-                          icon the sheets use where there is not. A missing
-                          source renders an empty box, which would have left
-                          the bench tile looking broken beside five that are
-                          not. */}
+                          icon the sheets use where there is not. Both come from
+                          components/EquipmentTileArt, which is the only place
+                          that knows which tiles have artwork. */}
                       <View style={styles.equipIcon}>
-                        {EQUIPMENT_IMAGES[opt.value] ? (
-                          <Image
-                            source={EQUIPMENT_IMAGES[opt.value]}
-                            style={styles.equipImage}
-                            resizeMode="contain"
-                          />
-                        ) : (
-                          <EquipmentIcon tier={opt.value} size={26} color={C.primaryText} />
-                        )}
+                        <EquipmentTileArt
+                          tier={opt.value}
+                          imageStyle={styles.equipImage}
+                          iconSize={26}
+                          iconColor={C.primaryText}
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text

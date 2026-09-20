@@ -41,8 +41,12 @@ const KeyboardAvoidingView = ({ children, testID, style, behavior, ...rest }) =>
   React.createElement('View', { testID, ...rest }, children);
 KeyboardAvoidingView.displayName = 'KeyboardAvoidingView';
 
+// `source` is passed through on purpose. An <Image> with an undefined source
+// does not throw or warn in React Native, it just draws an empty box, so a
+// render test can only tell a picture from a blank space if the prop survives
+// into the tree. tests/equipment-tile-art.test.tsx reads it.
 const Image = ({ testID, style, source, resizeMode, ...rest }) =>
-  React.createElement('Image', { testID, ...rest });
+  React.createElement('Image', { testID, source, ...rest });
 Image.displayName = 'Image';
 
 const FlatList = ({ testID, data, renderItem, keyExtractor, style, ...rest }) =>

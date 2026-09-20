@@ -22,6 +22,7 @@ import Constants from 'expo-constants';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EquipmentIcon } from '@/components/EquipmentIcon';
+import { EquipmentTileArt } from '@/components/EquipmentTileArt';
 import { GlossaryTerm } from '@/components/GlossaryTerm';
 import { StatStrip } from '@/components/StatStrip';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
@@ -75,16 +76,6 @@ import LevelRing from '@/components/LevelRing';
 import { keepProfilePhoto, photoSource } from '@/lib/profile-photo';
 import { strengthScore, strengthScoreLabel } from '@/lib/strength-score';
 import { xpStanding, xpBandName } from '@/lib/xp';
-
-// Partial on purpose: there is no bench photograph, so that tile draws the same
-// line icon every other picker draws for it.
-const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
-  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
-  bands: require('@/assets/images/equipment/bands.png'),
-  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
-  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
-  fullgym: require('@/assets/images/equipment/fullgym.png'),
-};
 
 /** A number the user could plausibly have meant to type. Rejects "1e5", "12abc" and "". */
 const TYPED_NUMBER = /^\d+(\.\d+)?$/;
@@ -1715,18 +1706,16 @@ export default function ProfileScreen() {
                     }}
                   >
                     {/* A photograph where there is one, and the line icon where
-                        there is not. An Image with no source draws an empty
-                        box, which would have left the bench row looking broken
-                        beside five that are not. */}
-                    {EQUIPMENT_IMAGES[tier] ? (
-                      <Image
-                        source={EQUIPMENT_IMAGES[tier]}
-                        style={{ width: 60, height: 60 }}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <EquipmentIcon tier={tier} size={26} color={C.primaryText} />
-                    )}
+                        there is not. Both come from EquipmentTileArt, which is
+                        the only place that knows which tiles have artwork: an
+                        Image with no source draws an empty box rather than
+                        failing, so a screen cannot be trusted to remember. */}
+                    <EquipmentTileArt
+                      tier={tier}
+                      imageStyle={{ width: 60, height: 60 }}
+                      iconSize={26}
+                      iconColor={C.primaryText}
+                    />
                   </View>
                   <Text style={[styles.equipLabel, isActive && styles.equipLabelActive]}>
                     {getEquipmentLabel(tier)}

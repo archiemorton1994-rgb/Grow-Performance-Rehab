@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   View,
   Text,
-  Image,
   Pressable,
   StyleSheet,
   Platform,
@@ -26,6 +25,8 @@ import {
   useAppStore,
 } from '@/lib/store';
 import { PICKER_TIERS, toggleEquipment } from '@/lib/equipment-picker';
+import { isSupplyTier } from '@/lib/kit';
+import { EquipmentTileArt } from '@/components/EquipmentTileArt';
 import {
   getSessionLabel,
   getSessionSubtitle,
@@ -51,17 +52,10 @@ const TIER_DESCRIPTIONS: Record<EquipmentTier, string> = {
   dumbbells: 'Available',
   kettlebells: 'Available',
   fullgym: 'Everything',
-  bench: 'Anything solid to sit, press or step on',
-};
-
-// Partial on purpose: there is no bench photograph, so that tile draws the same
-// line icon the other pickers draw for it.
-const EQUIPMENT_IMAGES: Partial<Record<EquipmentTier, any>> = {
-  bodyweight: require('@/assets/images/equipment/bodyweight.png'),
-  bands: require('@/assets/images/equipment/bands.png'),
-  dumbbells: require('@/assets/images/equipment/dumbbells.png'),
-  kettlebells: require('@/assets/images/equipment/kettlebells.png'),
-  fullgym: require('@/assets/images/equipment/fullgym.png'),
+  // Two or three words, like every line above it: this tile's caption is drawn
+  // with numberOfLines={1} in a narrow column, so the fuller sentence the wide
+  // sheets and the sign-up pager use would be cut off mid-word here.
+  bench: 'Bench, box or step',
 };
 
 // ─── Readiness tutorial content ───────────────────────────────────────────
@@ -592,15 +586,26 @@ export default function ReadinessScreen() {
                     styles.tierTile,
                     isActive && styles.tierRowActive,
                     pressed && { opacity: 0.8 },
-                    tier === 'fullgym' && styles.tierTileFull,
+                    // The gym spans the row because it is the "everything"
+                    // answer. The bench spans it because it is not a rung of
+                    // the ladder at all, and a tile on a row of its own reads
+                    // as the separate question it is. It also stops the last
+                    // tile being orphaned at half width beside a gap.
+                    (tier === 'fullgym' || isSupplyTier(tier)) && styles.tierTileFull,
                   ]}
                   testID={`equipment-${tier}`}
                 >
                   <View style={styles.tierImageWrap}>
-                    <Image
-                      source={EQUIPMENT_IMAGES[tier]}
-                      style={styles.tierImage}
-                      resizeMode="contain"
+                    {/* A photograph where there is one, and the line glyph
+                        where there is not. Five of the six tiles have artwork;
+                        an Image with an undefined source draws an empty box
+                        rather than failing, which is exactly how this tile
+                        shipped blank. */}
+                    <EquipmentTileArt
+                      tier={tier}
+                      imageStyle={styles.tierImage}
+                      iconSize={34}
+                      iconColor={C.primaryText}
                     />
                   </View>
                   <View style={styles.tierTextRow}>
