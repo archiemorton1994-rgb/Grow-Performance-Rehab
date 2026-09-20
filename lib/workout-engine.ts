@@ -68,6 +68,7 @@ import {
   getWeeklyUpperBodyExercises,
   getWeeklyFullBodyExercises,
   getAllPickableExercises,
+  getRestoreExercises,
   type PickableExercise,
   canPerformWith,
   possibleFor,
@@ -87,7 +88,6 @@ import {
   type MuscleGroup,
   type SwapKind,
 } from './exercise-swaps';
-import { applyGripVariant } from './grip-variants';
 import {
   DROPPABLE_CATEGORIES,
   HIGH_INTENSITY_CATEGORIES,
@@ -1358,67 +1358,6 @@ function personalizeLoad(
   return { text, kg: prescribed.length > 0 ? prescribed : null };
 }
 
-function shouldSwapForComfort(
-  template: ExerciseTemplate,
-  painRegion?: PainRegion | PainRegion[]
-): boolean {
-  if (!painRegion || !template.comfortVariant) return false;
-  const regions = Array.isArray(painRegion) ? painRegion : [painRegion];
-  return regions.some((r) => template.comfortVariant!.triggerRegions.includes(r));
-}
-
-function applyComfortOrBadge(
-  template: ExerciseTemplate,
-  hasAches: boolean,
-  painRegion: PainRegion | PainRegion[] | undefined,
-  tier: EquipmentTier,
-  overrideSets?: number,
-  overrideCategory?: ExerciseCategory
-): Exercise {
-  const isDumbbell = isDumbbellTier(tier);
-  /**
-   * A comfort variant is only comfort if they can actually do it.
-   *
-   * These are hand-authored gentler versions, and a great many of them reach for
-   * a band: a Glute Bridge offers a Banded Clamshell, a Pike Push-Up offers a
-   * Banded Lateral Raise. Handed to somebody who ticked "No Equipment" the
-   * kinder option is the one they cannot perform, and it arrives at exactly the
-   * moment they have said something hurts.
-   *
-   * Falling through to the ordinary exercise is the right failure: it is the
-   * movement they were already going to do, and the injury screen above this
-   * has separately removed anything genuinely unsafe for the area.
-   */
-  const comfortIsPossible =
-    !!template.comfortVariant &&
-    canPerformWith(template.comfortVariant.equipmentRequired ?? template.equipmentRequired, [tier]);
-  if (hasAches && shouldSwapForComfort(template, painRegion) && comfortIsPossible && template.comfortVariant) {
-    const cv = template.comfortVariant;
-    return {
-      id: template.id + '-comfort',
-      name: cv.name,
-      sets: overrideSets ?? template.sets,
-      reps: template.reps,
-      cue: cv.cue,
-      suggestedLoad: cv.suggestedLoad,
-      category: overrideCategory ?? template.category,
-      badge: 'comfort',
-      videoId: template.videoId,
-      youtubeUrl: template.youtubeUrl,
-      hasSwap: false,
-      isDumbbellExercise: isDumbbell,
-      // A comfort variant is the same movement made kinder, so it trains the
-      // same muscle. Dropping this made the exercise region-less, and a
-      // region-less exercise can be replaced by anything at all.
-      primaryMuscle: template.primaryMuscle,
-    };
-  }
-  const ex = templateToExercise(template, undefined, isDumbbell);
-  if (overrideSets !== undefined) ex.sets = overrideSets;
-  if (overrideCategory !== undefined) ex.category = overrideCategory;
-  return ex;
-}
-
 /**
  * SESSION STRUCTURE (8 phases):
  *
@@ -1472,95 +1411,6 @@ export function getGoalVolumeDeltas(goals: FitnessGoal[]): {
   const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
   const avgAcc = active.reduce((s, g) => s + (accDelta[g] ?? 0), 0) / active.length;
   return { mainSetsDelta: Math.round(avgMain), accSetsDelta: Math.round(avgAcc) };
-}
-
-/**
- * Standard kettlebell weights in kg - the required set per project spec.
- * 8 kg minimum (no 4/6), 40 kg maximum (no 48+).
- */
-const KB_WEIGHTS = [8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40];
-
-function nearestKbWeight(kg: number): number {
-  return KB_WEIGHTS.reduce((prev, curr) =>
-    Math.abs(curr - kg) < Math.abs(prev - kg) ? curr : prev
-  );
-}
-
-function relabelForKettlebell(text: string): string {
-  return text
-    .replace(/\bdumbbells?\b/gi, (match) => {
-      const isPlural = /s$/i.test(match);
-      const isCapital = /^[A-Z]/.test(match);
-      const base = isCapital ? 'Kettlebell' : 'kettlebell';
-      return isPlural ? base + 's' : base;
-    })
-    .replace(/\bDBs?\b/g, (match) => (match.endsWith('s') ? 'KBs' : 'KB'));
-}
-
-/**
- * Rewrite a prescribed load in the weights a kettlebell owner actually has.
- *
- * IT USED TO ROUND EVERY NUMBER TO THE NEAREST BELL, INDEPENDENTLY.
- *
- * The lightest bell is 8 kg, so "2-4 kg per hand" — the physio's own
- * prescription for rotator-cuff external rotations, the most load-sensitive
- * drill in the app and one that sits in the prehab slot — was printed as
- * "8-8 kg per hand". Two to four times the intended load, on a rehab exercise,
- * for someone who has told the app their shoulder hurts.
- *
- * It also produced collapsed nonsense wherever both ends of a range rounded to
- * the same bell: "6-10 kg" became "8-8 kg", across fourteen cards.
- *
- * Two rules now:
- *
- *   1. NEVER round a load UP past what was prescribed. A bell heavier than the
- *      top of the range is not the nearest available option, it is a different
- *      exercise. Sub-8 kg prescriptions are left exactly as written — bands or a
- *      light dumbbell are the honest answer, and the user can read the number.
- *   2. A range that collapses to one bell prints as one number, not "8-8".
- */
-function relabelLoadForKettlebell(load: string): string {
-  const labelled = relabelForKettlebell(load);
-
-  // A range: round each end on its own, then tidy up if they meet.
-  const range = labelled.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
-  if (range) {
-    const lo = parseFloat(range[1]);
-    const hi = parseFloat(range[2]);
-    if (lo <= 100 && hi <= 100) {
-      // The whole range is lighter than the lightest bell. Rounding it up would
-      // more than double the prescription, so it stays as written.
-      if (hi < KB_WEIGHTS[0]) return labelled;
-      const loKb = Math.min(nearestKbWeight(lo), nearestKbWeight(hi));
-      const hiKb = nearestKbWeight(hi);
-      const replacement = loKb === hiKb ? String(loKb) : `${loKb}-${hiKb}`;
-      return labelled.replace(range[0], replacement);
-    }
-  }
-
-  return labelled.replace(/\d+(?:\.\d+)?/g, (match) => {
-    const num = parseFloat(match);
-    if (num > 100) return match;
-    // Same rule for a single figure: never heavier than what was asked for.
-    if (num < KB_WEIGHTS[0]) return match;
-    return String(nearestKbWeight(num));
-  });
-}
-
-/**
- * Post-processes the exercise list to use KB terminology when the user's
- * equipment tier is 'kettlebells'. Names, cues, and loads all get relabelled.
- */
-function applyKettlebellNaming(exercises: Exercise[]): Exercise[] {
-  return exercises.map((ex) => ({
-    ...ex,
-    name: relabelForKettlebell(ex.name),
-    cue: relabelForKettlebell(ex.cue),
-    suggestedLoad: relabelLoadForKettlebell(ex.suggestedLoad),
-    swapName: ex.swapName ? relabelForKettlebell(ex.swapName) : ex.swapName,
-    swapCue: ex.swapCue ? relabelForKettlebell(ex.swapCue) : ex.swapCue,
-    swapLoad: ex.swapLoad ? relabelLoadForKettlebell(ex.swapLoad) : ex.swapLoad,
-  }));
 }
 
 /**
@@ -1897,9 +1747,11 @@ export interface LibraryFacts {
  *
  * The screen runs LAST, over the finished list, rather than being threaded
  * through each generator. That is deliberate: there are five separate paths
- * that build a session (KPI, weekly, conditioning, prehab, flexibility) plus
- * comfort variants, grip variants and kettlebell renaming layered on top, and a
- * filter applied at any one of them is a filter three others quietly skip.
+ * that build a session (the library, conditioning, weekly, prehab,
+ * flexibility), and a filter applied at any one of them is a filter four others
+ * quietly skip. Comfort variants, grip variants and kettlebell renaming used to
+ * be layered on top of them as well; those are gone, and the library
+ * substitutes a record of the same pattern instead.
  * Screening the output is the only place where "nothing unsafe reaches the
  * user" is a statement about the whole app rather than about one code path.
  *
@@ -2313,7 +2165,16 @@ export function generateWorkout(
     screenedReadiness,
     equipmentTier,
     profile,
-    strengthSessionCount + getLocalDayIndex()
+    strengthSessionCount + getLocalDayIndex(),
+    /**
+     * AND THE TAB THIS SESSION BELONGS TO, WHICH ONLY MATTERS FOR RESTORE.
+     *
+     * Everything the old catalogue still builds arrives here: Recovery,
+     * Mobility and the targeted rehab work, plus the custom session, which
+     * comes back empty. The two Restore ones take their alternatives from
+     * Restore's own lists; nothing else changes.
+     */
+    buildType
   );
 
   /**
@@ -2384,6 +2245,40 @@ interface AlternativePool {
 }
 
 /**
+ * THE TWO SESSIONS THE RESTORE TAB BUILDS.
+ *
+ * 'prehab' is Recovery and the targeted rehab work; 'flexibility' is Mobility.
+ * They are the same two the injury screen exempts (SCREEN_EXEMPT_SESSION_TYPES
+ * in lib/exercise-safety.ts), for a related reason: a drill chosen FOR a sore
+ * area must not be screened away for mentioning it, and an alternative offered
+ * beside that drill must be Restore's own work rather than the gym's.
+ */
+export const RESTORE_SESSION_TYPES = ['prehab', 'flexibility'] as const;
+
+/**
+ * DOES RESTORE ITSELF PRESCRIBE THIS MOVEMENT?
+ *
+ * Asked of every alternative offered on a Restore session, and of nothing else.
+ * The swap sheet is filled from the whole pickable catalogue, which walks every
+ * Train pool in the file, so a Mobility session's Diaphragmatic Breathing card
+ * was offering a Med Ball Slam and a Hanging Leg Raise, and a rehab drill was
+ * offering an Assault Bike warm-up. Measured over 2,800 Restore sessions:
+ * 7,392 of 37,366 filled swap slots, a fifth of them, named something with no
+ * Restore row at all. The cards were always clean. The leak was one tap behind.
+ *
+ * Archie's rule is short - leave the Restore tab alone - and this is the half of
+ * it the button was breaking. See getRestoreExercises in lib/exercise-db.ts for
+ * the five lists that make up "Restore's own".
+ */
+let _restoreNames: Set<string> | null = null;
+function hasRestoreRow(name: string): boolean {
+  if (!_restoreNames) {
+    _restoreNames = new Set(getRestoreExercises().map((t) => t.name.toLowerCase()));
+  }
+  return _restoreNames.has(name.toLowerCase());
+}
+
+/**
  * The catalogue keyed by lower-cased name, built once.
  *
  * getAllPickableExercises() is itself cached, but this map was being rebuilt
@@ -2404,7 +2299,14 @@ function alternativePool(
   original: Exercise,
   banned: Set<StressTag>,
   tier: EquipmentTier,
-  usedNames: Set<string>
+  usedNames: Set<string>,
+  /**
+   * An extra boundary on WHICH LIST an alternative may come out of, applied on
+   * top of every safety and kit test below. Absent means the whole catalogue,
+   * which is every Train session. A Restore session passes the Restore test -
+   * see hasRestoreRow.
+   */
+  within?: (t: ExerciseTemplate) => boolean
 ): AlternativePool {
   const pickable = getAllPickableExercises();
   const byName = pickableByName();
@@ -2440,6 +2342,7 @@ function alternativePool(
     // both cards would then log their sets against one id.
     !usedNames.has(p.template.id) &&
     canSubstituteFor(region, p.template.primaryMuscle) &&
+    (!within || within(p.template)) &&
     isClean(p.template);
 
   return { pickable, byName, source, isUsable };
@@ -2449,13 +2352,15 @@ function rankedAlternatives(
   original: Exercise,
   banned: Set<StressTag>,
   tier: EquipmentTier,
-  usedNames: Set<string>
+  usedNames: Set<string>,
+  within?: (t: ExerciseTemplate) => boolean
 ): ExerciseTemplate[] {
   const { pickable, byName, source, isUsable } = alternativePool(
     original,
     banned,
     tier,
-    usedNames
+    usedNames,
+    within
   );
 
   const ranked: ExerciseTemplate[] = [];
@@ -2733,7 +2638,9 @@ function sameJobAlternatives(
   banned: Set<StressTag>,
   tier: EquipmentTier,
   used: Set<string>,
-  seed: number
+  seed: number,
+  /** The list boundary - see alternativePool. Restore sessions stay in Restore. */
+  within?: (t: ExerciseTemplate) => boolean
 ): SwapOption[] {
   const source = pickableByName().get(ex.name.toLowerCase())?.template;
   const area = bodyRegionOf(ex.primaryMuscle ?? source?.primaryMuscle);
@@ -2797,7 +2704,7 @@ function sameJobAlternatives(
   const isAccommodation = (t: ExerciseTemplate) =>
     disclaimsLengthening(`${t.name} ${t.cue ?? ''}`);
 
-  const candidates = rankedAlternatives(ex, banned, tier, used).filter(
+  const candidates = rankedAlternatives(ex, banned, tier, used, within).filter(
     (t) =>
       t.name !== ex.name &&
       t.category === ex.category &&
@@ -2838,7 +2745,7 @@ function sameJobAlternatives(
    */
   if (out.length === 0 && ex.category === 'cooldown') {
     take(
-      rankedAlternatives(ex, banned, tier, used).filter(
+      rankedAlternatives(ex, banned, tier, used, within).filter(
         (t) => t.name !== ex.name && t.category === 'cooldown' && cueIsClean(t)
       ),
       'Another way to finish.'
@@ -2939,8 +2846,39 @@ export function fillSwapAlternatives(
   readiness: ReadinessCheck,
   tier: EquipmentTier,
   profile?: UserProfile,
-  seed: number = 0
+  seed: number = 0,
+  /**
+   * WHICH TAB THIS SESSION BELONGS TO, and the only thing it decides.
+   *
+   * A Restore session's alternatives come out of Restore's own five lists and
+   * nowhere else. Everything else - every Train session, and the direct callers
+   * in the checks - leaves it out and gets the whole catalogue, exactly as
+   * before. Last and optional for that reason: this is a boundary, not a new
+   * input to the ranking.
+   */
+  sessionType?: SessionType
 ): Exercise[] {
+  /**
+   * The list boundary, worked out once for the session rather than per card.
+   *
+   * `undefined` means no boundary, which every existing caller gets by saying
+   * nothing - so a Train session, and a check that calls this function
+   * directly, behave exactly as they did.
+   */
+  const within =
+    sessionType !== undefined &&
+    (RESTORE_SESSION_TYPES as readonly string[]).includes(sessionType)
+      ? (t: ExerciseTemplate) => hasRestoreRow(t.name)
+      : undefined;
+  /**
+   * The same question asked of a name alone, for the alternatives a
+   * physiotherapist wrote onto the template by hand. Those carry a name, a cue
+   * and a load and frequently no catalogue entry at all, so there is no
+   * template to put the test above to - and they are exactly where the worst of
+   * the leak lived: a Restore rehab drill whose authored swap is a Tib Raise
+   * out of the Train prehab pool.
+   */
+  const nameWithin = (name?: string) => !within || (!!name && hasRestoreRow(name));
   const regions = readiness?.painRegion
     ? Array.isArray(readiness.painRegion)
       ? readiness.painRegion
@@ -2981,7 +2919,7 @@ export function fillSwapAlternatives(
     // all. See sameJobAlternatives for why they cannot go through the general
     // fill, and why leaving them with nothing was the worse of the two answers.
     if (ex.category === 'cooldown' || ex.category === 'prehab') {
-      const options = sameJobAlternatives(ex, banned, tier, new Set(inSession), seed + i);
+      const options = sameJobAlternatives(ex, banned, tier, new Set(inSession), seed + i, within);
       if (options.length === 0) return ex;
       return {
         ...ex,
@@ -3004,11 +2942,12 @@ export function fillSwapAlternatives(
     // `inSession` still contains this exercise's own name, so it can never be
     // offered as its own alternative.
     const used = new Set(inSession);
-    const { byName, source, isUsable } = alternativePool(ex, banned, tier, used);
+    const { byName, source, isUsable } = alternativePool(ex, banned, tier, used, within);
     // What the comparison needs to know about the exercise on the card. The
-    // generated exercise carries the name it is shown under, which is not
-    // always the catalogue's — grip variants and kettlebell relabelling rewrite
-    // it — so the name comes from the card and the metadata from the template.
+    // generated exercise carries the name it is shown under, and the card and
+    // the catalogue entry are not always the same record - a library session
+    // serves records this file does not hold - so the name comes from the card
+    // and the metadata from whatever template that name resolves to.
     const self = {
       name: ex.name,
       equipmentRequired: source?.equipmentRequired,
@@ -3079,6 +3018,7 @@ export function fillSwapAlternatives(
       // hamstring stretch", which is what the protocol withholds from a strain.
       restrictedTagsOn(ex.swapName, banned, undefined, ex.swapCue).length === 0 &&
       ownsAuthored(ex.swapName) &&
+      nameWithin(ex.swapName) &&
       !elsewhereToday(ex.swapId, ex.swapName)
     ) {
       authored.push({ id: ex.swapId, name: ex.swapName, cue: ex.swapCue, load: ex.swapLoad });
@@ -3089,6 +3029,7 @@ export function fillSwapAlternatives(
       ex.swap2Name !== authored[0]?.name &&
       restrictedTagsOn(ex.swap2Name, banned, undefined, ex.swap2Cue).length === 0 &&
       ownsAuthored(ex.swap2Name) &&
+      nameWithin(ex.swap2Name) &&
       !elsewhereToday(ex.swap2Id, ex.swap2Name)
     ) {
       authored.push({ id: ex.swap2Id, name: ex.swap2Name, cue: ex.swap2Cue, load: ex.swap2Load });
@@ -3194,7 +3135,7 @@ export function fillSwapAlternatives(
     //     back to the ranking the injury screen uses, so the button still does
     //     something. Labelled as the weaker claim it is.
     if (options.length < SWAP_OPTIONS) {
-      const ranked = rankedAlternatives(ex, banned, tier, used).filter((t) => t.name !== ex.name);
+      const ranked = rankedAlternatives(ex, banned, tier, used, within).filter((t) => t.name !== ex.name);
       for (const t of rotate(ranked, seed + i)) {
         if (options.length >= SWAP_OPTIONS) break;
         if (options.some((o) => o.name === t.name)) continue;
@@ -3525,7 +3466,7 @@ function generateWorkoutUnscreened(
    */
   const mainType = sessionType as MainSessionType;
   const exercises: Exercise[] = [];
-  const { hasAches, painRegion, energy, timeAvailable } = readiness;
+  const { hasAches, energy, timeAvailable } = readiness;
   const finisherKey = energy === 'low' ? 'easy' : energy === 'high' ? 'hard' : 'normal';
   const { mainSetsDelta, accSetsDelta } = profile
     ? getGoalVolumeDeltas(profile.goals)
@@ -3558,27 +3499,28 @@ function generateWorkoutUnscreened(
   );
   const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
   /**
-   * WARM-UPS APPLY THEIR COMFORT VARIANTS TOO, AND USED NOT TO.
+   * COMFORT VARIANTS ARE GONE FROM TRAIN, AND WHAT REPLACED THEM.
    *
-   * This called templateToExercise directly, as the mechanical block below
-   * did, while neuro, main and accessory all went through applyComfortOrBadge.
-   * So 18 prep templates and all 30 mechanical templates carried a
-   * hand-authored comfortVariant with triggerRegions that could never fire.
+   * Every block in this generator used to run its template through
+   * `applyComfortOrBadge`, which looked up a hand-authored gentler version -
+   * Knee Diamond Push-Up, Floor Press, Box Goblet Squat - and served that
+   * instead when the user had flagged the area it was written for.
    *
-   * Measured before the change by running this generator: 11,600 cards for
-   * users who had reported a pain region, and not one prep or mechanical card
-   * carried a comfort id. Over the same run neuro applied 100, main 280 and
-   * accessory 280.
+   * Two things were wrong with it, and only one of them was the wiring. The
+   * variants are movements that exist nowhere but inside another exercise's
+   * record: they have no id, no level, no video and no row on Archie's list, so
+   * a session that reached for one served a card the rest of the app had never
+   * heard of. And which areas they covered was an accident of which templates
+   * somebody had got round to annotating.
    *
-   * What that cost is the exact contradiction this app exists to avoid. A user
-   * with an acute front-shoulder strain was given "Shoulder CARs, full shoulder
-   * range" in their warm-up, while lib/acute-rehab.ts says in as many words
-   * that taking the joint to its limit in every direction is the opposite of
-   * what an acute strain needs - and this entry's own unreachable comfort
-   * variant was the pendulum swing that the acute protocol prescribes first.
+   * The library answers the same question properly. A slot whose record is
+   * ruled out today takes the next record OF THE SAME PATTERN that is clean for
+   * the flagged area and is no harder a rung, the card says what it replaced,
+   * and the swap slot offers the original back. See `generateLibrarySession` in
+   * lib/library-session.ts, which is what builds every Train session now.
    */
   for (const p of prep.slice(0, prepCount))
-    exercises.push(applyComfortOrBadge(p, hasAches, painRegion, equipmentTier));
+    exercises.push(templateToExercise(p, undefined, isDumbbellTier(equipmentTier)));
 
   // ── 3. Mechanical Priming (1 exercise for 30/45, 2 for 60) ──────────────
   // Power goal: use velocity-based drills (hip speed circles, lateral bounds,
@@ -3596,7 +3538,7 @@ function generateWorkoutUnscreened(
   // of handing undefined on and throwing. See tests/empty-pools.check.mjs.
   const mechanicalCount = timeAvailable === '60' ? 2 : 1;
   for (const m of mechanical.slice(0, mechanicalCount))
-    exercises.push(applyComfortOrBadge(m, hasAches, painRegion, equipmentTier));
+    exercises.push(templateToExercise(m, undefined, isDumbbellTier(equipmentTier)));
 
   // ── 4. Neurological Priming (45 and 60 min only) ────────────────────────
   // Power goal: use goal-specific plyometric templates (depth jumps, power
@@ -3619,7 +3561,7 @@ function generateWorkoutUnscreened(
     )[0] as ExerciseTemplate | undefined;
     // An empty pool drops the block. See tests/empty-pools.check.mjs.
     if (neuroTemplate) {
-      const neuroEx = applyComfortOrBadge(neuroTemplate, hasAches, painRegion, equipmentTier);
+      const neuroEx = templateToExercise(neuroTemplate, undefined, isDumbbellTier(equipmentTier));
       // Power goal: always perform 5 sets in the neuro block.
       if (hasPowerGoal && !hasAches) {
         neuroEx.sets = Math.max(neuroEx.sets, 5);
@@ -3636,24 +3578,11 @@ function generateWorkoutUnscreened(
   if (energy === 'high') baseSets = baseSets + 1;
   baseSets = Math.max(baseSets, 2);
 
-  if (hasAches && shouldSwapForComfort(mainTemplate, painRegion) && mainTemplate.comfortVariant) {
-    const cv = mainTemplate.comfortVariant;
-    exercises.push({
-      id: mainTemplate.id + '-comfort',
-      name: cv.name,
-      sets: baseSets,
-      reps: mainTemplate.reps,
-      cue: cv.cue,
-      suggestedLoad: cv.suggestedLoad,
-      category: 'main',
-      badge: 'comfort',
-      videoId: mainTemplate.videoId,
-      youtubeUrl: mainTemplate.youtubeUrl,
-      hasSwap: false,
-      isDumbbellExercise: isDumbbellTier(equipmentTier),
-      primaryMuscle: mainTemplate.primaryMuscle,
-    });
-  } else {
+  // The main lift's own comfort variant went with the rest of them - see the
+  // prep block above. A main movement the flagged area rules out is answered by
+  // the library's same-pattern, no-harder substitution, which keeps the card on
+  // a record that exists.
+  {
     const badge = energy !== 'normal' ? ('volume' as const) : undefined;
     const ex = templateToExercise(mainTemplate, badge, isDumbbellTier(equipmentTier));
     ex.sets = baseSets;
@@ -3682,7 +3611,7 @@ function generateWorkoutUnscreened(
     timeAvailable === '30' ? (hasConditioningGoal ? 0 : 1) : hasConditioningGoal ? 1 : 2;
 
   for (const acc of allAccessories.slice(0, accCount)) {
-    const accEx = applyComfortOrBadge(acc, hasAches, painRegion, equipmentTier);
+    const accEx = templateToExercise(acc, undefined, isDumbbellTier(equipmentTier));
     accEx.sets = Math.max(1, Math.min(accEx.sets + accSetsDelta, 4));
     exercises.push(accEx);
   }
@@ -3768,8 +3697,6 @@ function generateWorkoutUnscreened(
       libraryEpochSessionCount
     )
   );
-  const kettlebelled =
-    equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   /**
    * Deduplicate by name, with one exception that has to come first.
@@ -3786,10 +3713,10 @@ function generateWorkoutUnscreened(
    * The rehab slot is the point of the whole pain-adaptation path, so it wins.
    */
   const rehabNames = new Set(
-    kettlebelled.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
+    personalized.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
   );
   const seenNames = new Set<string>();
-  const deduped = kettlebelled.filter((ex) => {
+  const deduped = personalized.filter((ex) => {
     const key = ex.name.toLowerCase().trim();
     if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
     if (seenNames.has(key)) return false;
@@ -3828,7 +3755,7 @@ function generateWeeklyWorkout(
   /** Sessions logged before the current library - see generateWorkout. */
   libraryEpochSessionCount: number = 0
 ): Exercise[] {
-  const { hasAches, painRegion, energy, timeAvailable } = readiness;
+  const { painRegion, energy, timeAvailable } = readiness;
   const sessionSeed = (strengthSessionCount ?? 0) + getLocalDayIndex();
   const exercises: Exercise[] = [];
 
@@ -3857,25 +3784,10 @@ function generateWeeklyWorkout(
     sessionSeed
   );
   const prepCount = prepCountFor(timeAvailable, profile?.ageYears);
-  /**
-   * THROUGH applyComfortOrBadge, NOT templateToExercise, AND IT USED NOT TO BE.
-   *
-   * This is the same defect the KPI prep block was fixed for, sitting in the
-   * other generator: eighteen hand-authored warm-up comfort variants, each with
-   * triggerRegions naming the area they are the gentler option for, and not one
-   * of them could ever fire in a weekly session.
-   *
-   * It was hidden for as long as squat, bench and deadlift days existed,
-   * because those went through the fixed path and tests/pain-accommodation
-   * counted warm-up accommodations across both. The moment those three ids
-   * started building a weekly session instead, the count went to zero and the
-   * gap showed: somebody with an acutely sore shoulder was being given
-   * "Shoulder CARs, full shoulder range" in their warm-up while this entry's
-   * own unreachable comfort variant was the pendulum swing lib/acute-rehab.ts
-   * prescribes first.
-   */
+  // No comfort variants here either - see the prep block in the generator
+  // above for what replaced them and why.
   for (const p of prep.slice(0, prepCount))
-    exercises.push(applyComfortOrBadge(p, hasAches, painRegion, equipmentTier));
+    exercises.push(templateToExercise(p, undefined, isDumbbellTier(equipmentTier)));
 
   // ── 3. Main exercises — pattern-first, never drop required movements ───────
   // Pool is ordered by pattern priority so first N exercises always cover all
@@ -4045,13 +3957,21 @@ function generateWeeklyWorkout(
         ? rotateMain && base.swapAlternative
           ? { ...base, ...base.swapAlternative, id: `${base.id}${MAIN_VARIATION_ID_SUFFIX}` }
           : base
-        : // Accessories additionally rotate their grip or stance where a
-          // curated variant exists — see lib/grip-variants.ts. The id is kept,
-          // so a wide-grip inverted row continues the base's progression rather
-          // than starting a new one. Offset by the slot so two accessories in
-          // the same session do not flip in lockstep.
-          applyGripVariant(base, sessionSeed + i);
-    const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);
+        : /**
+           * ACCESSORIES USED TO ROTATE THEIR GRIP OR STANCE HERE, AND NO LONGER
+           * DO.
+           *
+           * `applyGripVariant` renamed the card - a Wide-Grip Inverted Row, a
+           * Sumo-Stance Goblet Squat - while keeping the base template's id, so
+           * the name on the screen was not the name of any record. Every Train
+           * session is built from Archie's library now, and a library record is
+           * named exactly once: the card has to say what the list says, because
+           * that is the name the video, the level ladder, the safety regexes
+           * and the history all look it up by. See lib/grip-variants.ts, which
+           * keeps the table until the old pools go.
+           */
+          base;
+    const ex = templateToExercise(t, undefined, isDumbbellTier(equipmentTier));
     // Only the first movement is the session's KPI lift; the rest are accessories
     const withCategory = i === 0 ? ex : { ...ex, category: 'accessory' as const };
     exercises.push(fullBodySets > 0 ? { ...withCategory, sets: fullBodySets } : withCategory);
@@ -4130,8 +4050,6 @@ function generateWeeklyWorkout(
     )
   );
 
-  const kettlebelled =
-    equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
 
   /**
    * Deduplicate by name, with the rehab slot's exception first.
@@ -4150,10 +4068,10 @@ function generateWeeklyWorkout(
    * path, so it wins.
    */
   const rehabNames = new Set(
-    kettlebelled.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
+    personalized.filter((ex) => ex.category === 'prehab').map((ex) => ex.name.toLowerCase().trim())
   );
   const seenNames = new Set<string>();
-  const deduped = kettlebelled.filter((ex) => {
+  const deduped = personalized.filter((ex) => {
     const key = ex.name.toLowerCase().trim();
     if (ex.category !== 'prehab' && rehabNames.has(key)) return false;
     if (seenNames.has(key)) return false;
@@ -4248,7 +4166,7 @@ function generateConditioningWorkout(
       libraryEpochSessionCount
     )
   );
-  return equipmentTier === 'kettlebells' ? applyKettlebellNaming(personalized) : personalized;
+  return personalized;
 }
 
 /**

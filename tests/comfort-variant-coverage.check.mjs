@@ -1,42 +1,68 @@
 /**
- * Contract test: every PainRegion has at least one exercise with a comfortVariant
- * whose triggerRegions array includes that region.
+ * Contract test: reporting a sore area changes the session, and changes it
+ * towards the easier movement rather than away from a record.
  *
- * The readiness screen lets a user flag a pain region before a session.  When
- * they do, shouldSwapForComfort() in workout-engine.ts swaps any exercise whose
- * comfortVariant.triggerRegions includes the flagged region.  If NO exercise in
- * the generated session has a matching comfortVariant, the user gets no relief —
- * a silent failure that defeats the whole pain-adaptation feature.
+ * WHAT THIS FILE USED TO DO, AND WHY IT HAD TO STOP
+ * ────────────────────────────────────────────────
+ * It read lib/exercise-db.ts as text, counted `comfortVariant:` blocks, pulled
+ * the `triggerRegions` out of each one, and asserted that every PainRegion
+ * appeared in at least one of them. Then it read lib/workout-engine.ts as text
+ * and asserted that four named functions existed and called one another.
  *
- * These checks guard against that regression:
- *   1. REGION PARSING   — extract all PainRegion literals from lib/store.ts
- *   2. VARIANT PARSING  — collect every triggerRegion cited in comfortVariants
- *                         across lib/exercise-db.ts
- *   3. COVERAGE         — every PainRegion must appear in at least one
- *                         comfortVariant.triggerRegions array
- *   4. ENGINE WIRING    — workout-engine.ts references shouldSwapForComfort and
- *                         comfortVariant so the swap path is actually reachable
+ * Every one of those assertions passed while comfort variants were reaching
+ * nobody, and would have gone on passing after they were deleted. That is this
+ * repo's commonest defect and this was the clearest example of it: a test that
+ * pins a spelling, guarding a feature that had already gone.
  *
- * Adding a new PainRegion to lib/store.ts without covering it in exercise-db.ts
- * will cause this test to fail with a clear message naming the uncovered region.
+ * WHAT REPLACED THE FEATURE
+ * ─────────────────────────
+ * A comfort variant was a gentler movement written INSIDE another exercise's
+ * record - Knee Diamond Push-Up, Box Goblet Squat, Floor Press. It had no id of
+ * its own, no level, no video and no row on Archie's list, so a session that
+ * served one served a card the rest of the app had never heard of. Which areas
+ * were covered was an accident of which templates somebody had annotated.
  *
- * Run:  node tests/comfort-variant-coverage.check.mjs
+ * Every Train session is built from the library now, and it answers the same
+ * question with records. A slot whose movement today rules out takes another
+ * record OF THE SAME PATTERN that is clean for the flagged area and is NO
+ * HARDER A RUNG, the card says what it replaced, and the swap slot offers the
+ * original back under its own id.
+ *
+ * WHAT IS ASSERTED, BY RUNNING THE GENERATOR
+ * ──────────────────────────────────────────
+ *   [1] every area the app lets somebody report is an area it adapts for
+ *   [2] every stand-in is a real record, same pattern, clean for that area
+ *   [3] a stand-in is never a harder rung than the movement it replaced, and
+ *       the only exceptions are where nothing easier was clean and owned
+ *   [4] the card says what it replaced and offers it back
+ *   [5] the old mechanism is gone: no card is a comfort variant
+ *
+ * Run:  npx tsx tests/comfort-variant-coverage.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
+
+globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import './_persist-shim.mjs';
+import { PAIN_CATEGORIES } from '../lib/store.ts';
+import { generateWorkout } from '../lib/workout-engine.ts';
+import { generateLibrarySession, slotPool, levelCeilingFor } from '../lib/library-session.ts';
+import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES, patternsOf } from '../lib/exercise-library.ts';
+import {
+  restrictedTagsFor,
+  restrictedTagsOn,
+  restrictedTagsOnRecord,
+  RESTRICTED_BY_REGION,
+} from '../lib/exercise-safety.ts';
+import { getRestoreExercises, getCooldown } from '../lib/exercise-db.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
-const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
-const engineSrc = readFileSync(join(__dir, '../lib/workout-engine.ts'), 'utf8');
-
 let failures = 0;
 let total = 0;
-
 function check(label, condition, detail) {
   total++;
   if (condition) {
@@ -47,182 +73,396 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── 1. Parse PainRegion literals from lib/store.ts ───────────────────────────
-console.log('\n[1] Parse PainRegion type from lib/store.ts');
+/** One key per movement, so two spellings of the same thing are one thing. */
+const key = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+const libraryByKey = new Map(LIBRARY_EXERCISES.map((e) => [key(e.name), e]));
+const onTheList = new Set([
+  ...LIBRARY_EXERCISES.map((e) => key(e.name)),
+  ...CONDITIONING_EXERCISES.map((e) => key(e.name)),
+  ...getRestoreExercises().map((t) => key(t.name)),
+  ...getCooldown().map((t) => key(t.name)),
+]);
 
-const typeStart = storeSrc.indexOf('export type PainRegion =');
+// ─── 0. The areas somebody can report ────────────────────────────────────────
+console.log('\n[0] The areas the app lets somebody report');
+
+const REGIONS = Object.values(PAIN_CATEGORIES).flatMap((g) => g.regions.map((r) => r.id));
 check(
-  'PainRegion type declaration found in lib/store.ts',
-  typeStart !== -1,
-  'declaration not found — check lib/store.ts'
+  `PAIN_CATEGORIES offers at least 15 areas (found ${REGIONS.length})`,
+  REGIONS.length >= 15,
+  'the readiness screen draws its list from here, so an empty one is no screen at all'
+);
+const unruled = REGIONS.filter((r) => !RESTRICTED_BY_REGION[r]);
+check(
+  'and every one of them has a rule about what it rules out',
+  unruled.length === 0,
+  `${unruled.join(', ')} can be reported and mean nothing`
 );
 
-let painRegions = [];
+// ─── The sweep ───────────────────────────────────────────────────────────────
+const TYPES = ['lower_body', 'upper_body', 'full_body'];
+const KITS = [
+  [],
+  ['bodyweight'],
+  ['bodyweight', 'bands', 'dumbbells'],
+  ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'],
+];
+const LEVELS = ['beginner', 'intermediate', 'advanced', 'athlete'];
+const SEEDS = [0, 1, 5, 11];
 
-if (typeStart !== -1) {
-  // The type declaration ends at the first semicolon after the '=' sign.
-  // Extract that slice then pull all single-quoted identifiers.
-  const eqPos = storeSrc.indexOf('=', typeStart);
-  const semi = storeSrc.indexOf(';', eqPos);
-  // Strip // comments before pulling identifiers. The union is documented
-  // inline, and a comment naming a retired region (e.g. explaining that
-  // 'elbow_wrist' was split) would otherwise be read as a live member and
-  // reported as having no comfortVariant coverage.
-  const typeBlock = storeSrc
-    .slice(eqPos, semi + 1)
-    .split(/\r?\n/)
-    .map((line) => line.replace(/\/\/.*$/, ''))
-    .join('\n');
+const profileFor = (level) => ({
+  name: 'T',
+  sex: 'male',
+  experienceLevel: level,
+  goals: ['muscle'],
+  bodyweightKg: 80,
+  standingSoreRegions: [],
+  clinicalAvoid: [],
+});
 
-  const regionMatches = [...typeBlock.matchAll(/'([a-z_]+)'/g)];
-  painRegions = regionMatches.map((m) => m[1]);
+/** Every substitution the sweep produced, with the facts needed to judge it. */
+const swaps = [];
+/** Areas that produced at least one adapted session. */
+const adapted = new Set();
+/** Cards left carrying something their area rules out. */
+const unsafe = [];
+/** Stand-ins that are not on any list. */
+const offList = [];
+/** Cards built by the retired comfort-variant path. */
+const comfortIds = [];
+let sessionsBuilt = 0;
 
-  check(
-    `PainRegion type contains at least 1 value (found ${painRegions.length})`,
-    painRegions.length >= 1,
-    'no quoted identifiers found in PainRegion type block'
-  );
+for (const type of TYPES) {
+  for (const equipment of KITS) {
+    for (const level of LEVELS) {
+      const profile = profileFor(level);
+      const ceiling = levelCeilingFor(profile);
+      for (const region of REGIONS) {
+        const banned = restrictedTagsFor([region], level, 'moderate');
+        for (const seed of SEEDS) {
+          const readiness = {
+            hasAches: true,
+            painRegion: region,
+            painSeverity: 'moderate',
+            energy: 'normal',
+            timeAvailable: '60',
+          };
+          const session = generateLibrarySession({
+            sessionType: type,
+            equipment,
+            readiness,
+            profile,
+            sessionTypeCount: seed,
+            strengthSessionCount: seed,
+            daysSinceLastSession: null,
+          }).exercises;
+          sessionsBuilt++;
+          const inSession = new Set(session.map((e) => key(e.name)));
+          const where = `${type} / ${equipment.join('+') || 'nothing'} / ${level} / ${region} / session ${seed}`;
 
-  for (const r of painRegions) {
-    console.log(`  · PainRegion: '${r}'`);
-  }
-}
-
-// ─── 2. Collect all triggerRegions cited in comfortVariant blocks ──────────────
-console.log('\n[2] Collect comfortVariant.triggerRegions from lib/exercise-db.ts');
-
-// Strategy: find every occurrence of "triggerRegions:" inside a comfortVariant
-// block and extract the quoted values from the following array.
-//
-// We locate each "comfortVariant:" then scan forward to find "triggerRegions:"
-// within it (before the closing '}' at depth 0 of the comfortVariant object).
-
-const coveredByRegion = new Map(); // region -> count of covering exercises
-
-let searchPos = 0;
-let cvFound = 0;
-
-while (true) {
-  const cvIdx = dbSrc.indexOf('comfortVariant:', searchPos);
-  if (cvIdx === -1) break;
-  cvFound++;
-
-  // Find the opening '{' of this comfortVariant object
-  const objOpen = dbSrc.indexOf('{', cvIdx);
-  if (objOpen === -1) {
-    searchPos = cvIdx + 1;
-    continue;
-  }
-
-  // Walk forward tracking brace depth to find the end of this comfortVariant object
-  let depth = 0;
-  let objEnd = -1;
-  for (let i = objOpen; i < dbSrc.length; i++) {
-    if (dbSrc[i] === '{') depth++;
-    else if (dbSrc[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        objEnd = i;
-        break;
-      }
-    }
-  }
-
-  if (objEnd === -1) {
-    searchPos = cvIdx + 1;
-    continue;
-  }
-
-  const cvBlock = dbSrc.slice(objOpen, objEnd + 1);
-
-  // Find "triggerRegions:" inside this block
-  const trIdx = cvBlock.indexOf('triggerRegions:');
-  if (trIdx !== -1) {
-    // Find the array that follows
-    const arrOpen = cvBlock.indexOf('[', trIdx);
-    if (arrOpen !== -1) {
-      const arrClose = cvBlock.indexOf(']', arrOpen);
-      if (arrClose !== -1) {
-        const arrSlice = cvBlock.slice(arrOpen, arrClose + 1);
-        const regionMatches = [...arrSlice.matchAll(/'([a-z_]+)'/g)];
-        for (const m of regionMatches) {
-          const r = m[1];
-          coveredByRegion.set(r, (coveredByRegion.get(r) ?? 0) + 1);
+          for (const ex of session) {
+            if (ex.id?.endsWith('-comfort')) comfortIds.push(`${where}: ${ex.id}`);
+            // A rehab drill is chosen FOR the sore area, so it is exempt from
+            // being screened for mentioning it. Everything else is not.
+            if (ex.category !== 'prehab' && banned.size > 0) {
+              const hits = restrictedTagsOn(ex.name, banned, undefined, ex.cue);
+              if (hits.length > 0) unsafe.push(`${where}: ${ex.name} carries ${hits.join(', ')}`);
+            }
+            if (ex.badge !== 'comfort' || !ex.safetyNote) continue;
+            adapted.add(region);
+            const to = libraryByKey.get(key(ex.name));
+            const from = libraryByKey.get(key(ex.swapName ?? ''));
+            if (!to) offList.push(`${where}: served ${ex.name}`);
+            if (!from) offList.push(`${where}: replaced ${ex.swapName ?? '(nothing)'}`);
+            swaps.push({ where, ex, to, from, banned, ceiling, equipment, inSession, region });
+          }
         }
       }
     }
   }
-
-  searchPos = objEnd + 1;
 }
 
-check(
-  `at least 1 comfortVariant block found in exercise-db.ts (found ${cvFound})`,
-  cvFound >= 1,
-  'no comfortVariant entries found — check lib/exercise-db.ts'
-);
+console.log(`\n      ${sessionsBuilt.toLocaleString('en-GB')} sessions built, ${swaps.length} substitutions`);
+
+// ─── 1. Every area is adapted for ────────────────────────────────────────────
+console.log('\n[1] Every area somebody can report changes the session');
 
 check(
-  `at least 1 PainRegion is covered by a comfortVariant (found ${coveredByRegion.size})`,
-  coveredByRegion.size >= 1,
-  'no triggerRegions values extracted — comfortVariant blocks may be malformed'
+  `the sweep really built sessions (${sessionsBuilt})`,
+  sessionsBuilt > 500 && swaps.length > 100,
+  'nothing was generated, so everything below proves nothing'
 );
 
-console.log(`  · Covered regions (${coveredByRegion.size} unique):`);
-for (const [r, count] of [...coveredByRegion.entries()].sort()) {
-  console.log(`      '${r}' — ${count} exercise(s)`);
-}
-
-// ─── 3. Coverage check — every PainRegion must be covered ─────────────────────
-console.log('\n[3] Coverage — every PainRegion has ≥ 1 comfortVariant covering it');
-
-for (const region of painRegions) {
-  const count = coveredByRegion.get(region) ?? 0;
-  check(
-    `'${region}' is covered by ≥ 1 comfortVariant (found ${count})`,
-    count >= 1,
-    `'${region}' has no exercise with comfortVariant.triggerRegions including this region — ` +
-      `users who flag this pain area during readiness will receive no exercise swap`
+/**
+ * Asked as "could it possibly bite", so the answer does not depend on which
+ * record the rotation happened to land on. An area produces no substitution for
+ * one of exactly two reasons: nothing in the strength library carries anything
+ * it rules out, which is honest and is the case for the two ankle areas - their
+ * rules name high impact, ankle load and calf lengthening, and the only records
+ * carrying those are the jumps, which live in the Athlete-only power block and
+ * never enter a pattern pool. Or the adaptation is broken for that area, which
+ * is the silent failure this file exists to catch.
+ */
+const couldBite = (region) => {
+  const banned = restrictedTagsFor([region], 'intermediate', 'moderate');
+  return LIBRARY_EXERCISES.some(
+    (e) =>
+      e.role !== 'power' &&
+      (restrictedTagsOnRecord(
+        {
+          name: e.name,
+          movementPattern: e.movementPattern,
+          reps: e.reps,
+          cue: e.cue,
+          stress: e.stress,
+        },
+        banned
+      ).length > 0 ||
+        restrictedTagsOn(e.name, banned, undefined, e.cue).length > 0)
   );
+};
+const neverAdapted = REGIONS.filter((r) => !adapted.has(r) && couldBite(r));
+check(
+  'every area whose rules rule out a strength record produces a labelled substitution',
+  neverAdapted.length === 0,
+  `${neverAdapted.join(', ')} - somebody reports it, the library holds work it forbids, and no card ever moves`
+);
+console.log(
+  `      (${REGIONS.filter((r) => !couldBite(r)).join(', ') || 'none'} rule out nothing in the strength library, so they move no slot)`
+);
+
+check(
+  'and no card is left carrying something the reported area rules out',
+  unsafe.length === 0,
+  unsafe.slice(0, 5).join(' | ')
+);
+
+/**
+ * AND SAYING SO ALWAYS CHANGES THE SESSION, whether or not a slot moved. The
+ * two ankle areas move no slot and must still not be inert: the rehab drill for
+ * the area is added, and the explosive and conditioning work severity drops.
+ */
+const inert = [];
+for (const type of TYPES) {
+  for (const equipment of [KITS[1], KITS[3]]) {
+    for (const level of ['beginner', 'advanced']) {
+      const profile = profileFor(level);
+      const quiet = generateLibrarySession({
+        sessionType: type,
+        equipment,
+        readiness: { hasAches: false, energy: 'normal', timeAvailable: '60' },
+        profile,
+        sessionTypeCount: 0,
+        strengthSessionCount: 0,
+        daysSinceLastSession: null,
+      }).exercises.map((e) => e.name).join('|');
+      for (const region of REGIONS) {
+        const sore = generateLibrarySession({
+          sessionType: type,
+          equipment,
+          readiness: {
+            hasAches: true,
+            painRegion: region,
+            painSeverity: 'moderate',
+            energy: 'normal',
+            timeAvailable: '60',
+          },
+          profile,
+          sessionTypeCount: 0,
+          strengthSessionCount: 0,
+          daysSinceLastSession: null,
+        }).exercises.map((e) => e.name).join('|');
+        if (sore === quiet) inert.push(`${type} / ${equipment.join('+')} / ${level} / ${region}`);
+      }
+    }
+  }
 }
-
-// ─── 4. Engine wiring — shouldSwapForComfort uses comfortVariant ───────────────
-console.log('\n[4] Engine wiring — swap path is reachable in workout-engine.ts');
-
 check(
-  'shouldSwapForComfort function exists in workout-engine.ts',
-  engineSrc.includes('function shouldSwapForComfort'),
-  'function not found — pain-region swap path may be broken'
+  'reporting an area never leaves the session exactly as it was',
+  inert.length === 0,
+  inert.slice(0, 5).join(' | ')
 );
 
-// Matched against the function body rather than one exact expression. The old
-// assertion pinned the literal `comfortVariant.triggerRegions.includes(painRegion)`,
-// which stopped matching when the function was widened to accept an array of
-// regions — so this test failed against correct code, and was quietly left out
-// of `npm run check` rather than updated.
-const comfortFnStart = engineSrc.indexOf('function shouldSwapForComfort');
-const comfortFnBody =
-  comfortFnStart === -1 ? '' : engineSrc.slice(comfortFnStart, comfortFnStart + 600);
+// ─── 2. The stand-in is a real record of the same pattern ────────────────────
+console.log('\n[2] A stand-in is a record on the list, doing the same job');
 
 check(
-  'shouldSwapForComfort checks comfortVariant.triggerRegions',
-  /comfortVariant!?\.triggerRegions\.includes\(/.test(comfortFnBody),
-  'triggerRegions check missing — swap logic may never fire'
+  'every substitution names a library record, both sides of it',
+  offList.length === 0,
+  offList.slice(0, 5).join(' | ')
 );
+
+const wrongPattern = swaps.filter(
+  ({ to, from }) => to && from && !patternsOf(to).some((p) => patternsOf(from).includes(p))
+);
+check(
+  'a stand-in trains the same pattern as the movement it replaced',
+  wrongPattern.length === 0,
+  wrongPattern
+    .slice(0, 5)
+    .map(({ where, to, from }) => `${where}: ${from.name} -> ${to.name}`)
+    .join(' | ')
+);
+
+const dirty = swaps.filter(
+  ({ to, banned }) =>
+    to &&
+    restrictedTagsOnRecord(
+      {
+        name: to.name,
+        movementPattern: to.movementPattern,
+        reps: to.reps,
+        cue: to.cue,
+        stress: to.stress,
+      },
+      banned
+    ).length > 0
+);
+check(
+  'and it is clean for the area that moved it',
+  dirty.length === 0,
+  dirty
+    .slice(0, 5)
+    .map(({ where, to }) => `${where}: ${to.name}`)
+    .join(' | ')
+);
+
+// ─── 3. Easier, never harder ─────────────────────────────────────────────────
+console.log('\n[3] The stand-in is the easier movement, not merely a different one');
+
+/**
+ * Asked as an EXISTENCE question rather than by re-running the pick, so this
+ * cannot simply agree with the code under test. For every stand-in that sits on
+ * a harder rung than the movement it replaced, the pattern's own pool is asked
+ * whether anything at or below that rung was clean for today, owned, and not
+ * already somewhere else in the session. If something was, the app chose the
+ * harder movement when it did not have to.
+ */
+const harder = swaps.filter(({ to, from }) => to && from && to.level > from.level);
+const avoidable = harder.filter(({ to, from, banned, ceiling, equipment, inSession }) => {
+  const pattern =
+    patternsOf(to).find((p) => patternsOf(from).includes(p)) ?? from.pattern;
+  return slotPool(pattern, ceiling, equipment.length > 0 ? equipment : ['bodyweight']).some(
+    (record) =>
+      record.level <= from.level &&
+      !inSession.has(key(record.name)) &&
+      restrictedTagsOnRecord(
+        {
+          name: record.name,
+          movementPattern: record.movementPattern,
+          reps: record.reps,
+          cue: record.cue,
+          stress: record.stress,
+        },
+        banned
+      ).length === 0 &&
+      restrictedTagsOn(record.name, banned, undefined, record.cue).length === 0
+  );
+});
 
 check(
-  'shouldSwapForComfort handles multiple flagged regions',
-  /Array\.isArray\(painRegion\)/.test(comfortFnBody) && /\.some\(/.test(comfortFnBody),
-  'readiness lets a user flag several regions at once — a single-region check would silently ignore all but one'
+  'no stand-in is a harder rung while an easier clean one was available',
+  avoidable.length === 0,
+  avoidable
+    .slice(0, 5)
+    .map(({ where, to, from }) => `${where}: ${from.name} (level ${from.level}) -> ${to.name} (level ${to.level})`)
+    .join(' | ')
 );
+console.log(
+  `      (${harder.length} of ${swaps.length} sat on a harder rung, every one of them because nothing easier was clean and owned)`
+);
+
+// ─── 4. The card says what it replaced, and offers it back ───────────────────
+console.log('\n[4] The card is honest about what it did');
+
+const noNote = swaps.filter(({ ex }) => !ex.safetyNote || !ex.swapName);
+check(
+  'every substitution carries a note and a way back',
+  noNote.length === 0,
+  noNote.slice(0, 5).map(({ where, ex }) => `${where}: ${ex.name}`).join(' | ')
+);
+const noId = swaps.filter(({ ex, from }) => from && ex.swapId !== from.id);
+check(
+  'and the way back carries the id of the record it puts back, so a revert logs as itself',
+  noId.length === 0,
+  noId.slice(0, 5).map(({ where, ex }) => `${where}: ${ex.swapName} offered as ${ex.swapId}`).join(' | ')
+);
+const namesArea = swaps.filter(({ ex }) => !/to protect/i.test(ex.safetyNote ?? ''));
+check(
+  'the note says the area is what moved it',
+  namesArea.length === 0,
+  namesArea.slice(0, 3).map(({ where, ex }) => `${where}: "${ex.safetyNote}"`).join(' | ')
+);
+
+// ─── 5. The retired mechanism is gone ────────────────────────────────────────
+console.log('\n[5] No session serves a comfort variant any more');
 
 check(
-  'applyComfortOrBadge (or equivalent) uses shouldSwapForComfort',
-  engineSrc.includes('shouldSwapForComfort('),
-  'shouldSwapForComfort is never called — swap logic is dead code'
+  'no card is built by the old comfort path',
+  comfortIds.length === 0,
+  comfortIds.slice(0, 5).join(' | ')
 );
 
-// ─── Summary ──────────────────────────────────────────────────────────────────
+/**
+ * The names that exist ONLY inside another record, which is what made comfort
+ * variants unanswerable: no id, no level, no video, no row on any list. Read
+ * out of lib/exercise-db.ts because that is where they still sit, and asserted
+ * against generated sessions rather than against the source.
+ */
+const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
+const variantOnly = new Set();
+for (const block of dbSrc.split('comfortVariant:').slice(1)) {
+  const name = block.match(/\bname:\s*'([^']+)'/);
+  if (name && !onTheList.has(key(name[1]))) variantOnly.add(name[1]);
+}
+check(
+  `there are still comfort-variant-only names in the catalogue to look for (${variantOnly.size})`,
+  variantOnly.size > 5,
+  'if none are left, this assertion proves nothing and should be retired with the tables'
+);
+
+const served = [];
+for (const type of [...TYPES, 'conditioning', 'prehab', 'flexibility']) {
+  for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
+    for (const region of REGIONS) {
+      const session = generateWorkout(
+        type,
+        tier,
+        {
+          hasAches: true,
+          painRegion: region,
+          painSeverity: 'moderate',
+          energy: 'normal',
+          timeAvailable: '60',
+        },
+        profileFor('intermediate'),
+        undefined,
+        undefined,
+        0,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        'kg',
+        undefined,
+        undefined,
+        0,
+        { equipment: [tier], sessionTypeCount: 0 }
+      );
+      for (const ex of session) {
+        if (variantOnly.has(ex.name)) served.push(`${type}/${tier}/${region}: ${ex.name}`);
+        if (ex.id?.endsWith('-comfort')) served.push(`${type}/${tier}/${region}: ${ex.id}`);
+      }
+    }
+  }
+}
+check(
+  'and none of them reaches a card, in any session the app builds',
+  served.length === 0,
+  served.slice(0, 5).join(' | ')
+);
+
+// ─── Summary ─────────────────────────────────────────────────────────────────
 console.log('');
 if (failures > 0) {
   console.error(`comfort-variant-coverage: ${failures}/${total} check(s) FAILED\n`);

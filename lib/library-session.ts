@@ -739,7 +739,35 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * replaced and offers it back, exactly as every other swap does.
      */
     const wanted = pickFrom(pool, index, free);
-    const chosen = pickFrom(pool, index, choosable);
+    /**
+     * AND A STAND-IN FOR SOMETHING THAT HURTS IS NEVER A HARDER RUNG.
+     *
+     * This is what replaced the old engine's comfort variants, so it has to do
+     * the job they were written to do: the gentler version, not merely a
+     * different one. The walk alone could not promise that. `slotPool` is
+     * ordered from the ceiling downwards and the walk is circular, so stepping
+     * over a blocked record could wrap round onto a harder one - measured
+     * across 53,282 generated cards, 134 of the 1,880 substitutions did exactly
+     * that, including a Wall Sit ruled out by a sore hip coming back as Goblet
+     * Squats, and a Waiter Carry ruled out by a sore elbow coming back as
+     * Kettlebell Marches. Somebody says an area hurts and the app hands them
+     * more load than it was about to.
+     *
+     * So when today rules the wanted record out, the same walk is run again
+     * over the rungs at or below its level first, and only if nothing there is
+     * clean and owned does it fall back to the whole pattern's pool - because a
+     * slot filled by a harder record of the right pattern is still better than
+     * a Lower Body session with no squatting in it, and the gap line is worse
+     * than both.
+     *
+     * Nothing changes when nothing is blocked: `wanted` is chosen and the
+     * second walk never runs.
+     */
+    const easier =
+      wanted && !choosable(wanted) ? pool.filter((record) => record.level <= wanted.level) : [];
+    const chosen =
+      (easier.length > 0 ? pickFrom(easier, index, choosable) : null) ??
+      pickFrom(pool, index, choosable);
     /**
      * Only labelled when today's areas are what moved it.
      *

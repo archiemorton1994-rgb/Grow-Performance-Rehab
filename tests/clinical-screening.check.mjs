@@ -14,20 +14,23 @@
  * like it works.
  *
  * ── AND KETTLEBELL REHAB WAS PRESCRIBED AT 2-4x THE LOAD ───────────────────
- * Loads were relabelled by rounding every number to the nearest real bell,
- * independently. The lightest bell is 8 kg, so "2-4 kg per hand" — the
- * prescription for rotator-cuff external rotations, the most load-sensitive
- * drill in the app and one that sits in the PREHAB slot — printed as
- * "8-8 kg per hand". Two to four times the intended load, for someone who has
- * just told the app their shoulder hurts. It also produced "6-10 kg" -> "8-8 kg"
- * across fourteen cards.
+ * A kettlebell owner used to have every card in their session relabelled:
+ * "dumbbell" became "kettlebell", and every number in the prescribed load was
+ * rounded to the nearest real bell. The lightest bell is 8 kg, so "2-4 kg per
+ * hand" — the prescription for rotator-cuff external rotations, the most
+ * load-sensitive drill in the app and one that sits in the REHAB slot — printed
+ * as "8-8 kg per hand". Two to four times the intended load, for someone who
+ * has just told the app their shoulder hurts.
  *
- * Two rules now: never round a load UP past what was prescribed, and a range
- * that collapses onto one bell prints as one number.
+ * The relabelling is gone rather than patched. Archie authors the kettlebell
+ * exercises as their own records with their own loads, so the honest rule is
+ * the simpler one: WHATEVER THE PROTOCOL PRESCRIBES IS WHAT THE CARD PRINTS.
+ * Section [3] asserts it over generated sessions rather than over the source,
+ * because the source assertion it replaced would have gone on passing with the
+ * behaviour removed, and did.
  */
 globalThis.__DEV__ = false;
 
-import { readFileSync } from 'fs';
 import './_persist-shim.mjs';
 import {
   restrictedTagsOn,
@@ -35,7 +38,12 @@ import {
   restrictedTagsFor,
   STRESS_TAG_LABELS,
 } from '../lib/exercise-safety.ts';
-import { getExerciseTargetRegionsMap, ACUTE_PREHAB_BY_REGION } from '../lib/exercise-db.ts';
+import {
+  getExerciseTargetRegionsMap,
+  getRestoreExercises,
+  getCooldown,
+  ACUTE_PREHAB_BY_REGION,
+} from '../lib/exercise-db.ts';
 import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
@@ -138,32 +146,128 @@ check(
   'an untagged label prints "undefined" into the note on the card'
 );
 
-console.log('\n[3] Kettlebell loads are never rounded UP past the prescription');
+/** Every name the app may put on a card, asked of the three lists themselves. */
+const onTheList = new Set([
+  ...LIBRARY_EXERCISES.map((e) => e.name.toLowerCase()),
+  ...CONDITIONING_EXERCISES.map((e) => e.name.toLowerCase()),
+  ...getRestoreExercises().map((t) => t.name.toLowerCase()),
+  ...getCooldown().map((t) => t.name.toLowerCase()),
+]);
 
-const engine = readFileSync(new URL('../lib/workout-engine.ts', import.meta.url), 'utf8');
+console.log('\n[3] A rehab drill prints the load its protocol prescribes, at every tier');
+
+/**
+ * RUN, NOT READ. The four assertions this replaced tested lib/workout-engine.ts
+ * for four regular expressions describing how the kettlebell rounding worked.
+ * Every one of them passed while the rounding was applied to nothing at all,
+ * and would have gone on passing after it was deleted, which is this repo's
+ * commonest defect sitting inside a clinical test.
+ *
+ * What matters clinically is not how a number is rounded. It is that a drill
+ * chosen for a sore joint reaches the screen carrying the dose it was written
+ * with. So every Restore-authored rehab and cool-down card the app can produce
+ * - in a Train session's rehab slot and in the Restore tab's own sessions, at
+ * every equipment answer including kettlebells - is compared with the loads the
+ * protocol itself holds for that movement. A card whose load is not one the
+ * protocol wrote is a card something rewrote on the way.
+ */
+const restoreLoads = new Map();
+for (const t of getRestoreExercises()) {
+  const k = t.name.toLowerCase();
+  if (!restoreLoads.has(k)) restoreLoads.set(k, new Set());
+  restoreLoads.get(k).add(t.suggestedLoad ?? '');
+}
+
+const LOAD_REGIONS = Object.keys(ACUTE_PREHAB_BY_REGION);
+const loadProfile = {
+  name: 'T',
+  sex: 'male',
+  experienceLevel: 'intermediate',
+  goals: ['muscle'],
+  bodyweightKg: 80,
+};
+const rewritten = [];
+let rehabCards = 0;
+for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
+  for (const type of ['lower_body', 'upper_body', 'full_body', 'prehab', 'flexibility']) {
+    for (const region of LOAD_REGIONS) {
+      for (const seed of [0, 3]) {
+        const session = generateWorkout(
+          type,
+          tier,
+          { hasAches: true, painRegion: region, energy: 'normal', timeAvailable: '60' },
+          loadProfile,
+          undefined,
+          undefined,
+          seed,
+          undefined,
+          undefined,
+          undefined,
+          null,
+          'kg',
+          undefined,
+          undefined,
+          0,
+          { equipment: [tier], sessionTypeCount: seed }
+        );
+        for (const ex of session) {
+          if (ex.category !== 'prehab' && ex.category !== 'cooldown') continue;
+          const authored = restoreLoads.get(ex.name.toLowerCase());
+          if (!authored) continue;
+          rehabCards++;
+          if (!authored.has(ex.suggestedLoad)) {
+            rewritten.push(
+              `${type}/${tier}/${region}: ${ex.name} printed "${ex.suggestedLoad}", the protocol says "${[...authored].join('" or "')}"`
+            );
+          }
+        }
+      }
+    }
+  }
+}
 
 check(
-  'a load lighter than the lightest bell is left as written',
-  /if \(num < KB_WEIGHTS\[0\]\) return match;/.test(engine),
-  '"2-4 kg per hand" became "8-8 kg per hand" - 2-4x the load on rotator-cuff rehab'
+  `the sweep really produced rehab cards (${rehabCards})`,
+  rehabCards > 1000,
+  'nothing was generated, so the rule below proves nothing'
 );
-
 check(
-  'a whole range below the lightest bell is left as written',
-  /if \(hi < KB_WEIGHTS\[0\]\) return labelled;/.test(engine),
-  'the rehab case: both ends under 8 kg'
+  'no rehab or cool-down card is printed at a load its protocol did not prescribe',
+  rewritten.length === 0,
+  rewritten.slice(0, 5).join(' | ')
 );
-
 check(
-  'the two ends of a range are rounded separately',
-  /const loKb = Math\.min\(nearestKbWeight\(lo\), nearestKbWeight\(hi\)\);/.test(engine),
-  'one rounding applied to both is what produced "8-8 kg"'
-);
-
-check(
-  'a range that collapses prints one number',
-  /loKb === hiKb \? String\(loKb\) : `\$\{loKb\}-\$\{hiKb\}`/.test(engine),
-  '"8-8 kg" is not a range, it is a bug on the card'
+  'and no card is renamed into kettlebell language the record does not use',
+  (() => {
+    const renamed = [];
+    for (const tier of ['dumbbells', 'kettlebells']) {
+      for (const type of ['lower_body', 'upper_body', 'full_body', 'conditioning']) {
+        const session = generateWorkout(
+          type,
+          tier,
+          { hasAches: false, energy: 'normal', timeAvailable: '60' },
+          loadProfile,
+          undefined,
+          undefined,
+          0,
+          undefined,
+          undefined,
+          undefined,
+          null,
+          'kg',
+          undefined,
+          undefined,
+          0,
+          { equipment: [tier], sessionTypeCount: 0 }
+        );
+        for (const ex of session) {
+          if (!onTheList.has(ex.name.toLowerCase())) renamed.push(`${type}/${tier}: ${ex.name}`);
+        }
+      }
+    }
+    return renamed.length === 0;
+  })(),
+  'a card wearing a name no list holds cannot be looked up by the video table, the ladders, the safety rules or a history'
 );
 
 console.log('\n[4] Rehab sessions shade the body parts they actually worked');

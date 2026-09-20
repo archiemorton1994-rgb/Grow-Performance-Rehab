@@ -30,11 +30,12 @@
  * itself.
  *
  * They run the REAL generator across session types, tiers, complaints and
- * seeds, because the fill happens at generation time and has to survive
- * everything layered on top of it - comfort variants, grip variants, kettlebell
- * renaming and the injury screen - and because which alternative comes up
- * rotates with the session count, so a rule that leaks on the third session
- * leaks past a test that only builds the first.
+ * seeds, because the fill happens at generation time and has to survive what is
+ * layered on top of it - today the injury screen and the library's own
+ * same-pattern substitutions, where it used to be comfort variants, grip
+ * variants and kettlebell renaming as well, all three of which have gone - and
+ * because which alternative comes up rotates with the session count, so a rule
+ * that leaks on the third session leaks past a test that only builds the first.
  *
  * Run:  npx tsx tests/swap-options.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
@@ -47,7 +48,11 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { fillSwapAlternatives, generateWorkout } from '../lib/workout-engine.ts';
 import { restrictedTagsFor, restrictedTagsOn } from '../lib/exercise-safety.ts';
-import { getRegionsByExerciseNameMap, getAllPickableExercises } from '../lib/exercise-db.ts';
+import {
+  getRegionsByExerciseNameMap,
+  getAllPickableExercises,
+  getRestoreExercises,
+} from '../lib/exercise-db.ts';
 import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
 import { canPerformWith } from '../lib/kit.ts';
 import {
@@ -481,6 +486,31 @@ check(
         `${s.from} [${s.own.join(', ') || 'untagged'}] → ${s.to} [${s.altRegions.join(', ') || 'untagged'}]`
     )
     .join('; ')
+);
+
+/**
+ * AND IT ONLY OFFERS RESTORE'S OWN WORK, whatever the region tagging says.
+ *
+ * The region rule above is about the joint. This one is about the tab: the
+ * fill draws on getAllPickableExercises, which walks every Train pool in
+ * lib/exercise-db.ts, so a Restore card could offer a Train warm-up or a
+ * conditioning round that happened to be tagged for the same area. Measured
+ * before the boundary landed: a fifth of the filled swap slots on a Restore
+ * session. The full sweep lives in tests/swap-alternative-coverage.check.mjs;
+ * this is the same promise asserted in the file that owns the swap sheet, so
+ * somebody changing the fill sees it here.
+ */
+const restoreOwn = new Set(getRestoreExercises().map((t) => t.name.toLowerCase()));
+const offRestore = rehab.flatMap((e) =>
+  [e.swapName, e.swap2Name]
+    .filter(Boolean)
+    .filter((alt) => !restoreOwn.has(alt.toLowerCase()))
+    .map((alt) => `${e.name} → ${alt}`)
+);
+check(
+  'and only work Restore itself prescribes',
+  offRestore.length === 0,
+  offRestore.slice(0, 5).join('; ')
 );
 
 // ─── 6. Each option says what it is, and is what it says ─────────────────────

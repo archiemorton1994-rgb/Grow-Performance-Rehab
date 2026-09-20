@@ -112,25 +112,35 @@ check(
   ''
 );
 
-// ─── 4. Wired into session generation ────────────────────────────────────────
-console.log('\n[4] Wired into the accessory slots only');
+// ─── 4. Unwired from session generation ──────────────────────────────────────
+console.log('\n[4] Nothing in the app applies it any more');
 
+/**
+ * THE TABLE IS DATA THE APP NO LONGER USES, AND THAT IS THE POINT NOW.
+ *
+ * This used to assert the opposite - that the weekly generator's accessory loop
+ * called `applyGripVariant(base, sessionSeed + i)`, in the else arm of the
+ * `i === 0` test so the main lift kept its own rarer rotation. Both were true
+ * and both stopped mattering: every Train session is built from Archie's
+ * library, and a library record is named exactly once. A card reading
+ * "Wide-Grip Inverted Row" is a card the video table, the level ladders, the
+ * safety regexes and the user's own history cannot look up, because no list
+ * holds that name.
+ *
+ * So the wiring assertion is inverted rather than deleted. The table and its
+ * rotation are still held by sections 1 to 3 - lib/grip-variants.ts goes when
+ * the old pools go - and section 5 asks the question that actually protects the
+ * user: does a grip variant ever reach a session.
+ */
 check(
-  'the engine applies it',
-  /applyGripVariant\(base, sessionSeed \+ i\)/.test(engineSrc),
-  ''
-);
-// It must sit in the ELSE arm of the `i === 0` test — the main lift has its own,
-// deliberately rarer, rotation and must not also flip its grip.
-const mainBranch = engineSrc.slice(
-  engineSrc.indexOf('const base = selectedMain[i];'),
-  engineSrc.indexOf('const ex = applyComfortOrBadge(t, hasAches, painRegion, equipmentTier);')
+  'no generator calls applyGripVariant',
+  !/applyGripVariant\s*\(/.test(engineSrc),
+  'a renamed card is a card no list can answer for'
 );
 check(
-  'it is applied to accessories, not the main lift',
-  /i === 0/.test(mainBranch) &&
-    mainBranch.indexOf('applyGripVariant') > mainBranch.indexOf('i === 0'),
-  'the main lift has its own, deliberately rarer, rotation'
+  'and the engine does not import it either',
+  !/from '\.\/grip-variants'/.test(engineSrc),
+  'an unused import is the wiring waiting to be put back by accident'
 );
 
 // ─── 5. Where it can and cannot reach ────────────────────────────────────────
@@ -141,22 +151,15 @@ console.log('\n[5] Observed in generated sessions');
  *
  * This used to say "a grip variant appears in real sessions", sampled on Upper
  * Body and Full Body, because a table that fires nowhere is a table not worth
- * having. The only caller is the weekly generator's accessory loop, and with
- * Lower, Upper and Full Body all built from Archie's library that generator
- * builds no session at all, so the answer is zero everywhere - not because the
- * coverage went thin, but because the loop is unreachable. Left as it was, the
- * assertion would have been asking the app to do something it must not:
- * a library session may serve Archie's list, the nine conditioning records and
- * Restore, and a Wide-Grip Inverted Row is none of those.
+ * having. Then Lower, Upper and Full Body were switched to Archie's library and
+ * the only caller - the weekly generator's accessory loop - stopped building
+ * anything, so the honest reading became "not in a library session". The call
+ * itself has now gone, so the sweep is held to the whole app: NO session the
+ * app builds, of any type, at any tier, may serve a grip variant.
  *
- * So it is asked the other way round. A grip variant must not reach a session
- * built from the library, which is a promise that holds for good; and the
- * sweep covers every session type the app builds, so the day something starts
- * serving one the count is no longer zero and this says where.
- *
- * The table itself, its wiring and its rotation are still held by sections 1 to
- * 4. Removing grip variants from Train is a later phase's job, and until then
- * this file keeps them honest rather than pretending they fire.
+ * The table itself and its rotation are still held by sections 1 to 3, because
+ * lib/grip-variants.ts stays until the old pools are deleted. What this section
+ * guarantees is that nothing reads it on the way to a card.
  */
 const { generateWorkout, LIBRARY_LIVE_TYPES } = await import('../lib/workout-engine.ts');
 const { trainTypeOf } = await import('../lib/session-type.ts');
@@ -205,8 +208,44 @@ check(
   inLibrarySession.length === 0,
   inLibrarySession.slice(0, 3).map((s) => `${s.type}/${s.tier}#${s.n}: ${s.name}`).join(' | ')
 );
-console.log(
-  `     (the table fires in ${sightings.length} of ${sampled} sessions today: the weekly loop that applies it builds none)`
+check(
+  'and no session of any kind is, because nothing applies the table',
+  sightings.length === 0,
+  sightings.slice(0, 3).map((s) => `${s.type}/${s.tier}#${s.n}: ${s.name}`).join(' | ')
+);
+
+/**
+ * AND NOTHING THE APP SERVES IS EVEN ELIGIBLE FOR ONE.
+ *
+ * The assertion above and the wiring assertion in section 4 are both worth
+ * having and neither is sufficient on its own: re-wiring the table today
+ * changes no card, because not one of its five base names is a name the app
+ * serves any more. So the sweep is asked the other question as well - is there
+ * a card the table COULD rename - and the answer has to stay no. The day a
+ * library record is authored as "Inverted Row" or "Pull-Up", this is what says
+ * so, before somebody puts the call back and the rename becomes real.
+ */
+const eligible = [];
+for (const type of TYPES) {
+  for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
+    const w = generateWorkout(
+      type,
+      tier,
+      { energy: 'normal', timeAvailable: '60', hasAches: false },
+      profile,
+      {},
+      undefined,
+      0
+    );
+    for (const e of w) {
+      if (GRIP_VARIANTS[e.name]) eligible.push(`${type}/${tier}: ${e.name}`);
+    }
+  }
+}
+check(
+  'and no card the app serves is a name the table would rename',
+  eligible.length === 0,
+  eligible.slice(0, 3).join(' | ')
 );
 
 console.log('');

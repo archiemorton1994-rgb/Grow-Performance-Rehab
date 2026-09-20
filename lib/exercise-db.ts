@@ -19543,6 +19543,49 @@ const PREHAB_COOLDOWN_BY_REGION: Record<PainRegion, ExerciseTemplate> = {
   ankle_achilles: flexStretch('Legs-Up-The-Wall'),
 };
 
+/**
+ * EVERYTHING THE RESTORE TAB ITSELF PRESCRIBES, AND NOTHING ELSE.
+ *
+ * Restore builds its sessions out of five lists and no others: the standalone
+ * joint-health circuit, the long-hold stretch session, the per-region rehab
+ * work, the gentle stretch each region finishes on, and the acute protocols.
+ * That is the whole of it - `getStandalonePrehabWorkout`,
+ * `getStandaloneFlexibilityWorkout` and `getRegionPrehabWorkout` between them
+ * read these five and nothing more.
+ *
+ * WHY IT IS COLLECTED HERE RATHER THAN INFERRED. The swap sheet is filled from
+ * `getAllPickableExercises`, which deep-walks every collection in this file,
+ * Train pools included. On a Restore session that meant a fifth of the filled
+ * swap slots offered something Restore does not prescribe: measured across
+ * 2,800 Restore sessions, 7,392 of 37,366 - a Diaphragmatic Breathing card in
+ * the Mobility session offering a Med Ball Slam, an Assault Bike warm-up behind
+ * a rehab drill, a Tib Raise out of the Train prehab slot. The cards themselves
+ * were always clean. It was one tap behind them that leaked.
+ *
+ * Asked as "does this exercise have a Restore row", by name, because that is
+ * the question the leak is - and because a handful of Restore movements are
+ * filed under a Train template by `getAllPickableExercises` (first name wins),
+ * so asking by id would quietly drop them from their own tab.
+ *
+ * Memoised: the lists are module constants and the answer cannot change.
+ */
+let _restoreCache: ExerciseTemplate[] | null = null;
+export function getRestoreExercises(): ExerciseTemplate[] {
+  if (_restoreCache) return _restoreCache;
+  const byName = new Map<string, ExerciseTemplate>();
+  const add = (t: ExerciseTemplate) => {
+    const key = t.name.toLowerCase();
+    if (!byName.has(key)) byName.set(key, t);
+  };
+  for (const t of STANDALONE_PREHAB) add(t);
+  for (const t of STANDALONE_FLEXIBILITY) add(t);
+  for (const list of Object.values(PREHAB_BY_REGION)) for (const t of list) add(t);
+  for (const t of Object.values(PREHAB_COOLDOWN_BY_REGION)) add(t);
+  for (const list of Object.values(ACUTE_PREHAB_BY_REGION)) for (const t of list) add(t);
+  _restoreCache = [...byName.values()];
+  return _restoreCache;
+}
+
 // ─── WEEKLY BALANCED SESSIONS ──────────────────────────────────────────────────
 // Lower Body, Upper Body, Full Body — designed for users who want balanced
 // programming without the KPI squat/bench/deadlift progression arc.
