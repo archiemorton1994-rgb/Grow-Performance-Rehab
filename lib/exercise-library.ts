@@ -893,7 +893,11 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     secondaryMuscles: ['Rhomboids', 'Biceps', 'Grip/Forearms'],
     targetRegions: ['lat_mid_back', 'upper_back', 'bicep', 'wrist'],
     videoId: '',
-    stress: ['grip_load'],
+    // No tags, like every other row in the library. Archie's answer of
+    // 21 September 2026: Door Frame Rows is treated the same as a barbell row,
+    // so a sore wrist keeps the one pull a person with no equipment has. The
+    // reasoning is written out on the grip_load rule in lib/exercise-safety.ts.
+    stress: [],
   },
   {
     id: 'bn-acc-bw-8',
@@ -3888,7 +3892,7 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     secondaryMuscles: ['Glutes', 'Calves'],
     targetRegions: ['quads', 'glutes', 'calf_shin'],
     videoId: '',
-    stress: ['ankle_load'],
+    stress: ['ankle_load', 'loaded_ground_drive'],
   },
   {
     id: 'lib-cond-sled-pull',
@@ -3902,13 +3906,15 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     dose: 'distance',
     sets: 4,
     reps: '20 m',
-    cue: 'Straps at arm height, walk backwards and stay low - there is no landing and no lowering, which is why a sore knee can usually still do this',
+    cue: 'Straps at arm height, walk backwards and stay low - there is no landing and nothing to lower, so every step is steady work with no jolt through the leg',
     suggestedLoad: 'Light to moderate sled',
     primaryMuscle: 'Quadriceps',
     secondaryMuscles: ['Glutes', 'Calves'],
     targetRegions: ['quads', 'glutes'],
     videoId: '',
-    stress: [],
+    // The cue used to end "which is why a sore knee can usually still do this".
+    // Archie ruled that out on 21 September 2026, so the sentence went with it.
+    stress: ['loaded_ground_drive'],
   },
   {
     id: 'lib-cond-sled-rows',

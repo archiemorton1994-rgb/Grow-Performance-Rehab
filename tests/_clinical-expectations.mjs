@@ -44,12 +44,18 @@ export const CLINICAL = {
       'Walking Lunges',
       'Curtsy Lunge',
       'Side Lunge',
-    ],
-    still: [
-      // Concentric-only conditioning is what a sore knee is FOR. A backwards
-      // sled drag in particular is a knee rehab staple.
+      // ARCHIE, 21 SEPTEMBER 2026, AND IT REVERSES WHAT THIS TABLE USED TO SAY.
+      // Both of these sat in `still` below, on the argument that concentric-only
+      // conditioning is what a sore knee is for and that a backwards drag is a
+      // knee rehab staple. He was asked directly and ruled sled work out for a
+      // sore knee, the backwards drag included: both are minutes of continuous
+      // loaded knee extension over ground with nowhere to unload.
       'Sled Push',
       'Sled Pull',
+    ],
+    still: [
+      // The other half of his answer, in his words: keep the rest. Sled Rows is
+      // rowed standing still, the legs only brace, and it stays.
       'Sled Rows',
       'Assault Bike',
       'Rowing Machine',
@@ -399,7 +405,6 @@ export const CLINICAL = {
       'Pull Ups',
       'Chin Ups',
       'Hanging Knee Raises',
-      'Door Frame Rows',
       'Sled Rows',
       'Earthquake Carry',
       'Bench Dips',
@@ -407,6 +412,19 @@ export const CLINICAL = {
     still: [
       // The forearm plank is what a sore wrist is given INSTEAD of a plank.
       'Forearm Side Plank',
+      /**
+       * ARCHIE, 21 SEPTEMBER 2026, MOVED HERE FROM `never` ABOVE.
+       *
+       * He was shown that a sore wrist lost Door Frame Rows - the only pulling
+       * exercise somebody with no equipment has - while Barbell Row, fifty to
+       * eighty kilos held in two hands, was offered to the same person in the
+       * same session. His answer was "treat both the same and let both through
+       * unless the wrist is flaring". Pinned in `still` rather than merely
+       * deleted from `never`, so that putting the grip tag back on it fails
+       * here instead of passing quietly.
+       */
+      'Door Frame Rows',
+      'Barbell Row',
       'Bodyweight Squats',
       'Wall Sit',
       'Glute Bridge',
@@ -421,12 +439,22 @@ export const CLINICAL = {
       'Rack Pull',
       'Dumbbell Farmers Carry',
       'Dumbbell Suitcase Hold',
-      'Door Frame Rows',
       'Sled Rows',
       'Kettlebell Swings',
       'Hanging Knee Raises',
       'Bench Dips',
     ],
+    /**
+     * DOOR FRAME ROWS LEFT `never` HERE TOO, AND THAT IS A SIDE EFFECT RATHER
+     * THAN A DECISION ARCHIE MADE. He was asked about the wrist. Treating Door
+     * Frame Rows the same as a barbell row means the same everywhere, and the
+     * bicep region screened it through the same grip tag the wrist did, so a
+     * sore bicep now keeps it - exactly as it already kept Barbell Row, Bent
+     * Over Dumbbell Rows and every other row in the library. The rule itself is
+     * untouched: hard gripping is still withheld from a sore bicep, and chin
+     * ups, pull ups, deadlifts, carries, swings and sled rows all still name it
+     * above. Flagged for Archie rather than buried.
+     */
     still: ['Push Up', 'Kneeling Press Ups', 'Bodyweight Squats', 'Plank', 'Wall Sit'],
   },
   tricep: {
@@ -525,6 +553,9 @@ export const UNCLASSIFIED_BY_DESIGN = [
   'Landmine Single Arm Rows',
   'Gorilla Rows',
   'Barbell Row',
+  // Archie, 21 September 2026: Door Frame Rows is treated the same as the rest
+  // of them, so it joins the list it was always the odd one out of.
+  'Door Frame Rows',
   'Trapbar Rows',
   'Rack Rows',
   'Elevated Feet Rack Rows',
@@ -550,8 +581,9 @@ export const UNCLASSIFIED_BY_DESIGN = [
   'Cable Reverse Woodchops',
   'Landmine Rotations',
   'Kettlebell Marches',
-  // Machine and sled conditioning. Nothing lands and nothing is lifted.
-  'Sled Pull',
+  // Machine conditioning. Nothing lands and nothing is lifted. Sled Pull used
+  // to be here and has left: Archie's answer of 21 September 2026 gave it a
+  // tag, so the screen does recognise it now.
   'Assault Bike',
   'Incline Treadmill Walk',
   'Rowing Machine',

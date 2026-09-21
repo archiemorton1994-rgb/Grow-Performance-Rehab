@@ -283,6 +283,35 @@ Every recommended answer in the rebuild plan was accepted.
     who earned them.
 15. New exercises may ship without a video until one is added.
 
+## Decisions (Archie, 2026-09-21)
+
+Six open questions were put to him after the rebuild and every recommended
+answer was accepted. Two corrected what the app was doing, three confirmed
+behaviour that was already built, and one is about the Progress screen and is
+not an exercise question. The numbering carries on from above so that a
+reference to "decision 11" means one thing only.
+
+16. Sore knee: no sled work. Sled Push and Sled Pull are both withheld, because
+    both drive a loaded knee along the ground for the length of the effort.
+    Sled Rows stay, because you stand still and row and the legs only brace.
+    Nothing changes for a sore lower back, which keeps all three. This
+    overrules the older note that a backwards drag is what a sore knee keeps.
+17. Door Frame Rows is screened exactly like a barbell row. It was the only
+    bodyweight row withheld from a sore wrist while barbell rows, which load
+    the grip at least as hard, were still being offered in the same session, so
+    a sore wrist keeps it. Worth knowing: nothing in the app withholds either
+    row when a wrist is flaring today. Making a flaring wrist withhold hard
+    gripping would change every row, every carry and every deadlift, so it
+    needs its own answer rather than being folded into this one.
+18. Decision 11 confirmed. No press-up variation of any kind is served to a
+    sore chest, and that now covers every press-up in the library rather than
+    the three the rule was first written for.
+19. Kettlebell Goblet Squats keeps the identity the old Goblet Squat had, so
+    weights logged before the rebuild still come back on the card.
+20. An experience level the app does not recognise is treated as Beginner,
+    never guessed. Beginner is the only answer that cannot hand somebody work
+    above their level by accident.
+
 ## Notes taken while transcribing
 
 - "Squat Jump" (Squat, Athlete) and "Squat Jumps" (Lunge, Athlete) are the same

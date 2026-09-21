@@ -568,15 +568,22 @@ check(
  * kit sets where that happens are pinned here, both ways round: one that starts
  * declaring a gap it did not declare before is a regression in reach, and one
  * that stops declaring it without gaining a pull is a silently short session.
+ *
+ * THE LIST IS NOW EMPTY, AND IT USED TO HOLD SIX (Archie, 21 September 2026).
+ *
+ * Every one of the six was a sore wrist or a sore bicep on bodyweight,
+ * dumbbells or kettlebells, and every one of them was the same movement: Door
+ * Frame Rows, the only pull those kit sets have, screened out by a grip tag no
+ * other row in the library carried. Archie was asked why it was withheld while
+ * barbell rows were not and answered "treat both the same and let both through
+ * unless the wrist is flaring", so the tag came off and the six gaps closed.
+ * Nobody is now short of a pull for want of equipment OR for a sore arm.
+ *
+ * Left as an empty list rather than deleted. An empty expectation is a stronger
+ * claim than the six were, not a weaker one: put the tag back, or take the pull
+ * away some other way, and a gap appears here and this line goes red.
  */
-const PULL_GAP_EXPECTED = [
-  'bodyweight / bicep',
-  'bodyweight / wrist',
-  'dumbbells / bicep',
-  'dumbbells / wrist',
-  'kettlebells / bicep',
-  'kettlebells / wrist',
-];
+const PULL_GAP_EXPECTED = [];
 const pullGaps = [];
 const silentlyShort = [];
 for (const tier of TIERS) {
@@ -608,7 +615,7 @@ check(
   `${silentlyShort.join(', ')} - a slot that empties quietly is the failure the gap line exists to stop`
 );
 check(
-  `a declared gap is rare and named: ${PULL_GAP_EXPECTED.length} kit-and-area pairs, all of them a sore bicep or wrist`,
+  `a declared gap is rare and named: ${PULL_GAP_EXPECTED.length} kit-and-area pairs, so every kit set keeps its pull whatever is sore`,
   pullGaps.join(' | ') === PULL_GAP_EXPECTED.join(' | '),
   `expected ${PULL_GAP_EXPECTED.join(', ')}, got ${pullGaps.join(', ') || 'none'}`
 );

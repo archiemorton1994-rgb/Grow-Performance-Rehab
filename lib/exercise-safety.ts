@@ -48,6 +48,29 @@ export type StressTag =
   | 'deep_knee_flexion'
   /** Resisted knee extension with the foot free — hard on the kneecap. */
   | 'open_chain_knee'
+  /**
+   * Driving a heavy load along the ground on your own feet.
+   *
+   * Sled pushes and sled drags, forwards or backwards. ARCHIE'S ANSWER OF
+   * 21 SEPTEMBER 2026, and it overturns what this file used to say: the note
+   * under `ankle_load` argued that a backwards drag is the option a sore knee
+   * keeps, and the Sled Pull card said so to the user in as many words. He was
+   * asked and he ruled sled work out for a sore knee, both directions, because
+   * both are minutes of continuous loaded knee extension over ground with no
+   * chance to unload.
+   *
+   * ITS OWN TAG RATHER THAN `deep_knee_flexion`, WHICH WAS TRIED FIRST. That
+   * tag is the obvious candidate - the knee already restricts it - and it is
+   * restricted by three other regions as well, so borrowing it would also have
+   * taken both sleds away from a sore quad, glute and groin. All three
+   * currently KEEP sled work, deliberately and with a test pinning it, and the
+   * other half of Archie's answer was "keep the rest". So the demand gets a
+   * name of its own and exactly one region restricts it.
+   *
+   * Sled Rows are deliberately not here: you stand still and row, the legs only
+   * brace, and a sore knee keeps them.
+   */
+  | 'loaded_ground_drive'
   /** High tension through the adductors - Copenhagen holds, groin stretches. */
   | 'adductor_load'
   /**
@@ -126,8 +149,12 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // Sled pushes and forward drags are driven off the toes, which is a large
   // calf and Achilles demand; a duck walk is a squat walked in full
   // dorsiflexion. Sled Pull is Archie's backwards drag and is deliberately
-  // absent - walking backwards is the option a sore ankle or knee keeps.
+  // absent HERE - walking backwards is the option a sore ANKLE keeps. The knee
+  // no longer keeps it; that is `loaded_ground_drive` on the rule below.
   { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskips?\b|\bskipping\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging|duck walks?\b|(?:sled|prowler)\s+(?:push|drag)/i },
+  // Both sled drags, and only the drags. "Sled Rows" cannot match this, which
+  // is the whole point of spelling the direction out. See the tag's own note.
+  { tag: 'loaded_ground_drive', test: /(?:sled|prowler)\s+(?:push|pull|drag)/i },
 
   // Knee. The barbell squats and the leg press belong here for the same reason
   // the front squat does — the knee goes past 90° with the heaviest load the
@@ -313,9 +340,27 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   // runs — see NOT_WHAT_IT_LOOKS_LIKE.
   //
   // \bsuitcase\b, because a suitcase HOLD is the same hand as a suitcase
-  // CARRY and only the carry was matching. Sled rows and door frame rows are
-  // gripped hard for the whole set with nothing to rest the hand on.
-  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?\s?ups?\b|chin-?\s?ups?\b|snatch|\bclean\b|fat grip|grip strength|gripper|\bswings?\b|\bsuitcase\b|rack pulls?\b|high pulls?\b|sled rows?\b|door frame rows?\b/i },
+  // CARRY and only the carry was matching. Sled rows are gripped hard for the
+  // whole set, dragging thirty to fifty kilos, with nothing to rest the hand on.
+  //
+  // DOOR FRAME ROWS USED TO BE HERE AND IS NOT ANY MORE (Archie, 21 September
+  // 2026). It was the only bodyweight row in the library carrying a grip tag,
+  // so a sore wrist lost the one pulling exercise a person with no equipment
+  // has, while Barbell Row - fifty to eighty kilos held in two hands, which
+  // loads the grip at least as hard - was offered to the same person in the
+  // same session. He was asked which of the two was wrong and answered "treat
+  // both the same and let both through unless the wrist is flaring". So the
+  // name comes out and Door Frame Rows is screened exactly like every other row
+  // in the library, which is what stops the two drifting apart again.
+  //
+  // MEASURED, AND WORTH SAYING PLAINLY: "unless the wrist is flaring" is not
+  // implemented by anything today, for either row. Severity adds one tag,
+  // high_impact, and only at severe - see SEVERITY_BANS_IMPACT - so a barbell
+  // row reaches a severe wrist complaint as readily as a mild one. Making
+  // flaring withhold hard gripping would change every row, every carry and
+  // every deadlift, which is a separate question for Archie rather than
+  // something to slip in behind this one.
+  { tag: 'grip_load', test: /deadlift|farmer|\bcarry\b|carries|\bhang\b|hanging|pull-?\s?ups?\b|chin-?\s?ups?\b|snatch|\bclean\b|fat grip|grip strength|gripper|\bswings?\b|\bsuitcase\b|rack pulls?\b|high pulls?\b|sled rows?\b/i },
 ];
 
 /**
@@ -548,7 +593,17 @@ const LENGTHENING_RULES: { tag: StressTag; test: RegExp }[] = [
 
 export const RESTRICTED_BY_REGION: Record<PainRegion, StressTag[]> = {
   // ── Joints ────────────────────────────────────────────────────────────────
-  knee: ['high_impact', 'deep_knee_flexion', 'open_chain_knee', 'quad_hipflexor_lengthen', 'hip_end_range'],
+  // loaded_ground_drive is Archie's answer of 21 September 2026: sled work is
+  // out for a sore knee, the backwards drag included. It is the only region
+  // that restricts it, which is the "keep the rest" half of the same answer.
+  knee: [
+    'high_impact',
+    'deep_knee_flexion',
+    'open_chain_knee',
+    'quad_hipflexor_lengthen',
+    'hip_end_range',
+    'loaded_ground_drive',
+  ],
   ankle_achilles: ['high_impact', 'ankle_load', 'calf_lengthen'],
   hip_groin: ['high_impact', 'deep_knee_flexion', 'loaded_hinge', 'adductor_load', 'hip_end_range', 'quad_hipflexor_lengthen'],
   lower_back: ['high_impact', 'spinal_compression', 'lumbar_flexion', 'loaded_hinge', 'quad_hipflexor_lengthen'],
@@ -609,6 +664,7 @@ export const STRESS_TAG_LABELS: Record<StressTag, string> = {
   high_impact: 'jumping and landing',
   deep_knee_flexion: 'deep knee bending',
   open_chain_knee: 'loaded knee extension',
+  loaded_ground_drive: 'driving a loaded sled along the ground',
   adductor_load: 'high adductor tension',
   hamstring_lengthen: 'stretching the hamstring',
   hard_eccentric: 'hard lowering work',

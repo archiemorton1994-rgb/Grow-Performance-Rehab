@@ -827,7 +827,9 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * today it would fall through to a HARDER main lift while an easier clean
      * record of the same pattern sat in the accessory half of the pool. Measured:
      * an upper body session at home with a sore wrist replaced Door Frame Rows
-     * (rung 1) with Bent Over Dumbbell Rows (rung 3).
+     * (rung 1) with Bent Over Dumbbell Rows (rung 3). That exact case no longer
+     * reproduces - Archie let Door Frame Rows through a sore wrist on
+     * 21 September 2026 - but the rule it bought is general and stays.
      *
      * Which of the two rules gives way is a clinical question rather than a
      * tidiness one, and it is not close. "The first slot should be a lift" is
