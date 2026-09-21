@@ -292,5 +292,100 @@ check(
   'the paywall counts one universe and the app serves another'
 );
 
+// ─── [4] Every exercise badge still names something the app can serve ────────
+console.log('\n[4] No exercise badge is quietly unearnable');
+
+/**
+ * RUN, NOT READ. The badge rules are substring tests inside evaluateBadges -
+ * hasExercise('nordic'), hasExercise('pull up') - so the only honest way to ask
+ * "can this still be earned" is to earn it: hand the real engine an account
+ * that has logged every movement the app can serve, ten sessions of each, and
+ * see which exercise badges come out.
+ *
+ * WHY THIS IS HERE AND NOT IN A BADGE FILE. It is a question about the exercise
+ * lists, not about badges: the failure it catches is a movement leaving the app
+ * and taking a badge with it in silence. Gravity Fighter had already happened -
+ * the rule listed 'pull-up' and 'chin-up' with hyphens, Archie's library spells
+ * them 'Pull Ups' and 'Chin Ups', and the badge stopped being awardable while
+ * the exercise was still being prescribed every week.
+ *
+ * A badge that fails here has two honest answers and this check does not choose
+ * between them: re-point the rule at the spelling the app uses, or retire the
+ * badge (decision 14 - retired, never stripped, so whoever earned it keeps it).
+ * Retired badges are refused by `awardIf` itself, so they are not expected here.
+ */
+const { BADGE_CATALOG, isRetiredBadge } = await import('../lib/badges.ts');
+const { evaluateBadges } = await import('../lib/badge-engine.ts');
+
+const everyServable = [...SOURCE.keys()];
+const logged = [];
+let n = 0;
+for (const list of [LIBRARY_EXERCISES, CONDITIONING_EXERCISES, getRestoreExercises(), getCooldown()]) {
+  for (const record of list) {
+    // Ten sessions each, so "log X in 10 different sessions" is reachable too.
+    for (let k = 0; k < 10; k++) {
+      logged.push({
+        id: `s${n}-${k}`,
+        sessionType: 'full_body',
+        date: new Date(Date.UTC(2020, 0, 1) + n * 864000000 + k * 86400000).toISOString(),
+        equipmentTier: 'fullgym',
+        hadAches: false,
+        painRegions: [],
+        energy: 'good',
+        timeAvailable: '45',
+        exerciseCount: 1,
+        durationSeconds: 2700,
+        exerciseLogs: [
+          {
+            exerciseId: record.id,
+            exerciseName: record.name,
+            targetReps: '5',
+            category: record.category ?? 'main',
+            sets: [{ setNumber: 1, weight: 60, reps: 5, completed: true }],
+          },
+        ],
+      });
+    }
+    n++;
+  }
+}
+
+const awarded = new Set(
+  evaluateBadges({
+    completedSessions: logged,
+    oneRepMaxes: [],
+    userProfile: {
+      name: 'Sweep',
+      sex: 'male',
+      experienceLevel: 'advanced',
+      goals: ['strength'],
+      bodyweightKg: 80,
+    },
+    profilePhotoUri: null,
+    equipmentTiers: ['fullgym'],
+    bodyweightUpdatedAt: new Date().toISOString(),
+    onboardingComplete: true,
+    tourGenuinelyCompleted: true,
+    weeklyStreakGoal: 2,
+    programme: null,
+    completedProgrammes: [],
+  })
+);
+
+const exerciseBadges = BADGE_CATALOG.filter(
+  (b) => b.category === 'exercise_milestone' && !isRetiredBadge(b.id)
+);
+const unearnable = exerciseBadges.filter((b) => !awarded.has(b.id));
+check(
+  `the sweep logged every servable movement (${everyServable.length} movements, ${logged.length} sessions) and judged ${exerciseBadges.length} live exercise badges`,
+  everyServable.length > 0 && exerciseBadges.length > 0 && logged.length > everyServable.length,
+  'a sweep that logs nothing awards nothing and would pass this section by accident'
+);
+check(
+  'every exercise badge that is not retired can still be earned from the three lists',
+  unearnable.length === 0,
+  `${unearnable.length} cannot: ${unearnable.map((b) => `${b.name} (${b.id})`).join(', ')} - re-point the rule at Archie's spelling, or retire the badge`
+);
+
 console.log(`\nlibrary-only: ${failed === 0 ? `all ${passed} checks passed` : `${passed} passed, ${failed} FAILED`}\n`);
 process.exitCode = failed === 0 ? 0 : 1;

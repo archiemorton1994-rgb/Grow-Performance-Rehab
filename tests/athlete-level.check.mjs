@@ -28,8 +28,12 @@
  * WHAT ATHLETE IS PROMISED TO BE
  * ──────────────────────────────
  * The top of the list, and the same NUMBERS as Advanced. Every exercise the two
- * are both given opens on the same weight, climbs no faster, reads the same
- * difficulty label and gets the same finisher. What it is NOT is a way to
+ * are both given opens on the same weight, climbs no faster and reads the same
+ * difficulty label. The conditioning interval is the one place they differ on
+ * purpose - LEVEL_INTERVAL works an athlete 45s on and 30s off against an
+ * advanced lifter's 40s and 40s - and section 6 says why the promise there is
+ * "never LESS than the level below" rather than "identical to it". What it is
+ * NOT is a way to
  * unlock harder movements on the old ladders by picking a bigger word: those
  * stop at level 5 and Advanced already reaches it, which is the earn-the-barbell
  * rule in PROGRESSION-LADDERS.md. Athlete has its own rows so that it CAN be
@@ -81,7 +85,7 @@ import {
   levelCeilingFor,
   programmeDifficulty,
 } from '../lib/programme.ts';
-import { getGoalConditioningBlock } from '../lib/exercise-db.ts';
+
 import { restrictedTagsFor, RESTRICTED_BY_REGION } from '../lib/exercise-safety.ts';
 
 let passed = 0;
@@ -386,33 +390,112 @@ check(
   'the label claims a difference the prescription does not have'
 );
 
-// ─── 6. The finisher ────────────────────────────────────────────────────────
-console.log('\n[6] The conditioning finisher is the same size for both');
+// ─── 6. The conditioning interval ───────────────────────────────────────────
+console.log('\n[6] An athlete is never worked LESS than the level below');
 
+/**
+ * THE PROMISE CHANGED SHAPE HERE, AND IT IS WORTH BEING EXACT ABOUT WHY.
+ *
+ * This section used to assert that an athlete got the IDENTICAL conditioning
+ * finisher to an advanced lifter, asked of getGoalConditioningBlock - a
+ * tier-and-energy table of two-exercise circuits in the old Train catalogue.
+ * That table had no level column at all, so "identical" was simply what it did,
+ * and the bug the section was written for was the OPPOSITE of a difference: a
+ * missing athlete row in a `Record<string, number>` meant an athlete silently
+ * got ONE SET FEWER than the level below. See the file header.
+ *
+ * Conditioning is built from Archie's nine records now, on an interval clock,
+ * and LEVEL_INTERVAL in lib/library-conditioning.ts is keyed on the level union
+ * with a row written out for every rung: 20s on and 60s off at the bottom,
+ * 45s on and 30s off at the top. An athlete really is worked harder than an
+ * advanced lifter, deliberately, by a table that cannot fall back because it
+ * has no default to fall back to.
+ *
+ * So asserting "identical" would now be asserting that a designed difference is
+ * a defect. What this file exists to catch is the athlete being SHORT-CHANGED
+ * by a gap, and that is what is asked instead, in the units the interval is
+ * made of: never fewer rounds and never a shorter effort than the rung below,
+ * at any tier or energy, and nothing undefined or NaN anywhere in the
+ * prescription. A missing athlete row would fail all three.
+ */
 const CONDITIONING_TIERS = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
 const ENERGIES = ['easy', 'normal', 'hard'];
-const blockOf = (tier, energy, level) =>
-  JSON.stringify(getGoalConditioningBlock(tier, energy, level).map((e) => [e.name, e.sets]));
+/** The timed interval cards of a real conditioning session, by name. */
+const intervalsOf = (tier, energy, level) => {
+  const session =
+    generateWorkout(
+      'conditioning',
+      tier,
+      { hasAches: false, energy, timeAvailable: '45' },
+      { experienceLevel: level, name: 'A', goals: ['fitness'], bodyweightKg: 80 },
+      undefined,
+      undefined,
+      0,
+      undefined,
+      undefined,
+      undefined,
+      null,
+      'kg',
+      undefined,
+      undefined,
+      0,
+      { equipment: [tier], sessionTypeCount: 0 }
+    ) ?? [];
+  const out = new Map();
+  for (const e of session) {
+    const seconds = /^(\d+)s$/.exec(String(e.reps ?? '').trim());
+    if (seconds) out.set(e.name, { rounds: e.sets, seconds: Number(seconds[1]) });
+  }
+  return { session, out };
+};
 
-const condMismatch = [];
+const shortChanged = [];
+const malformed = [];
 let condBeginnerDiffers = false;
 for (const tier of CONDITIONING_TIERS) {
   for (const energy of ENERGIES) {
-    const top = blockOf(tier, energy, TOP);
-    const below = blockOf(tier, energy, BELOW_TOP);
-    if (top !== below) condMismatch.push(`${tier}/${energy}: ${top} vs ${below}`);
-    if (blockOf(tier, energy, 'beginner') !== below) condBeginnerDiffers = true;
+    const top = intervalsOf(tier, energy, TOP);
+    const below = intervalsOf(tier, energy, BELOW_TOP);
+    const beginner = intervalsOf(tier, energy, 'beginner');
+    for (const level of [top, below, beginner]) {
+      for (const e of level.session) {
+        if (!Number.isFinite(e.sets) || e.sets <= 0 || !e.reps) {
+          malformed.push(`${tier}/${energy}: ${e.name} sets=${e.sets} reps=${e.reps}`);
+        }
+      }
+    }
+    for (const [name, belowCard] of below.out) {
+      const topCard = top.out.get(name);
+      if (!topCard) continue;
+      if (topCard.rounds < belowCard.rounds || topCard.seconds < belowCard.seconds) {
+        shortChanged.push(
+          `${tier}/${energy}: ${name} - ${TOP} ${topCard.rounds}x${topCard.seconds}s against ${BELOW_TOP} ${belowCard.rounds}x${belowCard.seconds}s`
+        );
+      }
+    }
+    for (const [name, beginnerCard] of beginner.out) {
+      const belowCard = below.out.get(name);
+      if (!belowCard) continue;
+      if (beginnerCard.seconds !== belowCard.seconds || beginnerCard.rounds !== belowCard.rounds) {
+        condBeginnerDiffers = true;
+      }
+    }
   }
 }
 check(
-  `${TOP} gets the same finisher as ${BELOW_TOP} at every tier and energy`,
-  condMismatch.length === 0,
-  condMismatch.slice(0, 3).join(' | ')
+  `${TOP} is never given fewer rounds or a shorter effort than ${BELOW_TOP}, at any tier or energy`,
+  shortChanged.length === 0,
+  shortChanged.slice(0, 3).join(' | ')
 );
 check(
-  'and the level still changes the finisher for somebody, so this can see a change',
+  'and every conditioning card at every level carries a real round count and a real prescription',
+  malformed.length === 0,
+  malformed.slice(0, 3).join(' | ')
+);
+check(
+  'and the level still changes the interval for somebody, so this can see a change',
   condBeginnerDiffers,
-  'the set count ignores the level entirely'
+  'the interval ignores the level entirely, so the comparison above proves nothing'
 );
 
 // ─── 7. Not a beginner, anywhere that asks ──────────────────────────────────

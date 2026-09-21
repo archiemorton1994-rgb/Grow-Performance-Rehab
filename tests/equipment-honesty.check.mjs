@@ -61,6 +61,9 @@ const db = await import('../lib/exercise-db.ts');
 const sb = await import('../lib/session-builder.ts');
 const lib = await import('../lib/exercise-library.ts');
 const libSession = await import('../lib/library-session.ts');
+// The kit model a library record answers to: an AND of ORs, not a rung. Section
+// 3 asks each list the question it can answer - see the walk there.
+const { canPerformWith } = await import('../lib/kit.ts');
 
 let failures = 0;
 let total = 0;
@@ -357,44 +360,34 @@ const REGIONS = [
   'tricep', 'elbow', 'wrist', 'core_ribs', 'lower_back', 'hip_groin', 'glutes', 'quads',
   'hamstrings', 'knee',
 ];
+/**
+ * THE THREE LISTS, WHICH IS WHAT A POOL IS NOW.
+ *
+ * This walked twenty-one tier-keyed tables of the old Train catalogue -
+ * getPrep, getMechanical, getNeuro, both POWER getters, getMainLift,
+ * getAccessories, getPrehab, getFinisher, get1RMProtocol, the three weekly
+ * getters, the conditioning rotation, the goal-conditioning blocks and
+ * CARDIO_WARMUPS. Every one of them is deleted, and asking a deleted table
+ * whether it holds kit somebody has not got is not a weaker version of this
+ * question, it is no question at all.
+ *
+ * So the same question is asked of what a card can actually hold: Archie's
+ * library, his nine conditioning records and the Restore tables that were
+ * already here. The library and the nine are filtered by their OWN kit line,
+ * which is the exact statement of what they need ("Box or Bench", "Barbell and
+ * Plates"); Restore's drills declare a rung and are filtered by possibleFor,
+ * exactly as before. Each is asked the question it can answer.
+ */
 for (const tier of TIERS) {
-  for (const type of ['squat', 'bench', 'deadlift']) {
-    for (const getter of [
-      'getPrep',
-      'getMechanical',
-      'getNeuro',
-      'getPowerMechanical',
-      'getAccessories',
-      'getPrehab',
-    ]) {
-      for (const t of db[getter](type, tier)) pools.add(`${getter}(${type})`, tier, t);
-    }
-    pools.add(`getMainLift(${type})`, tier, db.getMainLift(type, tier));
-    pools.add(`getPowerNeuro(${type})`, tier, db.getPowerNeuro(type, tier));
-    for (const e of ['easy', 'normal', 'hard']) {
-      for (const t of db.getFinisher(type, tier, e)) pools.add(`getFinisher(${type})`, tier, t);
-    }
-    for (const t of db.get1RMProtocol(type, tier)) pools.add(`get1RMProtocol(${type})`, tier, t);
+  for (const record of lib.LIBRARY_EXERCISES) {
+    if (canPerformWith(record, [tier])) pools.add("Archie's library", tier, record);
   }
-  for (const t of db.getWeeklyUpperBodyExercises(tier)) pools.add('weekly upper body', tier, t);
-  for (const t of db.getWeeklyLowerBodyExercises(tier)) pools.add('weekly lower body', tier, t);
-  for (const t of db.getWeeklyFullBodyExercises(tier)) pools.add('weekly full body', tier, t);
-  for (const e of ['easy', 'normal', 'hard']) {
-    // 30 rotations covers the 4/8/5/3 pool walk the conditioning session uses.
-    for (let r = 0; r < 30; r++) {
-      for (const t of db.getConditioningWorkout(tier, e, r)) pools.add('conditioning', tier, t);
-    }
-    for (const t of db.getGoalConditioningBlock(tier, e)) pools.add('goal conditioning', tier, t);
+  for (const record of lib.CONDITIONING_EXERCISES) {
+    if (canPerformWith(record, [tier])) pools.add('the nine conditioning records', tier, record);
   }
   for (const t of db.possibleFor(db.getCooldown(), tier)) pools.add('cooldown', tier, t);
   for (const t of db.possibleFor(db.getStandalonePrehabWorkout(), tier)) pools.add('standalone prehab', tier, t);
   for (const t of db.possibleFor(db.getStandaloneFlexibilityWorkout(), tier)) pools.add('standalone flexibility', tier, t);
-  for (const t of db.CARDIO_WARMUPS) {
-    // The one pool the generator filters itself, on the declared requirement.
-    if (db.canPerformWith(t.equipmentRequired, [tier])) {
-      pools.add('cardio warm-ups', tier, t);
-    }
-  }
   for (const region of REGIONS) {
     for (const t of db.possibleFor(db.getRegionPrehabWorkout(region), tier)) {
       pools.add(`region prehab (${region})`, tier, t);

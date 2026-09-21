@@ -1,8 +1,8 @@
 /**
  * Contract test: the muscle heatmap on the Stats tab reflects accurate exercise
- * coverage — every exercise in MAIN_LIFTS and ACCESSORIES has at least one
- * MUSCLE_SET region declared in its targetRegions, and every declared region
- * value is a valid PainRegion.
+ * coverage — every record a Train session can put a set against shades at least
+ * one MUSCLE_SET region, and every region the map hands back is a real
+ * PainRegion.
  *
  * HOW THE MUSCLE HEATMAP WORKS
  * ─────────────────────────────
@@ -13,37 +13,42 @@
  * 3. BodyDiagram renders the heatmap — only MUSCLE_SET regions get coloured fills.
  *
  * Silent failure modes this catches:
- *  - New exercise added to MAIN_LIFTS or ACCESSORIES with targetRegions: [] →
- *    that muscle group silently shows grey on the heatmap after sessions
- *  - Renamed PainRegion leaves stale string in targetRegions → heatmap never
- *    lights up for that region (no runtime error; silent miss)
- *  - getExerciseTargetRegionsMap() stops walking MAIN_LIFTS or ACCESSORIES →
- *    entire session type goes dark on the heatmap
+ *  - A new library record with targetRegions: [] → that muscle group silently
+ *    shows grey on the heatmap however many sets are logged against it
+ *  - Renamed PainRegion leaves a stale string in targetRegions → the heatmap
+ *    never lights up for that region (no runtime error; silent miss)
+ *  - getExerciseTargetRegionsMap() stops walking one of the lists → a whole
+ *    session type goes dark on the heatmap
  *
  * Checks:
  *  1. PAINREGION PARSING     — extract all PainRegion literals from lib/store.ts
  *  2. MUSCLE_SET PARSING     — extract MUSCLE_SET from components/BodyDiagram.tsx
- *  3. FUNCTION WIRING        — getExerciseTargetRegionsMap() exported and walks
- *                              both MAIN_LIFTS and ACCESSORIES collections
- *  4. REGION VALIDITY        — every targetRegions value across the whole DB is a
- *                              valid PainRegion (catches typos and stale renames)
- *  5. MAIN_LIFTS COVERAGE    — every exercise in MAIN_LIFTS has ≥1 MUSCLE_SET region
- *  6. ACCESSORIES COVERAGE   — every exercise in ACCESSORIES has ≥1 MUSCLE_SET region
- *  7. ID UNIQUENESS          — no duplicate IDs across MAIN_LIFTS + ACCESSORIES
+ *  3. THE MAP ITSELF         — built by calling the real function, and holding
+ *                              every library and conditioning record
+ *  4. REGION VALIDITY        — every region the map returns is a real PainRegion
+ *  5. COVERAGE               — every library record shades ≥1 MUSCLE_SET region
+ *  6. THE DIAGRAM'S OWN SET  — MUSCLE_SET was read, so section 5 means something
+ *  7. ID UNIQUENESS          — no two records share an id, which would share sets
  *
- * Run:  node tests/muscle-heatmap-coverage.check.mjs
+ * Run:  npx tsx tests/muscle-heatmap-coverage.check.mjs
  * Exit: 0 = all pass, 1 = one or more failures
  */
+
+globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+// The live map and the live lists. Importing .ts modules is why this check runs
+// under tsx rather than plain node; see section 3 for why it stopped reading
+// lib/exercise-db.ts as text.
+import { getExerciseTargetRegionsMap } from '../lib/exercise-db.ts';
+import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 const storeSrc = readFileSync(join(__dir, '../lib/store.ts'), 'utf8');
 const diagramSrc = readFileSync(join(__dir, '../components/BodyDiagram.tsx'), 'utf8');
-const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
 
 let failures = 0;
 let total = 0;
@@ -56,88 +61,6 @@ function check(label, condition, detail) {
     console.error(`  ✗ FAIL: ${label}${detail ? ` — ${detail}` : ''}`);
     failures++;
   }
-}
-
-// ─── Helper: extract the text of a const block ───────────────────────────────
-// Handles TypeScript type annotations:  const FOO: SomeType<A> = { ... }
-// by finding '= {' rather than the first '{' (which could be inside the type).
-function findConstBlockBoundary(src, constName) {
-  const constIdx = src.indexOf(`const ${constName}`);
-  if (constIdx === -1) return { constIdx: -1, open: -1, end: -1 };
-
-  const assignIdx = src.indexOf('= {', constIdx);
-  if (assignIdx === -1) return { constIdx, open: -1, end: -1 };
-
-  const open = assignIdx + 2; // index of '{'
-  let depth = 0;
-  let end = -1;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) {
-        end = i;
-        break;
-      }
-    }
-  }
-  return { constIdx, open, end };
-}
-
-// ─── Helper: from a source block, extract all { id, targetRegions } pairs ────
-// Handles both single-line and multi-line exercise objects.
-// Tracks the most-recently-seen id: '...' and pairs it with the next
-// targetRegions: [...] that appears before a new id: resets the cursor.
-function parseExercises(block) {
-  const results = [];
-  let currentId = null;
-  let inTargetRegions = false;
-  let regionBuffer = '';
-
-  for (const line of block.split('\n')) {
-    // Detect id: '...' — starts a new exercise object context
-    const idMatch = line.match(/\bid:\s*'([^']+)'/);
-    if (idMatch) {
-      currentId = idMatch[1];
-      inTargetRegions = false;
-      regionBuffer = '';
-    }
-
-    if (currentId === null) continue;
-
-    // Check if targetRegions: [...] is fully on this line
-    const inlineMatch = line.match(/\btargetRegions:\s*\[([^\]]*)\]/);
-    if (inlineMatch) {
-      const regions = [...inlineMatch[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
-      results.push({ id: currentId, regions });
-      currentId = null;
-      inTargetRegions = false;
-      regionBuffer = '';
-      continue;
-    }
-
-    // Multi-line targetRegions: [ starts but doesn't close on same line
-    if (!inTargetRegions && line.match(/\btargetRegions:\s*\[/)) {
-      inTargetRegions = true;
-      regionBuffer = line.slice(line.indexOf('[') + 1);
-      continue;
-    }
-
-    if (inTargetRegions) {
-      const closeIdx = line.indexOf(']');
-      if (closeIdx !== -1) {
-        regionBuffer += line.slice(0, closeIdx);
-        const regions = [...regionBuffer.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
-        results.push({ id: currentId, regions });
-        currentId = null;
-        inTargetRegions = false;
-        regionBuffer = '';
-      } else {
-        regionBuffer += line;
-      }
-    }
-  }
-  return results;
 }
 
 // ─── 1. Parse PainRegion literals from lib/store.ts ──────────────────────────
@@ -197,25 +120,45 @@ if (muscleSetDecl !== -1) {
 
 const muscleSet = new Set(muscleSetValues);
 
-// ─── 3. Function wiring — getExerciseTargetRegionsMap ────────────────────────
-console.log('\n[3] Function wiring — getExerciseTargetRegionsMap in exercise-db.ts');
+// ─── 3. The map itself, built by the real function ───────────────────────────
+console.log('\n[3] The map the Stats tab reads, built by running the real function');
+
+/**
+ * ASKED OF THE MAP, NOT OF THE FILE IT USED TO BE PARSED OUT OF.
+ *
+ * Sections 3 to 7 used to read lib/exercise-db.ts as text: find the MAIN_LIFTS
+ * block by counting braces, pull each `id` and `targetRegions` out of it with a
+ * regex, and do the same for ACCESSORIES. Both blocks were the old Train
+ * catalogue and are deleted, so the parse now finds nothing.
+ *
+ * IT DID NOT FAIL HONESTLY, WHICH IS THE POINT. Two of the assertions here -
+ * "getExerciseTargetRegionsMap walks MAIN_LIFTS" and the same for ACCESSORIES -
+ * were `dbSrc.includes('MAIN_LIFTS,')`, and they went on passing after the
+ * deletion because a COMMENT in that file explaining what had been removed
+ * contains the words "MAIN_LIFTS, ACCESSORIES,". A test that reads source for a
+ * spelling cannot tell a walk from a sentence about a walk.
+ *
+ * So the question is asked the way the Stats tab asks it: call
+ * getExerciseTargetRegionsMap(), and check what comes back. The scope is the
+ * same scope the two blocks had - the strength work somebody logs sets against,
+ * which is Archie's library now.
+ */
+const regionMap = getExerciseTargetRegionsMap();
+const mappedIds = Object.keys(regionMap);
 
 check(
-  'getExerciseTargetRegionsMap is exported from exercise-db.ts',
-  dbSrc.includes('export function getExerciseTargetRegionsMap'),
-  'function not found — getMuscleProgressCounts() in workouts.tsx cannot build the region map'
+  `getExerciseTargetRegionsMap returns a map (${mappedIds.length} exercises)`,
+  mappedIds.length > 0,
+  'the map is empty, so the heatmap has nothing to colour and every check below is vacuous'
 );
 
+/** Every record a Train session can put a set against. */
+const strengthRecords = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
+const unmapped = strengthRecords.filter((e) => !regionMap[e.id]).map((e) => `${e.id} (${e.name})`);
 check(
-  'getExerciseTargetRegionsMap walks MAIN_LIFTS',
-  dbSrc.includes('MAIN_LIFTS,') || dbSrc.includes('MAIN_LIFTS\n'),
-  'MAIN_LIFTS not in the walk() call — main lifts will be missing from the heatmap'
-);
-
-check(
-  'getExerciseTargetRegionsMap walks ACCESSORIES',
-  dbSrc.includes('ACCESSORIES,') || dbSrc.includes('ACCESSORIES\n'),
-  'ACCESSORIES not in the walk() call — accessory exercises missing from the heatmap'
+  `every one of the ${strengthRecords.length} library and conditioning records is in the map`,
+  unmapped.length === 0,
+  `${unmapped.length} are not, e.g. ${unmapped.slice(0, 6).join(', ')} - work logged against them shades nothing`
 );
 
 check(
@@ -228,118 +171,86 @@ check(
       return false;
     }
   })(),
-  'import not found in workouts.tsx — getMuscleProgressCounts() cannot query the map'
+  'import not found in workouts.tsx - getMuscleProgressCounts() cannot query the map'
 );
 
-// ─── 4. Region validity — all targetRegions values are valid PainRegions ──────
-console.log('\n[4] Region validity — every declared targetRegion is a valid PainRegion');
+// ─── 4. Region validity — every value in the map is a real PainRegion ────────
+console.log('\n[4] Region validity — every value in the map is a real PainRegion');
 
-const allTargetRegionMatches = [...dbSrc.matchAll(/\btargetRegions:\s*\[([^\]]+)\]/g)];
 const invalidRegionPairs = [];
-
-for (const m of allTargetRegionMatches) {
-  const values = [...m[1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]);
-  for (const v of values) {
-    if (!painRegionSet.has(v)) {
-      invalidRegionPairs.push(v);
-    }
+for (const [id, regions] of Object.entries(regionMap)) {
+  for (const r of regions) {
+    if (!painRegionSet.has(r)) invalidRegionPairs.push(`${id}: '${r}'`);
   }
 }
-
 check(
-  `all declared targetRegion values are valid PainRegions (checked ${allTargetRegionMatches.length} arrays)`,
+  `every region the map hands back is declared in lib/store.ts (${mappedIds.length} exercises)`,
   invalidRegionPairs.length === 0,
   invalidRegionPairs.length > 0
-    ? `invalid values: ${[...new Set(invalidRegionPairs)].join(', ')} — these will never light up on the heatmap`
+    ? `invalid: ${[...new Set(invalidRegionPairs)].slice(0, 8).join(', ')} - these will never light up on the heatmap`
     : ''
 );
 
-if (invalidRegionPairs.length > 0) {
-  for (const v of [...new Set(invalidRegionPairs)]) {
-    console.error(
-      `  ! Invalid region value '${v}' — not declared in PainRegion type in lib/store.ts`
-    );
+// ─── 5. Coverage — every library record shades at least one muscle ───────────
+console.log('\n[5] Coverage — every strength record shades at least one muscle');
+
+/**
+ * THE LIBRARY IS THE FLOOR, in place of "the MAIN_LIFTS block parsed".
+ *
+ * A record with no MUSCLE_SET region in its map entry is work somebody does
+ * that leaves the whole diagram grey afterwards, which is the silent failure
+ * this file was written for. Asked of every one of Archie's records rather than
+ * of the two collections that happened to exist when it was written.
+ *
+ * Conditioning is deliberately NOT held to this: a Rowing Machine or an Incline
+ * Treadmill Walk trains the whole body and the diagram has no honest shape for
+ * that, so those records are listed below with their reason rather than forced
+ * to name a muscle they do not single out.
+ */
+const noMuscle = [];
+for (const e of LIBRARY_EXERCISES) {
+  const regions = regionMap[e.id] ?? [];
+  if (!regions.some((r) => muscleSet.has(r))) {
+    noMuscle.push(`${e.id} (${e.name}) -> ${JSON.stringify(regions)}`);
   }
 }
-
-// ─── 5. MAIN_LIFTS coverage ───────────────────────────────────────────────────
-console.log('\n[5] MAIN_LIFTS coverage — every exercise has ≥1 MUSCLE_SET region');
-
-const { open: mainOpen, end: mainEnd } = findConstBlockBoundary(dbSrc, 'MAIN_LIFTS');
 check(
-  'MAIN_LIFTS block found in exercise-db.ts (balanced braces)',
-  mainOpen !== -1 && mainEnd !== -1,
-  'could not locate or parse MAIN_LIFTS — check lib/exercise-db.ts'
+  `all ${LIBRARY_EXERCISES.length} library records shade at least one muscle on the diagram`,
+  noMuscle.length === 0,
+  `${noMuscle.length} shade nothing, e.g. ${noMuscle.slice(0, 6).join(' | ')} - add a muscle region from: ${[...muscleSet].join(', ')}`
 );
 
-const mainExercises =
-  mainOpen !== -1 && mainEnd !== -1 ? parseExercises(dbSrc.slice(mainOpen, mainEnd + 1)) : [];
-
+const conditioningShading = CONDITIONING_EXERCISES.filter((e) =>
+  (regionMap[e.id] ?? []).some((r) => muscleSet.has(r))
+).length;
 check(
-  `MAIN_LIFTS contains exercises (found ${mainExercises.length})`,
-  mainExercises.length >= 1,
-  'no exercises parsed from MAIN_LIFTS — block may have changed format'
+  `and the conditioning records shade what they honestly can (${conditioningShading} of ${CONDITIONING_EXERCISES.length} name a muscle)`,
+  CONDITIONING_EXERCISES.length > 0,
+  'the nine are whole-body work, so this reports rather than demands'
 );
 
-console.log(`\n  Checking ${mainExercises.length} exercises in MAIN_LIFTS:`);
-for (const ex of mainExercises) {
-  const muscleRegions = ex.regions.filter((r) => muscleSet.has(r));
-  check(
-    `MAIN_LIFTS '${ex.id}' has ≥1 MUSCLE_SET region (${muscleRegions.length > 0 ? muscleRegions.join(', ') : 'NONE'})`,
-    muscleRegions.length >= 1,
-    `targetRegions ${JSON.stringify(ex.regions)} contains no MUSCLE_SET member — ` +
-      `muscle heatmap will never light up for this exercise; ` +
-      `add a muscle region from: ${[...muscleSet].join(', ')}`
-  );
-}
-
-// ─── 6. ACCESSORIES coverage ──────────────────────────────────────────────────
-console.log('\n[6] ACCESSORIES coverage — every exercise has ≥1 MUSCLE_SET region');
-
-const { open: accOpen, end: accEnd } = findConstBlockBoundary(dbSrc, 'ACCESSORIES');
-check(
-  'ACCESSORIES block found in exercise-db.ts (balanced braces)',
-  accOpen !== -1 && accEnd !== -1,
-  'could not locate or parse ACCESSORIES — check lib/exercise-db.ts'
-);
-
-const accExercises =
-  accOpen !== -1 && accEnd !== -1 ? parseExercises(dbSrc.slice(accOpen, accEnd + 1)) : [];
+// ─── 6. Nothing in the map is invisible ──────────────────────────────────────
+console.log('\n[6] The muscle set the diagram can actually colour');
 
 check(
-  `ACCESSORIES contains exercises (found ${accExercises.length})`,
-  accExercises.length >= 1,
-  'no exercises parsed from ACCESSORIES — block may have changed format'
+  `the diagram colours ${muscleSet.size} muscle regions and the test can see them`,
+  muscleSet.size > 0,
+  'MUSCLE_SET could not be read from components/BodyDiagram.tsx, so section 5 proves nothing'
 );
 
-console.log(`\n  Checking ${accExercises.length} exercises in ACCESSORIES:`);
-for (const ex of accExercises) {
-  const muscleRegions = ex.regions.filter((r) => muscleSet.has(r));
-  check(
-    `ACCESSORIES '${ex.id}' has ≥1 MUSCLE_SET region (${muscleRegions.length > 0 ? muscleRegions.join(', ') : 'NONE'})`,
-    muscleRegions.length >= 1,
-    `targetRegions ${JSON.stringify(ex.regions)} contains no MUSCLE_SET member — ` +
-      `muscle heatmap will not show work from this exercise; ` +
-      `add a muscle region from: ${[...muscleSet].join(', ')}`
-  );
-}
+// ─── 7. ID uniqueness — one id, one movement ─────────────────────────────────
+console.log('\n[7] ID uniqueness — two records sharing an id would share their sets');
 
-// ─── 7. ID uniqueness — no duplicate IDs across MAIN_LIFTS + ACCESSORIES ──────
-console.log('\n[7] ID uniqueness — no duplicate IDs across MAIN_LIFTS + ACCESSORIES');
-
-const allStrengthExercises = [...mainExercises, ...accExercises];
 const seenIds = new Set();
 const dupeIds = [];
-
-for (const ex of allStrengthExercises) {
-  if (seenIds.has(ex.id)) dupeIds.push(ex.id);
-  else seenIds.add(ex.id);
+for (const e of strengthRecords) {
+  if (seenIds.has(e.id)) dupeIds.push(e.id);
+  else seenIds.add(e.id);
 }
-
 check(
-  `all ${allStrengthExercises.length} exercise IDs in MAIN_LIFTS + ACCESSORIES are unique (no duplicates)`,
+  `all ${strengthRecords.length} library and conditioning ids are unique`,
   dupeIds.length === 0,
-  dupeIds.length > 0 ? `duplicate IDs: ${dupeIds.join(', ')}` : ''
+  dupeIds.length > 0 ? `duplicate ids: ${dupeIds.join(', ')}` : ''
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

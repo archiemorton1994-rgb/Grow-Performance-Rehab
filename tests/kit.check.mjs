@@ -41,7 +41,7 @@ import './_persist-shim.mjs';
 import { useAppStore, TIER_ORDER } from '../lib/store.ts';
 import { toggleTier } from '../lib/sign-up.ts';
 import { getEffectiveTier } from '../lib/workout-engine.ts';
-import { getMainLift, getAccessories } from '../lib/exercise-db.ts';
+
 import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES, KIT_KEYS } from '../lib/exercise-library.ts';
 import {
   ALWAYS_OWNED_KIT,
@@ -326,23 +326,53 @@ check(
   `it came out ${useAppStore.getState().getInternalTier()}`
 );
 
+/**
+ * AND IT ONLY EVER ADDS, ASKED OF THE LIBRARY RATHER THAN OF A DELETED TABLE.
+ *
+ * These three checks used to ask getMainLift and getAccessories whether a bench
+ * owner drew from the same tier-keyed pool as somebody without one. Those
+ * tables were the old Train catalogue and are deleted; the rule they were
+ * guarding is not, it just belongs to the library now.
+ *
+ * Said in the library's own terms, a supply is a thing that can only ADD. For
+ * every rung, everything performable without a bench must still be performable
+ * with one - losing nothing is the half that would actually hurt somebody - and
+ * whatever the bench adds must genuinely be a record that ASKS for a bench,
+ * box or step, rather than the rung quietly moving up.
+ */
+const benchCases = ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym'];
+const lostSomething = [];
+const addedWithoutAsking = [];
+for (const tier of benchCases) {
+  const without = LIBRARY_EXERCISES.filter((e) => canPerformWith(e, [tier]));
+  const withBench = LIBRARY_EXERCISES.filter((e) => canPerformWith(e, [tier, 'bench']));
+  const names = new Set(withBench.map((e) => e.name));
+  for (const e of without) {
+    if (!names.has(e.name)) lostSomething.push(`${tier}: ${e.name}`);
+  }
+  const before = new Set(without.map((e) => e.name));
+  for (const e of withBench) {
+    if (before.has(e.name)) continue;
+    const asks = e.kit.flat().some((k) => /bench|box|step/i.test(k));
+    if (!asks) addedWithoutAsking.push(`${tier}: ${e.name} needs ${JSON.stringify(e.kit)}`);
+  }
+}
 check(
-  'the exercise database draws the same pool with a bench as without',
-  getMainLift('squat', ['dumbbells', 'bench']).name === getMainLift('squat', ['dumbbells']).name &&
-    getMainLift('squat', ['bench']).name === getMainLift('squat', ['bodyweight']).name,
-  `bench+dumbbells gave ${getMainLift('squat', ['dumbbells', 'bench']).name}, dumbbells alone gave ${getMainLift('squat', ['dumbbells']).name}`
+  'adding a bench never takes a library exercise away, at any rung',
+  lostSomething.length === 0,
+  lostSomething.slice(0, 5).join(' | ')
 );
 check(
-  'and the same accessories',
-  sorted(getAccessories('squat', ['dumbbells', 'bench']).map((t) => t.name)) ===
-    sorted(getAccessories('squat', ['dumbbells']).map((t) => t.name))
+  'and everything it adds is a record that actually asks for a bench, box or step',
+  addedWithoutAsking.length === 0,
+  addedWithoutAsking.slice(0, 5).join(' | ')
 );
 check(
-  'a bench-only profile can still do bodyweight work',
-  getMainLift('squat', ['bench']).name.length > 0 &&
-    getAccessories('squat', ['bench']).length ===
-      getAccessories('squat', ['bodyweight']).length,
-  'the old equipment table must count a bench owner as able to do bodyweight exercises'
+  'a bench-only profile can still do every no-equipment exercise there is',
+  LIBRARY_EXERCISES.filter((e) => canPerformWith(e, ['bodyweight'])).every((e) =>
+    canPerformWith(e, ['bench'])
+  ),
+  'a bench owner must count as able to do bodyweight work'
 );
 
 // ─── 7. Decision 5, exactly ──────────────────────────────────────────────────

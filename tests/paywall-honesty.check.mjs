@@ -385,8 +385,37 @@ check(
 console.log('\n[8] Every number on the paywall counts what it claims to count');
 
 const db = await import('../lib/exercise-db.ts');
+const libRecords = await import('../lib/exercise-library.ts');
+/**
+ * A LIBRARY-TIED FLOOR, because "fewer rows than movements" is a weak promise.
+ *
+ * The number on the paywall says "N+ exercises". What makes that honest is not
+ * that it is smaller than some other number, it is that every movement it
+ * counts is one the app can actually put in front of somebody. So it is
+ * compared with the three lists a card can be built from - Archie's library,
+ * his nine conditioning records and what Restore prescribes - counted the way
+ * the stat counts, by distinct name.
+ *
+ * The old assertion is kept underneath it: the same movement is still filed
+ * under several ids, so rows outnumber movements and a stat that counted rows
+ * would overclaim. That was the original defect and it has not stopped being
+ * possible.
+ */
+const servableNames = new Set(
+  [
+    ...libRecords.LIBRARY_EXERCISES,
+    ...libRecords.CONDITIONING_EXERCISES,
+    ...db.getRestoreExercises(),
+    ...db.getCooldown(),
+  ].map((e) => e.name.toLowerCase().trim())
+);
 check(
-  `distinct movements (${db.distinctExerciseCount()}) is fewer than catalogue rows (${db.exerciseCount()})`,
+  `the exercises stat (${db.distinctExerciseCount()}) is exactly what the three lists can serve (${servableNames.size})`,
+  db.distinctExerciseCount() === servableNames.size,
+  'the paywall counts one universe and the app serves another'
+);
+check(
+  `and it is fewer than catalogue rows (${db.exerciseCount()}), because a movement is filed under several ids`,
   db.distinctExerciseCount() > 0 && db.distinctExerciseCount() < db.exerciseCount(),
   'the same movement is filed under several ids so it can appear in several pools'
 );
@@ -407,10 +436,18 @@ for (const name of ['REGION_FRONT', 'REGION_BACK']) {
   const block = recoverSrc.slice(at, recoverSrc.indexOf(']', at));
   for (const m of block.matchAll(/'([a-z_]+)'/g)) reachable.add(m[1]);
 }
+/**
+ * Tied to the store's own list rather than to "more than ten".
+ *
+ * The number was only ever a "this check has not gone blind" guard, and a guard
+ * made of a number goes blind quietly the moment the thing it counts changes
+ * size. The diagram's two halves between them have to reach every region the
+ * app adapts around; if the lists move, this says so instead of shrinking.
+ */
 check(
   `the diagram offers ${reachable.size} regions and the test can see them`,
-  reachable.size > 10,
-  'the region lists have moved and this check has gone blind'
+  reachable.size === store.PAIN_ADAPTATION_REGION_COUNT && reachable.size > 0,
+  `the region lists have moved: the diagram shows ${reachable.size}, the app adapts around ${store.PAIN_ADAPTATION_REGION_COUNT}`
 );
 check(
   `the pain-zones stat matches them (${store.PAIN_ADAPTATION_REGION_COUNT})`,

@@ -36,6 +36,10 @@ import {
   nextAnchorKg,
 } from '../lib/auto-regulation.ts';
 import { expandSetTargets } from '../lib/workout-engine.ts';
+// The three lists a card can come from - see section 8, which used to reach the
+// prescriptions by regexing lib/exercise-db.ts and now asks them directly.
+import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import { getCooldown, getRestoreExercises } from '../lib/exercise-db.ts';
 
 let failures = 0;
 let total = 0;
@@ -386,10 +390,43 @@ console.log('\n[8] The card never prints a unit twice');
 
   check('the session screen still has a rep-label rule to read', bareCount !== null, '');
 
-  // Every distinct rep string the exercise database actually ships.
-  const db = readFileSync(new URL('../lib/exercise-db.ts', import.meta.url), 'utf8');
-  const all = [...new Set([...db.matchAll(/\breps:\s*'([^']*)'/g)].map((x) => x[1]))];
-  check('found the database rep strings', all.length > 100, `${all.length} distinct`);
+  /**
+   * Every distinct rep string the app can actually PRINT on a card.
+   *
+   * This regexed `reps: '...'` out of lib/exercise-db.ts, which held every
+   * exercise there was. The Train catalogue in it is deleted, so the same regex
+   * now finds 39 strings - all of them Restore's - and the rule below would be
+   * asked about none of the prescriptions a Train session shows. It would not
+   * have failed; it would have gone on passing over almost nothing, which is
+   * worse.
+   *
+   * Asked of the three lists directly instead. A rule about what the session
+   * screen prints has to be checked against everything it can print.
+   */
+  const all = [
+    ...new Set(
+      [
+        ...LIBRARY_EXERCISES,
+        ...CONDITIONING_EXERCISES,
+        ...getRestoreExercises(),
+        ...getCooldown(),
+      ]
+        .map((e) => e.reps)
+        .filter((r) => typeof r === 'string' && r.length > 0)
+    ),
+  ];
+  /**
+   * A LIST-TIED FLOOR: every record's prescription is in the sample.
+   *
+   * "More than 100 distinct" described the old catalogue. The rule is that
+   * nothing the app can print is left unjudged, so that is what is asserted.
+   */
+  const everyRecordCovered = LIBRARY_EXERCISES.every((e) => all.includes(e.reps));
+  check(
+    `found every prescription the app can print (${all.length} distinct)`,
+    everyRecordCovered && all.length > 0,
+    `${all.length} distinct, and ${LIBRARY_EXERCISES.filter((e) => !all.includes(e.reps)).length} library records are not represented`
+  );
 
   // A label that already names what it is counting must be printed as written.
   // "reps" after any of these is the giveaway that the old rule was a guess.

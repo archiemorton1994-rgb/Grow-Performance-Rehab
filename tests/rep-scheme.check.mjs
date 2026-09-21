@@ -26,6 +26,10 @@
  *      opening bid, and the first version was walking it up to 20.
  */
 import { readFileSync } from 'fs';
+// The three lists a card can be built from - see section 8, which used to reach
+// them by parsing lib/exercise-db.ts and now asks them directly.
+import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import { getCooldown, getRestoreExercises } from '../lib/exercise-db.ts';
 import {
   REP_SCHEME,
   intentFor,
@@ -218,23 +222,54 @@ console.log('\n[8] Over the whole catalogue: nothing loses work it was not paid 
  * So this walks all 797 entries rather than a list of examples. A rule about a
  * catalogue has to be checked against the catalogue.
  */
-const dbSrc = readFileSync(new URL('../lib/exercise-db.ts', import.meta.url), 'utf8');
+/**
+ * THE RECORDS THEMSELVES, NOT A REGEX OVER THE FILE THEY USED TO LIVE IN.
+ *
+ * This split lib/exercise-db.ts on brace-and-newline and pulled `name`,
+ * `category`, `reps` and `suggestedLoad` out of each block with four separate
+ * regexes. That was a reasonable way to reach a twenty-thousand-line literal
+ * from a test, and it had the defect every source parse has: when the Train
+ * catalogue was deleted the parse did not break, it just quietly found 39
+ * entries instead of 797 and every rule below it went on passing over almost
+ * nothing.
+ *
+ * Archie's library and his nine are real modules, so they are imported and
+ * asked directly. Restore's work comes through the getters that serve it. No
+ * spelling, no shape assumption, and a record the app can serve cannot be
+ * missed by a punctuation change.
+ */
 const lifting = [];
-for (const block of dbSrc.split(/\n\s*\{\s*\n/)) {
-  const name = block.match(/name:\s*'((?:[^'\\]|\\.)*)'/);
-  const cat = block.match(/category:\s*'(\w+)'/);
-  const reps = block.match(/reps:\s*'((?:[^'\\]|\\.)*)'/);
-  const load = block.match(/suggestedLoad:\s*'((?:[^'\\]|\\.)*)'/);
-  if (!name || !cat || !reps) continue;
-  const t = tierOf(cat[1]);
+for (const e of [
+  ...LIBRARY_EXERCISES,
+  ...CONDITIONING_EXERCISES,
+  ...getRestoreExercises(),
+  ...getCooldown(),
+]) {
+  const t = tierOf(e.category);
   if (t !== 'tier1' && t !== 'tier2') continue;
-  lifting.push({ name: name[1], category: cat[1], reps: reps[1], load: load ? load[1] : '' });
+  lifting.push({
+    name: e.name,
+    category: e.category,
+    reps: e.reps ?? '',
+    load: e.suggestedLoad ?? '',
+  });
 }
 
+/**
+ * A LIBRARY-TIED FLOOR: every liftable record is in the sample, by name.
+ *
+ * It read "more than 300", a number taken from the old catalogue. Said as the
+ * rule instead: whatever on Archie's list is filed as a lift or an accessory is
+ * what this section has to be judging, and none of it may be missing.
+ */
+const liftingNames = new Set(lifting.map((e) => e.name));
+const missedRecords = LIBRARY_EXERCISES.filter(
+  (e) => ['tier1', 'tier2'].includes(tierOf(e.category)) && !liftingNames.has(e.name)
+).map((e) => e.name);
 check(
-  'the catalogue was actually read',
-  lifting.length > 300,
-  `found only ${lifting.length} tier-1/tier-2 entries - the parse above has drifted from the file`
+  `every library record filed as a lift or an accessory is in the sample (${lifting.length} entries)`,
+  missedRecords.length === 0 && lifting.length > 0,
+  `${missedRecords.length} missing, e.g. ${missedRecords.slice(0, 6).join(', ')}`
 );
 
 const unearned = [];
@@ -260,10 +295,24 @@ check(
   `${unearned.length} do, e.g. ${unearned.slice(0, 3).join(' | ')}`
 );
 
+/**
+ * Said as a PROPORTION of the sample, not as a count of the old catalogue.
+ *
+ * "More than 150" was most of seven hundred entries and is more than the whole
+ * of Archie's list, so as a number it could only ever be wrong now. What it was
+ * really guarding is that double progression applies to the bulk of what gets
+ * prescribed: a parser that refused everything would make the check above -
+ * "nothing loses reps it was not paid for" - vacuously true, because nothing
+ * would be counted at all. A share of the list says that whatever the list's
+ * size.
+ *
+ * Two thirds rather than all of it, because some prescriptions genuinely are
+ * not rep counts and must not be: a timed carry, a held plank, an AMRAP.
+ */
 check(
-  'and enough of the catalogue is still countable for the feature to mean anything',
-  countable.length > 150,
-  `only ${countable.length} parse - refusing too much is its own failure`
+  `most of the sample is countable, so the rule above is judging something (${countable.length} of ${lifting.length})`,
+  lifting.length > 0 && countable.length * 3 >= lifting.length * 2,
+  `only ${countable.length} of ${lifting.length} parse - refusing too much is its own failure`
 );
 
 // The specific shapes that caused it, named so a future parser change is told

@@ -65,9 +65,14 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import ts from 'typescript';
+// The live list, to hold the walk below to finding all of it. Importing a .ts
+// module is why this check runs under tsx rather than plain node; the walk
+// itself still reads SOURCE, for the reason given where it is defined.
+import { LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dir, '../lib/exercise-db.ts');
+const LIBRARY_PATH = join(__dir, '../lib/exercise-library.ts');
 const SAFETY_PATH = join(__dir, '../lib/exercise-safety.ts');
 
 let failures = 0;
@@ -130,9 +135,9 @@ function prescribesImpact(entry) {
 // Walking the source rather than the exported getters is the point: the getters
 // are what collapse these together, so asking them would ask the accused.
 
-function collectTemplates() {
-  const src = readFileSync(DB_PATH, 'utf8');
-  const sf = ts.createSourceFile(DB_PATH, src, ts.ScriptTarget.Latest, true);
+function collectTemplates(path) {
+  const src = readFileSync(path, 'utf8');
+  const sf = ts.createSourceFile(path, src, ts.ScriptTarget.Latest, true);
   const out = [];
 
   const ownerOf = (node) => {
@@ -179,7 +184,21 @@ function collectTemplates() {
   return out;
 }
 
-const templates = collectTemplates();
+/**
+ * BOTH FILES THE APP'S EXERCISES LIVE IN, which used to be one.
+ *
+ * This walked lib/exercise-db.ts alone, because that is where every exercise
+ * was. The Train catalogue in it is deleted and what a session serves now comes
+ * from lib/exercise-library.ts, so walking only the first file would leave this
+ * judging Restore and nothing else - 128 entries out of the 297 the app can
+ * put on a card, and none of the ones a Train session is built from.
+ *
+ * Walking the SOURCE of both rather than the exported getters is still the
+ * point: the getters are what collapse two entries with one name together, so
+ * asking them would ask the accused. A name that means two different things has
+ * to be caught where both meanings are still visible.
+ */
+const templates = [...collectTemplates(DB_PATH), ...collectTemplates(LIBRARY_PATH)];
 const byName = new Map();
 for (const t of templates) {
   if (!byName.has(t.name)) byName.set(t.name, []);
@@ -197,14 +216,31 @@ console.log('\nexercise-name-identity\n');
 // walk found nothing, or if the rules it judges by failed to load.
 
 console.log('0. the test is actually looking at something');
+/**
+ * A LIBRARY-TIED FLOOR, not a number that described the old catalogue.
+ *
+ * This read "more than 500", which was true of a seven-hundred-entry Train
+ * catalogue and is now simply the wrong shape of question: what the app can
+ * serve is 297 movements, and any number chosen in advance can only be too high
+ * or so low that it passes for ever.
+ *
+ * So the floor is the thing itself. Every record on Archie's list has to have
+ * been FOUND BY THIS WALK, by name - because a record the walk misses is a
+ * record none of the rules below are judging, which is the only way this file
+ * can fail silently. Asked against the live import rather than against the
+ * parse, so a shape change in the source that the AST walk stops recognising
+ * shows up here instead of quietly shrinking the sample.
+ */
+const walkedNames = new Set(templates.map((t) => t.name));
+const unwalked = LIBRARY_EXERCISES.map((e) => e.name).filter((n) => !walkedNames.has(n));
 check(
-  `walked the database and found exercise templates (${templates.length})`,
-  templates.length > 500,
-  `found ${templates.length}; expected the full catalogue`
+  `walked both exercise files and found every one of the ${LIBRARY_EXERCISES.length} library records among ${templates.length} templates`,
+  unwalked.length === 0 && templates.length > LIBRARY_EXERCISES.length,
+  `${unwalked.length} library records were not found, e.g. ${unwalked.slice(0, 6).join(', ')}`
 );
 check(
   `found names entered more than once, which is what this test is about (${duplicated.length})`,
-  duplicated.length > 20,
+  duplicated.length > 0,
   `found ${duplicated.length} duplicated names; if this is 0 the checks below prove nothing`
 );
 check(

@@ -56,10 +56,7 @@ import { fileURLToPath } from 'url';
 
 import './_persist-shim.mjs';
 import {
-  getConditioningWorkout,
   getCooldown,
-  getFinisher,
-  getGoalConditioningBlock,
   getStandaloneFlexibilityWorkout,
   getStandalonePrehabWorkout,
 } from '../lib/exercise-db.ts';
@@ -456,57 +453,29 @@ check(
 );
 
 /**
- * THE NAMES THE RETIRED POOLS CAN PRODUCE AND ARCHIE'S LIST CANNOT.
+ * WHERE THE "NOTHING RETIRED REACHES A SESSION" RULE WENT.
  *
- * Computed from the real old pools rather than typed out, so it follows them
- * instead of pinning four spellings that will rot. Anything a Restore pool can
- * also produce is subtracted, because a Restore cool-down legitimately appears
- * in a conditioning session and a name is not evidence of which pool it came
- * from. What is left is the old engine's own conditioning work - the circuits,
- * the goal-conditioning blocks and the lift-day finishers - and none of it may
- * reach anybody again.
+ * There used to be a second sweep here. It asked the old conditioning pools -
+ * the circuits, the goal-conditioning blocks and the lift-day finishers - for
+ * every name they could produce, subtracted anything Archie's nine or Restore
+ * could also produce, and then asserted that none of the 278 names left over
+ * ever appeared on a card. That was the right guard while those pools were
+ * still in lib/exercise-db.ts, because a blacklist was the only way to ask the
+ * question: the app could serve them, and the rule was that it must not.
+ *
+ * They are deleted. A blacklist of names that no longer exist anywhere in the
+ * codebase is not a weaker test, it is a test of nothing - and rebuilding it as
+ * 278 frozen spellings would be exactly the defect this repo keeps finding: an
+ * assertion that stays green by describing the past.
+ *
+ * THE RULE IS NOT DROPPED, IT IS INVERTED, which is the stronger form. The
+ * check directly above is a WHITELIST over the same sweep: every card in every
+ * conditioning session the app can build is one of the nine or comes from
+ * Restore. A blacklist can only catch the names somebody thought of; a
+ * whitelist catches anything that is not on the list, including the 278 and
+ * including whatever a future mistake invents. tests/library-only.check.mjs
+ * asks the same question of all 18,900 sessions of every type.
  */
-const RETIRED_ONLY = new Set();
-for (const tier of ['bodyweight', 'dumbbells', 'fullgym']) {
-  for (const key of ['easy', 'normal', 'hard']) {
-    for (let d = 0; d < 40; d++) {
-      for (const t of getConditioningWorkout(tier, key, d)) RETIRED_ONLY.add(t.name);
-    }
-    for (const t of getGoalConditioningBlock(tier, key)) RETIRED_ONLY.add(t.name);
-    for (const s of ['squat', 'bench', 'deadlift']) {
-      for (const t of getFinisher(s, tier, key)) RETIRED_ONLY.add(t.name);
-    }
-  }
-}
-for (const name of [...NINE, ...restoreNames]) RETIRED_ONLY.delete(name);
-
-const retiredSightings = [];
-for (const tier of TIERS) {
-  for (const energy of ENERGIES) {
-    for (const timeAvailable of TIMES) {
-      for (const level of LEVELS) {
-        const session =
-          buildConditioning(
-            tier,
-            { hasAches: false, energy, timeAvailable },
-            { experienceLevel: level },
-            0,
-            `${tier}/${energy}/${timeAvailable}/${level}`
-          ) ?? [];
-        for (const e of session) {
-          if (RETIRED_ONLY.has(e.name)) retiredSightings.push(`${tier}/${energy}: ${e.name}`);
-        }
-      }
-    }
-  }
-}
-check(
-  `nothing the retired conditioning pools alone could produce reaches a session (${RETIRED_ONLY.size} such names)`,
-  RETIRED_ONLY.size > 50 && retiredSightings.length === 0,
-  RETIRED_ONLY.size <= 50
-    ? 'the retired-name set came back too small to be measuring anything'
-    : `${retiredSightings.length} sightings, e.g. ${retiredSightings.slice(0, 3).join(' / ')}`
-);
 
 // ─── 6. Wiring ────────────────────────────────────────────────────────────────
 console.log('\n[6] Wiring — the engine routes conditioning to the library builder');

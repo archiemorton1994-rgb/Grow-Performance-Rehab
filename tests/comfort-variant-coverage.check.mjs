@@ -43,23 +43,17 @@
 
 globalThis.__DEV__ = false;
 
-import { readFileSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import './_persist-shim.mjs';
 import { PAIN_CATEGORIES } from '../lib/store.ts';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { generateLibrarySession, slotPool, levelCeilingFor } from '../lib/library-session.ts';
-import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES, patternsOf } from '../lib/exercise-library.ts';
+import { LIBRARY_EXERCISES, patternsOf } from '../lib/exercise-library.ts';
 import {
   restrictedTagsFor,
   restrictedTagsOn,
   restrictedTagsOnRecord,
   RESTRICTED_BY_REGION,
 } from '../lib/exercise-safety.ts';
-import { getRestoreExercises, getCooldown } from '../lib/exercise-db.ts';
-
-const __dir = dirname(fileURLToPath(import.meta.url));
 
 let failures = 0;
 let total = 0;
@@ -76,12 +70,6 @@ function check(label, condition, detail) {
 /** One key per movement, so two spellings of the same thing are one thing. */
 const key = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const libraryByKey = new Map(LIBRARY_EXERCISES.map((e) => [key(e.name), e]));
-const onTheList = new Set([
-  ...LIBRARY_EXERCISES.map((e) => key(e.name)),
-  ...CONDITIONING_EXERCISES.map((e) => key(e.name)),
-  ...getRestoreExercises().map((t) => key(t.name)),
-  ...getCooldown().map((t) => key(t.name)),
-]);
 
 // ─── 0. The areas somebody can report ────────────────────────────────────────
 console.log('\n[0] The areas the app lets somebody report');
@@ -404,24 +392,30 @@ check(
 );
 
 /**
- * The names that exist ONLY inside another record, which is what made comfort
- * variants unanswerable: no id, no level, no video, no row on any list. Read
- * out of lib/exercise-db.ts because that is where they still sit, and asserted
- * against generated sessions rather than against the source.
+ * THE 152 NAMES THIS USED TO HUNT FOR NO LONGER EXIST, so the hunt is retired.
+ *
+ * A comfort variant was a gentler version of an exercise written INSIDE that
+ * exercise's own record - no id, no level, no video, no row on any list - which
+ * is what made it unanswerable: nothing could look one up, so nothing could say
+ * how hard it was or whether it was safe. This section read every
+ * `comfortVariant:` block out of lib/exercise-db.ts, kept the names that
+ * appeared nowhere else, and proved none of them reached a card.
+ *
+ * Those blocks were part of the old Train catalogue and went with it. The
+ * sample came back as zero, and the assertion said of itself that a sample of
+ * zero "proves nothing and should be retired with the tables" - so it is, here,
+ * rather than left passing over an empty set.
+ *
+ * WHAT STILL HOLDS THE RULE. The first check above is untouched: no card the
+ * app builds carries a comfort id. The sweep below keeps looking for one across
+ * every session type, kit and sore area. And the general form of the promise -
+ * a card can only ever be a record on one of the three lists - is
+ * tests/library-only.check.mjs, which a comfort variant could never satisfy,
+ * because having no record of its own was the whole problem with it.
  */
-const dbSrc = readFileSync(join(__dir, '../lib/exercise-db.ts'), 'utf8');
-const variantOnly = new Set();
-for (const block of dbSrc.split('comfortVariant:').slice(1)) {
-  const name = block.match(/\bname:\s*'([^']+)'/);
-  if (name && !onTheList.has(key(name[1]))) variantOnly.add(name[1]);
-}
-check(
-  `there are still comfort-variant-only names in the catalogue to look for (${variantOnly.size})`,
-  variantOnly.size > 5,
-  'if none are left, this assertion proves nothing and should be retired with the tables'
-);
-
 const served = [];
+let sweptSessions = 0;
+let sweptCards = 0;
 for (const type of [...TYPES, 'conditioning', 'prehab', 'flexibility']) {
   for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
     for (const region of REGIONS) {
@@ -449,15 +443,21 @@ for (const type of [...TYPES, 'conditioning', 'prehab', 'flexibility']) {
         0,
         { equipment: [tier], sessionTypeCount: 0 }
       );
+      sweptSessions++;
       for (const ex of session) {
-        if (variantOnly.has(ex.name)) served.push(`${type}/${tier}/${region}: ${ex.name}`);
+        sweptCards++;
         if (ex.id?.endsWith('-comfort')) served.push(`${type}/${tier}/${region}: ${ex.id}`);
       }
     }
   }
 }
 check(
-  'and none of them reaches a card, in any session the app builds',
+  `the sweep really ran (${sweptSessions} sessions, ${sweptCards} cards)`,
+  sweptSessions > 0 && sweptCards > sweptSessions,
+  'a sweep that builds nothing would find nothing and pass'
+);
+check(
+  'and no card in any session the app builds carries a comfort id',
   served.length === 0,
   served.slice(0, 5).join(' | ')
 );
