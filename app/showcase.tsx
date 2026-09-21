@@ -15,8 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/constants/colors';
-import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
-import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
+import { SHOWCASE_CARDS as CARDS } from '@/lib/pitch-copy';
 import { GrowIconTile } from '@/components/GrowIcon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -51,44 +50,14 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
  * It ends by handing over. The strongest argument this app has is thirty seconds
  * of using it.
  */
-interface Card {
-  icon: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-  proof?: string;
-}
-
-const CARDS: Card[] = [
-  {
-    icon: 'rehab',
-    eyebrow: 'Built by a physiotherapist',
-    title: 'It trains around pain, not through it',
-    body: `Say an area is sore and the session changes. The app takes out what would aggravate it, puts gentle work for that area in, and attaches a limit to stay inside. Not a lighter session. A different one.`,
-    proof: `${PAIN_ADAPTATION_REGION_COUNT} areas you can flag, every one with rehab work behind it`,
-  },
-  {
-    icon: 'trend',
-    eyebrow: 'No spreadsheets',
-    title: 'The weight moves itself',
-    body: `Every load is worked out from what you actually lifted last time. Clear your reps and it climbs. Fall short and it holds. Come back from a break and it meets you where you are, then builds again.`,
-    proof: 'Reps rise before weight does, which is why progress keeps going',
-  },
-  {
-    icon: 'dumbbell',
-    eyebrow: 'Whatever you have got',
-    title: 'A full session in the space you have',
-    body: `Tell it what equipment is around and how long you have got. Thirty minutes gets your warm-up, main lift and an accessory. An hour gets the lot. A machine taken? Swap any exercise for the same movement with different kit.`,
-    proof: `${SESSION_TYPE_COUNT} kinds of session, from a heavy squat day to ten minutes of mobility`,
-  },
-  {
-    icon: 'chart',
-    eyebrow: 'It watches, so you do not have to',
-    title: 'It tells you what it has noticed',
-    body: `A lift that has stalled three sessions running. A personal best you did not clock. An ache you have now flagged five times in ten weeks, which is worth someone looking at. It says so, and it says what to do.`,
-    proof: 'And you can hand the whole pain history to your physio in one tap',
-  },
-];
+/**
+ * The slides themselves live in lib/pitch-copy.ts.
+ *
+ * They are strings and nothing else, and a plain node check can import a lib
+ * file but not a screen, so keeping them here meant the only test of what this
+ * screen promises was a regular expression run over this source - which matched
+ * the comments as readily as the copy. tests/copy-sweep.check.mjs runs them.
+ */
 
 export default function ShowcaseScreen() {
   const C = useColors();

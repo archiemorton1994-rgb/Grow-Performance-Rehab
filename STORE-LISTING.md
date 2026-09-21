@@ -4,13 +4,22 @@ Everything App Store Connect and Google Play Console ask for, written out ready
 to paste. Nothing in this file is read by the app, so changing it cannot affect
 the build, the RevenueCat keys or anything on Replit.
 
-Numbers in the copy are the real ones as at 2026-08-30, taken from the code:
-**707** distinct exercises, **10** session types, **19** pain areas you can flag.
-If those change, the paywall updates itself but this file does not, so re-run
-`npx tsx -e "..."` or just check the paywall before a submission.
+Numbers in the copy are the real ones as at 2026-09-21, taken from the code:
+**297** distinct exercises, **5** kinds of training session, **19** pain areas
+you can flag. If those change, the paywall updates itself but this file does
+not, so check the paywall before a submission.
+
+Why those two numbers moved. The exercise count was 707 when the app carried
+its old catalogue alongside Archie's library; the catalogue is deleted and 297
+is what the app can actually put in front of somebody. The session count was
+10, which counted the ids a completed session can be filed under, three of them
+old lift days nobody can choose any more. Five is what the Train tab offers:
+Full Body, Upper Body, Lower Body, Conditioning and Build your own. Recovery,
+Mobility and Targeted Prehab sit on the Restore tab and are named in words
+below rather than added to that number.
 
 One thing deliberately NOT claimed anywhere below: a video for every exercise.
-Only 103 of them have a recorded video today. The red button runs a YouTube
+Only 70 of them have a recorded video today. The red button runs a YouTube
 search for the rest, so "a demonstration is one tap away" is true and "video for
 every exercise" is not.
 
@@ -68,7 +77,7 @@ Reps rise before weight does, which is the reason progress keeps going instead o
 
 WHATEVER KIT YOU HAVE, IN WHATEVER TIME YOU HAVE
 
-Tell Grow what is in your gym, your garage or your hotel room, and how long you have got. Thirty minutes gets you a warm-up, your main lift and an accessory. An hour gets the lot. Machine taken? Swap any exercise for the same movement with different kit, in two taps.
+Tell Grow what is in your gym, your garage or your hotel room, and how long you have got. Thirty minutes gets you a warm-up, your main exercise and an accessory. An hour gets the lot. Machine taken? Swap any exercise for the same movement with different kit, in two taps.
 
 IT NOTICES THINGS AND SAYS SO
 
@@ -80,8 +89,8 @@ Every pain report, every session, every load, in one summary you can send to you
 
 WHAT IS INSIDE
 
-707 exercises, each with written cues and a demonstration one tap away
-10 kinds of session, from a heavy squat day to ten minutes of mobility
+297 exercises, each with written cues and a demonstration one tap away
+5 kinds of training session, plus recovery and mobility work for the days in between
 19 areas you can flag as sore, each with its own rehab work
 1RM tracking, personal bests, muscle coverage and your full history
 Plate maths done for you, in kilos or pounds

@@ -60,6 +60,49 @@ export type BadgeCriteriaType =
   | 'level_progress'; // the movement screen, and the rungs earned from a block
 
 /**
+ * THE LINE UNDER A BADGE NOBODY HAS EARNED YET.
+ *
+ * One sentence per kind of criteria, saying what would unlock it. Shown on the
+ * achievements screen beneath a locked badge's description, and never shown to
+ * somebody who already has it.
+ *
+ * It lived on the screen until the copy sweep. It is a table of sentences with
+ * no React in it, and a plain node check can import this file but not a screen,
+ * so the only test of the hints was a regular expression run over
+ * app/achievements.tsx - which matches a comment about a word as readily as the
+ * word. tests/copy-sweep.check.mjs reads them back now, and holds every kind
+ * above to having one, which is the failure a Record type alone would not catch
+ * if a criteria type were added with an empty string.
+ */
+export const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
+  session_count: 'Complete more sessions to unlock this.',
+  streak_weeks: 'Train consistently each week to build your streak.',
+  strength_improvement: 'Work out a one-rep max on the Stats tab, then beat it.',
+  session_type_count: 'Complete more sessions of this type.',
+  consistency_habit: 'Train regularly each week to build this habit.',
+  goal_progress: 'Keep training toward your selected goals.',
+  profile_action: 'Awarded when you complete your first-look tour of the app.',
+  equipment_usage: 'Use different equipment tiers in your sessions.',
+  // Retired. Strength test weeks are gone, so a test_week badge is only ever
+  // shown to somebody who already earned it, and an earned badge shows no hint.
+  test_week: 'Strength test weeks are retired. This one is kept for the people who earned it.',
+  time_based: 'Train at a consistent time of day.',
+  variety: 'Mix up your session types and work through them all.',
+  recovery: 'Add prehab or flexibility sessions to your routine.',
+  // Not "(45 or 60 min)". Quick & Dirty is duration_based and wants thirty
+  // minute sessions, so that hint contradicted the description printed two
+  // lines above it. This says where the answer is set instead.
+  duration_based: 'Session length is chosen on the readiness screen, before you start.',
+  comeback: 'Come back after a break and train again.',
+  pain_adaptation: 'Complete sessions while managing a pain region.',
+  low_energy: 'Log a session even on a low-energy day.',
+  exercise_specific: 'Log this specific exercise in one of your sessions.',
+  programme_block: 'Finish the block you are on. Every session of it counts.',
+  programme_adherence: 'Stay with the plan through a whole block.',
+  level_progress: 'Your level moves when a finished block says it should.',
+};
+
+/**
  * How rare a badge is within its family. This is the ONLY thing badge colour
  * encodes.
  *

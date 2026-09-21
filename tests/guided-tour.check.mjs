@@ -85,7 +85,14 @@ const TOURS = [
     handsOffTo: 3,
   },
   { name: 'Restore', file: 'app/(tabs)/recover.tsx', constName: 'RESTORE_TUTORIAL', tab: 3, handsOffTo: 4 },
-  { name: 'Stats', file: 'app/(tabs)/workouts.tsx', constName: 'STATS_TUTORIAL', tab: 4, handsOffTo: 1 },
+  {
+    name: 'Stats',
+    file: 'app/(tabs)/workouts.tsx',
+    constFile: 'lib/stats-screen.ts',
+    constName: 'STATS_TUTORIAL',
+    tab: 4,
+    handsOffTo: 1,
+  },
   { name: 'Profile', file: 'app/(tabs)/profile.tsx', constName: 'PROFILE_TUTORIAL', tab: 1, handsOffTo: null },
 ];
 
@@ -313,7 +320,10 @@ console.log('\n[7] The Stats card and the Progress view agree');
  * actually came for.
  */
 const statsSrc = read('app/(tabs)/workouts.tsx');
-const statsCopy = userFacingCopy(blockOf(statsSrc, 'STATS_TUTORIAL') ?? '');
+// The cards moved to lib/stats-screen.ts in the copy sweep; the screen they
+// describe is still the one read for `bestsRendered` below, because that is the
+// half of this assertion about what is actually rendered.
+const statsCopy = userFacingCopy(blockOf(read('lib/stats-screen.ts'), 'STATS_TUTORIAL') ?? '');
 const bestsRendered = /<RecentBestsSection/.test(statsSrc);
 check(
   'all four views are named',
@@ -610,9 +620,14 @@ console.log('\n[9] The session tutorial points at real buttons');
  * glyph in the icon row under the exercise name. A first-timer reads the card,
  * scans the screen for a button with that name, and does not find one.
  */
-const sessionBlock = sessionSrc.slice(
-  sessionSrc.indexOf('const SESSION_TUTORIAL'),
-  sessionSrc.indexOf('\n];', sessionSrc.indexOf('const SESSION_TUTORIAL'))
+// The tour cards moved to lib/session-screen.ts in the copy sweep. The screen
+// itself is still read as `sessionSrc`, because every assertion below pairs a
+// sentence in the tour with the control or the engine rule it describes, and
+// that half has to come from the thing that renders.
+const sessionScreenLib = read('lib/session-screen.ts');
+const sessionBlock = sessionScreenLib.slice(
+  sessionScreenLib.indexOf('const SESSION_TUTORIAL'),
+  sessionScreenLib.indexOf('\n];', sessionScreenLib.indexOf('const SESSION_TUTORIAL'))
 );
 const sessionStep = (iconLabel) => {
   const at = sessionBlock.indexOf(`iconLabel: '${iconLabel}'`);

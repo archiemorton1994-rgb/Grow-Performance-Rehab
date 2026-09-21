@@ -419,10 +419,45 @@ check(
   db.distinctExerciseCount() > 0 && db.distinctExerciseCount() < db.exerciseCount(),
   'the same movement is filed under several ids so it can appear in several pools'
 );
+/**
+ * THE THREE TILES ARE BUILT AND READ, NOT GREPPED.
+ *
+ * This assertion used to be a regular expression over app/subscription.tsx
+ * looking for the text `distinctExerciseCount()}+`, label: 'exercises'`. That
+ * pins a spelling: it proves a line of source exists, not that the tile the
+ * user sees carries that number. The stats moved to lib/pitch-copy.ts in the
+ * copy sweep, so the real builder runs here and every tile is compared with the
+ * thing its label claims to count.
+ *
+ * It is also how the session tile was wrong for so long. It was measured, from
+ * SESSION_META, and SESSION_META was honestly ten entries long - three of them
+ * lift ids kept only so an old session still has a name. A grep for the
+ * constant could never notice; asking what the tile SAYS, against the sessions
+ * a person can actually choose, does.
+ */
+const { paywallStats } = await import('../lib/pitch-copy.ts');
+const { TRAIN_SESSION_TYPES } = await import('../lib/train-screen.ts');
+const stats = paywallStats();
+const statFor = (label) => stats.find((s) => s.label === label)?.value;
+check(
+  `the paywall shows three stats and they were built (${stats.map((s) => `${s.value} ${s.label}`).join(', ')})`,
+  stats.length === 3 && stats.every((s) => s.value && s.label),
+  'everything below this proves nothing otherwise'
+);
 check(
   'the exercises stat counts movements, not catalogue rows',
-  /distinctExerciseCount\(\)\}\+`, label: 'exercises'/.test(code),
-  'EXERCISE_COUNT counted the same exercise once per pool it appears in'
+  statFor('exercises') === `${db.distinctExerciseCount()}+`,
+  `the tile says ${statFor('exercises')}, the app can serve ${db.distinctExerciseCount()}`
+);
+check(
+  `the session stat counts sessions somebody can choose (${TRAIN_SESSION_TYPES.length}), not stored ids`,
+  statFor('ways to train') === `${TRAIN_SESSION_TYPES.length}`,
+  `the tile says ${statFor('ways to train')}, the Train tab offers ${TRAIN_SESSION_TYPES.join(', ')}`
+);
+check(
+  'and no tile names a session after a lift',
+  !stats.some((s) => /squat|bench|deadlift|\bKPI\b/i.test(`${s.value} ${s.label}`)),
+  stats.map((s) => `${s.value} ${s.label}`).join(' | ')
 );
 
 const store = await import('../lib/store.ts');
@@ -525,9 +560,17 @@ const userStrings = (t) =>
   [...stripComments(t).matchAll(/'([^'\n]{12,})'|"([^"\n]{12,})"/g)]
     .map((m) => m[1] ?? m[2])
     .filter((v) => !/^[a-z-]+$|^https?:|^itms-|^@\/|\.tsx?$/.test(v));
+const { PAYWALL_BENEFITS } = await import('../lib/pitch-copy.ts');
 const dashed = [
   ...userStrings(src).map((v) => ['subscription.tsx', v]),
   ...userStrings(profileSrc).map((v) => ['profile.tsx', v]),
+  // The stats and the four benefit rows moved to lib/pitch-copy.ts, so reading
+  // the screen alone would have quietly stopped covering them.
+  ...stats.map((s) => ['pitch-copy.ts', `${s.value} ${s.label}`]),
+  ...PAYWALL_BENEFITS.flatMap((b) => [
+    ['pitch-copy.ts', b.title],
+    ['pitch-copy.ts', b.body],
+  ]),
 ].filter(([, v]) => / - |—|–/.test(v));
 check(
   'no spaced hyphen doing a dash job in paywall or profile copy',

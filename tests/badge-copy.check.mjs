@@ -42,7 +42,7 @@ globalThis.__DEV__ = false;
 
 import { readFileSync } from 'fs';
 import { evaluateBadges } from '../lib/badge-engine.ts';
-import { ACTIVE_BADGES, BADGE_CATALOG, BADGE_MAP } from '../lib/badges.ts';
+import { ACTIVE_BADGES, BADGE_CATALOG, BADGE_MAP, CRITERIA_HINTS } from '../lib/badges.ts';
 
 let failures = 0;
 let total = 0;
@@ -444,24 +444,23 @@ console.log('\n[4] The hint on a locked badge is true of every badge in its fami
  * or 60 min) to unlock" - printed directly beneath Quick & Dirty, which asks
  * for thirty-minute sessions. A hint carrying a number is the bug.
  */
-const achievements = read('app/achievements.tsx');
 /**
- * READ TO THE END OF THE RECORD, not to a fixed number of characters past one
- * of its members.
+ * THE HINTS ARE IMPORTED, NOT SLICED OUT OF A SCREEN.
  *
- * This used to slice from session_count to "exercise_specific: + 200", which
- * happened to cover the record while exercise_specific was the last entry in
- * it. Three hints added after it were half inside the window and half outside,
- * so the test reported two criteria types as having no hint at all while they
- * were sitting in the file being read. A window pinned to one member's position
- * is a window that goes blind the moment somebody appends.
+ * They used to be read by cutting app/achievements.tsx from 'session_count:' to
+ * the next '};' and matching key-value pairs out of the text. Two windows were
+ * tried and both went blind: the first stopped a fixed number of characters
+ * past one member, so three hints added after it were half inside and half
+ * outside and two criteria types were reported as having no hint while they sat
+ * in the file being read.
+ *
+ * The map moved to lib/badges.ts in the copy sweep, beside the badges it
+ * describes, so the real object is imported and there is no window to go blind.
  */
-const hintStart = achievements.indexOf('session_count:');
-const hintBlock = achievements.slice(hintStart, achievements.indexOf('};', hintStart));
-const hints = [...hintBlock.matchAll(/^\s*([a-z_]+):\s*'([^']+)'/gm)].map((m) => [m[1], m[2]]);
+const hints = Object.entries(CRITERIA_HINTS);
 check(
   `the locked-badge hints were found (${hints.length})`,
-  hints.length >= 15,
+  hints.length >= 15 && hints.every(([, t]) => typeof t === 'string' && t.length > 10),
   'the hint map has moved and this section has gone blind'
 );
 // "1RM" is the name of a thing, not a threshold, so it does not count as a

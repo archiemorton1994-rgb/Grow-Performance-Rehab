@@ -1038,10 +1038,17 @@ check(
 // screen became one exercise at a time, and pinning the spelling failed a
 // rewrite that still described both options - which is the defect this repo
 // keeps producing, in the check rather than in the app.
+//
+// The cards moved to lib/session-screen.ts in the copy sweep, so the sentences
+// are RUN out of the tour rather than matched against the screen's source -
+// which used to match the comment above the step as readily as the step.
+const { SESSION_TUTORIAL } = await import('../lib/session-screen.ts');
+const tourWords = SESSION_TUTORIAL.map((s) => `${s.title} ${s.body}`).join(' ');
 check(
   'and the tutorial promises what the sheet now does',
-  /same exercise with different equipment/i.test(sessionSrc) &&
-    /different exercise for the same muscles/i.test(sessionSrc),
+  SESSION_TUTORIAL.length > 0 &&
+    /same exercise with different equipment/i.test(tourWords) &&
+    /different exercise for the same muscles/i.test(tourWords),
   'the tour said "an alternative for the same muscle group", which was half of it: it has to name both kinds'
 );
 

@@ -20,67 +20,23 @@ import Purchases, {
 } from 'react-native-purchases';
 import { useColors } from '@/constants/colors';
 import { useAuth, configureRevenueCat } from '@/lib/auth-context';
-import { distinctExerciseCount } from '@/lib/exercise-db';
-import { PAIN_ADAPTATION_REGION_COUNT } from '@/lib/store';
 import { periodWordsFor, getTrialText } from '@/lib/subscription-period';
-import { SESSION_TYPE_COUNT } from '@/lib/session-meta';
+import { paywallStats as buildStats, PAYWALL_BENEFITS as BENEFITS } from '@/lib/pitch-copy';
 import { getApiUrl } from '@/lib/query-client';
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ?? '';
 
-// Built when the paywall first renders, not when the bundle loads. The
-// exercise count walks the whole catalogue, and this is the only screen that
-// wants it.
-const buildStats = () => [
-  { value: `${distinctExerciseCount()}+`, label: 'exercises' },
-  { value: `${SESSION_TYPE_COUNT}`, label: 'session types' },
-  { value: `${PAIN_ADAPTATION_REGION_COUNT}`, label: 'pain zones' },
-];
-
 /**
- * Four rows, in the order somebody decides in.
+ * The stats and the four benefit rows live in lib/pitch-copy.ts.
  *
- * The first one is the only reason to pick this app over the ones already on
- * their phone. Every strength app moves the weight; every rehab app works
- * around pain. This is the one that does both, and for a long time the paywall
- * led with "Every session, planned", which is what Fitbod sells and sells
- * better. So the pain row goes first and the planning row goes second.
- *
- * The third row is the cheapest advantage the app has and the one it spent the
- * least words on. A real physiotherapist chose the exercises, the rep ranges
- * and the swaps. Nothing generated does that, and nobody reading a store page
- * can tell the difference unless it is said.
- *
- * "Never lose a session" came off. Resuming a workout is a thing an app should
- * do, not a thing anybody pays for, and it was taking the place of the row
- * about handing a pain history to a clinician, which nothing else offers.
+ * Every claim on this screen is a number or a sentence with no React in it, and
+ * a plain node check can import a lib file but not a screen. While they lived
+ * here the only way to test them was a regular expression over this source, and
+ * that is how the tile reading "10 session types" survived: the number was
+ * measured, the table it measured was honestly ten long, and nothing knew that
+ * three of those ten were old lift ids nobody can choose. The check runs the
+ * stats now and compares each one with the thing it claims to count.
  */
-const BENEFITS: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string }[] = [
-  {
-    icon: 'medkit-outline',
-    title: 'Tell it where it hurts',
-    body: `Flag any of ${PAIN_ADAPTATION_REGION_COUNT} areas and the session changes. What would aggravate it comes out, gentler work for that area goes in.`,
-  },
-  {
-    icon: 'trending-up-outline',
-    title: 'The weight moves itself',
-    // Not "exercises, sets and weights". The exercises come from the rotation
-    // and the pools, and the set counts come from the template plus your
-    // readiness answers. What genuinely comes from last time is the load and
-    // the rep target, and those are the parts worth claiming.
-    body: 'Loads and rep targets come from what you actually lifted last time. Clear your reps and it climbs. Fall short and it holds.',
-  },
-  {
-    icon: 'school-outline',
-    title: 'Written by a physiotherapist',
-    body: 'Every exercise, rep range and alternative was chosen by a sports physio, not pulled out of a generic library.',
-  },
-  {
-    icon: 'stats-chart-outline',
-    title: 'Proof it is working',
-    body: '1RM trends, personal bests and your full history. Hand the whole pain record to your own physio in one tap.',
-  },
-];
 
 function getLegalUrls() {
   try {

@@ -24,6 +24,7 @@ import { GrowIcon } from '@/components/GrowIcon';
 import { PlateCalculator } from '@/components/PlateCalculator';
 import { SessionProgressStrip } from '@/components/SessionProgressStrip';
 import { PAGE } from '@/lib/session-identity';
+import { DEMO_EXERCISES, SESSION_TUTORIAL } from '@/lib/session-screen';
 
 import {
   SessionAssistantButton,
@@ -640,7 +641,8 @@ interface SessionActiveBarProps {
   suppressFeedback?: boolean;
   /** Demo mode only: show the feedback UI unconditionally, driven by which
    *  tutorial step is active rather than by a real tap (the demo doesn't
-   *  process taps) — see TutorialStep.demoForceFeedback. */
+   *  process taps) — see SessionTutorialStep.demoForceFeedback in
+   *  lib/session-screen.ts. */
   demoForceFeedback?: boolean;
 }
 
@@ -2610,168 +2612,12 @@ function RestoreFailedBanner({ visible, onDismiss }: { visible: boolean; onDismi
   );
 }
 
-// ─── Demo session exercises ────────────────────────────────────────────────
-// A hardcoded, realistic-looking set of exercises used in demo mode (?demo=true).
-// Covers each tutorial spotlight target: firstCard, sessionBar, progressBar.
-// No data from this session is ever persisted to the store.
-
-const DEMO_EXERCISES: Exercise[] = [
-  {
-    id: 'demo-squat',
-    name: 'Barbell Back Squat',
-    sets: 3,
-    reps: '8',
-    cue: 'Bar across upper traps, chest tall. Push knees out as you lower, drive hard through heels to stand.',
-    suggestedLoad: '60 kg',
-    category: 'main',
-    badge: undefined,
-    videoId: '',
-    hasSwap: true,
-    swapName: 'Goblet Squat',
-    swapCue: 'Hold a weight at chest height. Sit deep, elbows tracking inside knees.',
-    swapLoad: '16 kg',
-    swapKind: 'equipment',
-    swapReason: 'Same movement, dumbbells instead.',
-    swap2Name: 'Barbell Reverse Lunge',
-    swap2Cue: 'Step back, drop the back knee, drive through the front heel.',
-    swap2Load: '40 kg',
-    swap2Kind: 'movement',
-    swap2Reason: 'Different exercise, same quads work.',
-  },
-  {
-    id: 'demo-rdl',
-    name: 'Romanian Deadlift',
-    sets: 3,
-    reps: '10',
-    cue: 'Push hips back with a soft knee bend. Bar stays close to your legs the whole way down. Feel the hamstring stretch.',
-    suggestedLoad: '50 kg',
-    category: 'accessory',
-    badge: undefined,
-    videoId: '',
-    hasSwap: true,
-    swapName: 'Dumbbell RDL',
-    swapCue: 'Same hinge pattern, dumbbells either side. Keep the DBs close to your legs.',
-    swapLoad: '20 kg',
-    swapKind: 'equipment',
-    swapReason: 'Same movement, dumbbells instead.',
-    swap2Name: 'Back Extension',
-    swap2Cue: 'Hinge at the hips, spine long. Squeeze the glutes to come up.',
-    swap2Kind: 'movement',
-    swap2Reason: 'Different exercise, same hamstrings work.',
-  },
-  {
-    id: 'demo-leg-curl',
-    name: 'Lying Leg Curl',
-    sets: 3,
-    reps: '12',
-    cue: 'Hips flat on the pad. Curl heels toward glutes with control, hold briefly at the top.',
-    suggestedLoad: '40 kg',
-    category: 'accessory',
-    badge: undefined,
-    videoId: '',
-    hasSwap: false,
-  },
-  {
-    id: 'demo-plank',
-    name: 'Dead Bug',
-    sets: 3,
-    reps: '10',
-    cue: 'Lower back pressed flat. Extend opposite arm and leg, breathing out as you go. Keep core braced throughout.',
-    suggestedLoad: 'Bodyweight',
-    category: 'prehab',
-    badge: undefined,
-    videoId: '',
-    hasSwap: false,
-  },
-];
-
-// ─── In-session tutorial content ──────────────────────────────────────────
-
-interface TutorialStep {
-  iconName: string;
-  iconLabel: string;
-  title: string;
-  body: string;
-  /** Override the default 190px card-to-bottom offset for steps that spotlight elements near the bottom bar. */
-  bottomOffset?: number;
-  /** Which UI ref to spotlight for this step. */
-  spotlightRef: 'firstCardHeader' | 'sessionBar' | 'progressBar';
-  /** Which specific measured sub-element within the spotlight this step is
-   *  really about (e.g. a specific icon button). Only meaningful together with
-   *  tightSpotlight. */
-  spotlightTarget?: 'detailsToggle';
-  /** When true (requires spotlightTarget), the spotlight cutout tightly hugs
-   *  the spotlightTarget element itself instead of the whole spotlightRef
-   *  region — use when the step is only about one icon, not the card in general. */
-  tightSpotlight?: true;
-  /** If true, this step is skipped for session types that don't use weight logging (prehab, flexibility). */
-  requiresWeightLogging?: true;
-  /** Demo mode only: force the session bar into its post-set feedback UI
-   *  (Too Easy / OK / Hard) for the duration of this step, regardless of
-   *  whether the user actually tapped the demo's log-set button — the demo
-   *  doesn't process real taps, so without this the step would narrate a
-   *  UI that never actually appears. */
-  demoForceFeedback?: true;
-}
-
-const SESSION_TUTORIAL: readonly TutorialStep[] = [
-  {
-    spotlightRef: 'firstCardHeader',
-    iconName: 'barbell-outline',
-    iconLabel: 'Exercise',
-    title: 'Your first exercise',
-    // One exercise on screen at a time now, so the old "work through them in
-    // order" is not advice, it is a description of what the screen does. The
-    // video is still a red YouTube glyph and still opens a search when that
-    // movement has not been filmed, which is most of them, so it is worth
-    // saying rather than looking like a fault.
-    body: 'One exercise at a time, so nothing else is in the way. The red button opens a form demo, and if that movement has not been filmed yet it opens a search instead.',
-  },
-  {
-    spotlightRef: 'sessionBar',
-    requiresWeightLogging: true,
-    iconName: 'create-outline',
-    iconLabel: 'Log sets',
-    title: 'Log every set',
-    // "Type the weight and reps" asks for work the app has already done: both
-    // boxes arrive filled in with the prescription, so a set that went to plan
-    // is one tap. And the reps are not decoration - logging under the range
-    // holds the weight where it is. That rule was invisible everywhere.
-    body: 'Both boxes arrive filled in, so a set that went to plan is one tap on Did It. The weight is a suggestion and not an instruction: change it to whatever you actually lift, and the next one starts closer. Log fewer reps than asked and the app holds your weight there rather than adding to it.',
-  },
-  {
-    spotlightRef: 'sessionBar',
-    requiresWeightLogging: true,
-    iconName: 'happy-outline',
-    iconLabel: 'Feedback',
-    title: 'Tell us how it felt',
-    // Says what the answer is FOR. The tour used to describe only the
-    // in-session effect, so the single biggest thing these taps do — set the
-    // weight you are given next week — went unexplained, and an answer whose
-    // consequence you cannot see is one people stop giving.
-    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time. Say Challenging with sets still to come and it offers a way out as well: one more set lighter, or move on keeping everything you have logged.',
-    demoForceFeedback: true,
-  },
-  {
-    spotlightRef: 'firstCardHeader',
-    spotlightTarget: 'detailsToggle',
-    tightSpotlight: true,
-    iconName: 'help-circle-outline',
-    iconLabel: 'Details',
-    title: 'Everything else is in here',
-    // Swap moved out of this panel to the row beside the video, so the copy
-    // points at where it actually is. It still has to name BOTH kinds it
-    // offers - naming one was the half-truth this sentence was rewritten for.
-    body: 'The coaching cue, the target weight, how hard to push, and somewhere to leave yourself a note. The two arrows beside the video swap the exercise: the same exercise with different equipment, or a different exercise for the same muscles.',
-  },
-  {
-    spotlightRef: 'progressBar',
-    iconName: 'stats-chart-outline',
-    iconLabel: 'Progress',
-    title: "You're on your way",
-    body: 'The row of marks at the top is the whole session, one for each exercise, with a finish line at the end. Tap it any time to see the full list, or to go back to something you think you logged wrong.',
-  },
-];
+// ─── Demo session exercises and the in-session tutorial ────────────────────
+// Both moved to lib/session-screen.ts, which a plain node check can import and
+// this screen cannot be. The practice session is built from Archie's library
+// there rather than hand-written here, so it can no longer demonstrate an
+// exercise the app is unable to prescribe. No data from a demo session is ever
+// persisted to the store; see tests/demo-session-no-persist.check.mjs.
 
 /** Hoisted so SessionScreen can read the type before the body runs. */
 const VALID_SESSION_TYPES: SessionType[] = [

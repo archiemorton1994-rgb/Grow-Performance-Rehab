@@ -70,34 +70,8 @@ import { SESSION_SHORT_LABELS, SESSION_META as SHARED_SESSION_META } from '@/lib
 import { togglePainFilter } from '@/lib/filter-utils';
 import CoachMark, { SpotlightRect } from '@/components/CoachMark';
 import { entryStepFor, tourBackTarget } from '@/lib/tour-chain';
+import { STATS_TUTORIAL } from '@/lib/stats-screen';
 import { ScrollIndicator, useScrollIndicator } from '@/components/ScrollIndicator';
-
-interface StatsTutorialStep {
-  spotlightRef: 'tabs' | 'stats';
-  iconName: string;
-  iconLabel: string;
-  title: string;
-  body: string;
-}
-
-const STATS_TUTORIAL: readonly StatsTutorialStep[] = [
-  {
-    spotlightRef: 'tabs',
-    iconName: 'swap-horizontal-outline',
-    iconLabel: 'Views',
-    title: 'Four ways to look at your training',
-    // Progress leads with the personal-best list now, so that is what it is
-    // named by. "Volume and where the work landed" described the two sections
-    // UNDER the one a user sees first.
-    body: 'Overview for the big picture, Strength for your heaviest lifts and any maxes you have recorded, Progress for your personal bests and training volume, and History for every session you have logged.',
-  },
-  // The second step was cut. It described "this week, your current streak and
-  // your all-time total" — a streak already explained on Home, over three zeroes
-  // and an empty chart, with the words "fill in as you log sessions" admitting
-  // there was nothing to look at. A tour card pointing at a blank panel is worse
-  // than no card: it spends the user's attention on the app's future rather than
-  // on anything they can use now.
-] as const;
 
 const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;

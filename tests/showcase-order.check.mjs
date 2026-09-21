@@ -230,12 +230,27 @@ check(
 // ─── 6. House style ──────────────────────────────────────────────────────────
 console.log('\n[6] The copy follows the same rules as the rest of the app');
 
-const copyOf = (src) =>
-  [...src.matchAll(/(?:title|body|proof|eyebrow):\s*[`'"]([^`'"]{10,})[`'"]/g)].map((m) => m[1]);
-const showcaseCopy = copyOf(showcaseCode);
+/**
+ * THE SLIDES ARE RUN, NOT READ.
+ *
+ * This used to pull the copy out of app/showcase.tsx with a regular expression
+ * over `title:`/`body:`/`proof:`, and then assert that the source mentioned the
+ * two constants it was supposed to quote. Both halves were weak in the same
+ * way: naming a constant is not quoting it, and a comment saying the word
+ * satisfied the test exactly as well as the copy did.
+ *
+ * The slides live in lib/pitch-copy.ts now, so the strings themselves are
+ * imported, and every number is compared with the thing it claims to count.
+ */
+const { SHOWCASE_CARDS } = await import('../lib/pitch-copy.ts');
+const { PAIN_ADAPTATION_REGION_COUNT } = await import('../lib/store.ts');
+const { TRAIN_SESSION_COUNT, TRAIN_SESSION_TYPES } = await import('../lib/train-screen.ts');
+const showcaseCopy = SHOWCASE_CARDS.flatMap((c) =>
+  [c.eyebrow, c.title, c.body, c.proof].filter(Boolean)
+);
 check(
   `the showcase copy was found (${showcaseCopy.length} strings)`,
-  showcaseCopy.length >= 8,
+  showcaseCopy.length >= 8 && showcaseCopy.every((v) => typeof v === 'string' && v.length > 10),
   'the card shape has changed and the rules below have gone blind'
 );
 check(
@@ -249,8 +264,14 @@ check(
   ''
 );
 check(
-  'the numbers it quotes are measured, not typed',
-  /PAIN_ADAPTATION_REGION_COUNT/.test(showcaseCode) && /SESSION_TYPE_COUNT/.test(showcaseCode),
+  `the pain number it prints is the number of areas the app adapts around (${PAIN_ADAPTATION_REGION_COUNT})`,
+  showcaseCopy.some((v) => v.startsWith(`${PAIN_ADAPTATION_REGION_COUNT} areas you can flag`)),
+  showcaseCopy.join(' | ')
+);
+check(
+  `and the session number is the number of sessions the Train tab offers (${TRAIN_SESSION_COUNT})`,
+  TRAIN_SESSION_COUNT === TRAIN_SESSION_TYPES.length &&
+    showcaseCopy.some((v) => v.startsWith(`${TRAIN_SESSION_COUNT} kinds of training session`)),
   'a marketing screen is exactly where an invented number would go unnoticed'
 );
 check(

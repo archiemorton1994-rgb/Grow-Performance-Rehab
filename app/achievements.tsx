@@ -24,11 +24,11 @@ import {
   BADGE_CATEGORY_LABELS,
   BADGE_CATEGORY_ORDER,
   BADGE_MAP,
+  CRITERIA_HINTS,
   countedEarned,
   visibleBadges,
   Badge,
   BadgeCategory,
-  BadgeCriteriaType,
   BadgeTier,
   BADGE_TIER_COLORS,
   BADGE_TIER_LABELS,
@@ -36,33 +36,13 @@ import {
 
 type FilterTab = 'all' | 'earned' | 'locked';
 
-const CRITERIA_HINTS: Record<BadgeCriteriaType, string> = {
-  session_count: 'Complete more sessions to unlock this.',
-  streak_weeks: 'Train consistently each week to build your streak.',
-  strength_improvement: 'Work out a one-rep max on the Stats tab, then beat it.',
-  session_type_count: 'Complete more sessions of this type.',
-  consistency_habit: 'Train regularly each week to build this habit.',
-  goal_progress: 'Keep training toward your selected goals.',
-  profile_action: 'Awarded when you complete your first-look tour of the app.',
-  equipment_usage: 'Use different equipment tiers in your sessions.',
-  // Retired. Strength test weeks are gone, so a test_week badge is only ever
-  // shown to somebody who already earned it, and an earned badge shows no hint.
-  test_week: 'Strength test weeks are retired. This one is kept for the people who earned it.',
-  time_based: 'Train at a consistent time of day.',
-  variety: 'Mix up your session types and work through them all.',
-  recovery: 'Add prehab or flexibility sessions to your routine.',
-  // Not "(45 or 60 min)". Quick & Dirty is duration_based and wants thirty
-  // minute sessions, so that hint contradicted the description printed two
-  // lines above it. This says where the answer is set instead.
-  duration_based: 'Session length is chosen on the readiness screen, before you start.',
-  comeback: 'Come back after a break and train again.',
-  pain_adaptation: 'Complete sessions while managing a pain region.',
-  low_energy: 'Log a session even on a low-energy day.',
-  exercise_specific: 'Log this specific exercise in one of your sessions.',
-  programme_block: 'Finish the block you are on. Every session of it counts.',
-  programme_adherence: 'Stay with the plan through a whole block.',
-  level_progress: 'Your level moves when a finished block says it should.',
-};
+/**
+ * The hint under a locked badge lives in lib/badges.ts, beside the badges.
+ *
+ * It is a plain table of sentences with no React in it, and a node check can
+ * import a lib file but not a screen, so tests/copy-sweep.check.mjs reads the
+ * real hints back rather than matching a regular expression over this file.
+ */
 
 // A cabinet, not a spreadsheet. The previous layout put 277 badges into a
 // four-across grid of 48px tiles with 9pt captions, which meant ~70 rows of

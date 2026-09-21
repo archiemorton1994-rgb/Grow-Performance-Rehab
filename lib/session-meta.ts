@@ -59,7 +59,23 @@ export const SESSION_META: Record<SessionType, SessionMeta> = {
   deadlift: TRAIN_META[trainTypeOf('deadlift')],
 };
 
-export const SESSION_TYPE_COUNT = Object.keys(SESSION_META).length;
+/**
+ * HOW MANY STORED SESSION IDS THERE ARE. NOT A NUMBER TO SHOW ANYBODY.
+ *
+ * It counts the keys of the table above, which includes 'squat', 'bench' and
+ * 'deadlift' - three ids nobody can choose any more, kept only so an old
+ * history still resolves to a name. Its whole job is to let a test ask whether
+ * the four tables in this file still cover the same set of ids.
+ *
+ * It used to be called SESSION_TYPE_COUNT, and under that name the showcase and
+ * the paywall both printed it as "10 kinds of session". That was two too many
+ * the moment the lift days stopped being offered and three too many for a
+ * screen about training, and nothing failed, because the number was measured
+ * from a table that was still honestly ten entries long. The number a person
+ * may be shown is TRAIN_SESSION_COUNT in lib/train-screen.ts: the sessions they
+ * can actually pick.
+ */
+export const STORED_SESSION_ID_COUNT = Object.keys(SESSION_META).length;
 
 const TRAIN_DISPLAY_NAMES: Record<TrainSessionType, string> = {
   upper_body: 'Upper Body',

@@ -45,6 +45,23 @@ export const TRAIN_SESSION_TYPES: TrainSessionType[] = [
 ];
 
 /**
+ * THE ONLY SESSION COUNT ANY COPY MAY QUOTE.
+ *
+ * Counted off the list above, so it is the number of things a person can
+ * actually tap. The showcase and the paywall both used to print the size of
+ * SESSION_META instead, which is ten: the seven the app builds plus the three
+ * lift ids kept only for reading old history back. "10 kinds of session, from a
+ * heavy squat day" was therefore advertising two sessions that do not exist and
+ * one that has not existed since the rotation changed, and it could not
+ * self-correct, because the table it counted was still honestly ten long.
+ *
+ * Prehab and Flexibility are not in it. They are Restore, they are chosen on a
+ * different tab, and any copy that wants to claim them has to say so in words
+ * rather than quietly add two to a number about training.
+ */
+export const TRAIN_SESSION_COUNT = TRAIN_SESSION_TYPES.length;
+
+/**
  * The one name on this tab that is not the name history uses.
  *
  * A finished custom session is filed as "Custom" everywhere it is read back -

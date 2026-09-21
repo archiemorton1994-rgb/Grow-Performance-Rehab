@@ -337,9 +337,15 @@ check(
   'the tour is the first writing anyone reads, and it was describing the old screen'
 );
 
+/**
+ * The tour cards moved to lib/session-screen.ts in the copy sweep, so the step
+ * is RUN rather than matched against the screen's source, and the wiring it
+ * depends on is still read off the screen that does the wiring.
+ */
+const { SESSION_TUTORIAL } = await import('../lib/session-screen.ts');
 check(
   'the tight spotlight points at a control that is actually rendered',
-  /spotlightTarget\?: 'detailsToggle'/.test(session) &&
+  SESSION_TUTORIAL.some((s) => s.spotlightTarget === 'detailsToggle' && s.tightSpotlight) &&
     /spotlightTarget === 'detailsToggle' \? detailsBtnRef/.test(session) &&
     /ref=\{detailsBtnRef\}/.test(session),
   'it pointed at the Swap icon, which now lives inside a panel that starts closed'
@@ -352,9 +358,12 @@ check(
   'a ref left on the old control is a spotlight around nothing'
 );
 
+const tourWords = SESSION_TUTORIAL.map((s) => `${s.title} ${s.body}`).join(' ');
 check(
   'the tour mentions the strip and the finish line',
-  /row of marks at the top/.test(session) && /finish line/.test(session),
+  SESSION_TUTORIAL.length > 0 &&
+    /row of marks at the top/.test(tourWords) &&
+    /finish line/.test(tourWords),
   'the step used to describe a filled progress bar'
 );
 

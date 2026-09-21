@@ -66,7 +66,11 @@ const { trainTypeOf, LEGACY_SESSION_TYPES, isLegacySessionType } = await import(
 const { generateWorkout, getSessionLabel, getSessionSubtitle, getSessionIcon } = await import(
   '../lib/workout-engine.ts'
 );
-const { SESSION_META, SESSION_DISPLAY_NAMES, SESSION_SHORT_LABELS, SESSION_TYPE_COUNT } =
+// STORED_SESSION_ID_COUNT was called SESSION_TYPE_COUNT until the copy sweep.
+// Under that name the showcase and the paywall both printed it as the number of
+// sessions on offer, which it is not: it counts stored ids, three of which are
+// the lift days kept only so an old history still resolves to a name.
+const { SESSION_META, SESSION_DISPLAY_NAMES, SESSION_SHORT_LABELS, STORED_SESSION_ID_COUNT } =
   await import('../lib/session-meta.ts');
 // lib/session-images.ts is deliberately NOT imported here: its tables are built
 // from `require('....png')`, which node cannot parse, and jest maps every image
@@ -128,7 +132,7 @@ check(
 );
 check(
   'every one of the ten ids maps to something real, so none can go missing',
-  ALL_TYPES.length === SESSION_TYPE_COUNT &&
+  ALL_TYPES.length === STORED_SESSION_ID_COUNT &&
     ALL_TYPES.every((t) => ALL_TYPES.includes(trainTypeOf(t))),
   ALL_TYPES.filter((t) => !ALL_TYPES.includes(trainTypeOf(t))).join(', ')
 );
