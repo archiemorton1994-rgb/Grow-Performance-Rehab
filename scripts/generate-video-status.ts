@@ -164,10 +164,10 @@ lines.push(
 lines.push('');
 
 if (orphans.length > 0) {
-  lines.push('## ⚠ Names that match no exercise');
+  lines.push('## Filmed, and the movement is not on the list');
   lines.push('');
   lines.push(
-    'These are listed in `lib/exercise-videos.ts` but no exercise in the app has that name, so the video will never open. Almost always a typo or a renamed exercise.'
+    'These are listed in `lib/exercise-videos.ts` and no exercise in the app has that name, so the mapping opens nothing today. Most of them are movements the old Train catalogue held, kept on purpose so the footage is not lost and re-attaches the day one of them joins the library - see VIDEO_NAMES_NOT_IN_THE_APP in that file, which tests/exercise-videos.check.mjs holds to matching this list exactly. Anything here that is NOT on that list is a typo.'
   );
   lines.push('');
   for (const o of orphans) lines.push(`- \`${o}\``);

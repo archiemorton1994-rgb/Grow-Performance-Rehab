@@ -52,8 +52,15 @@ import {
   getRegionsByExerciseNameMap,
   getAllPickableExercises,
   getRestoreExercises,
+  getStandalonePrehabWorkout,
+  possibleFor,
 } from '../lib/exercise-db.ts';
-import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  patternsOf,
+} from '../lib/exercise-library.ts';
+import { levelCeilingFor } from '../lib/library-session.ts';
 import { canPerformWith } from '../lib/kit.ts';
 import {
   isEquipmentVariant,
@@ -195,11 +202,71 @@ const rehabCards = soreSessions.flatMap(({ type, tier, ex }) =>
  */
 const conditioningOptions = (tier) =>
   CONDITIONING_EXERCISES.filter((record) => canPerformWith(record, [tier]));
-const listExhausted = (type, tier, ex) => {
-  if (type !== 'conditioning') return false;
+
+/**
+ * AND THE SAME RULE FOR EVERY OTHER CARD, NOW THAT THE OLD CATALOGUE IS GONE.
+ *
+ * The exemption above was written for a conditioning session and it generalises
+ * exactly: a card is allowed an empty button only when there is genuinely
+ * nothing else on Archie's lists this person can do today that the session is
+ * not already using. What changed is that it now bites at home on the strength
+ * sessions too, because the app is drawing on one list of 160 rather than on a
+ * catalogue of seven hundred. Measured on a bodyweight Upper Body session for
+ * an intermediate: the library holds two pressing records that need no
+ * equipment at or below that rung, and the session is already doing both.
+ *
+ * This is computed by asking the LISTS - the library by pattern and level, the
+ * nine by kit, Restore's mobility drills by kit - and never by asking the
+ * picker, which is the thing under test. An answer derived from the picker
+ * would pass whatever the picker did.
+ *
+ * Both halves are asserted below: that every excused card really is in that
+ * position, and that a gym session, where the lists are not exhausted, leaves
+ * nothing empty at all.
+ */
+const libraryByName = new Map(LIBRARY_EXERCISES.map((e) => [e.name, e]));
+const nineByName = new Map(CONDITIONING_EXERCISES.map((e) => [e.name, e]));
+const mobilityNames = new Set(
+  getStandalonePrehabWorkout()
+    .filter((t) => t.category === 'prehab')
+    .map((t) => t.name)
+);
+
+/** Everything on the lists this person could still be given instead of `card`. */
+function couldOfferInstead(card, tier, ex, prof) {
   const inSession = new Set(ex.map((e) => e.name));
-  return conditioningOptions(tier).every((record) => inSession.has(record.name));
-};
+  const spare = (list) => list.filter((n) => !inSession.has(n));
+  if (nineByName.has(card.name)) {
+    return spare(conditioningOptions(tier).map((r) => r.name));
+  }
+  if (mobilityNames.has(card.name)) {
+    return spare(
+      possibleFor(
+        getStandalonePrehabWorkout().filter((t) => t.category === 'prehab'),
+        tier
+      ).map((t) => t.name)
+    );
+  }
+  const record = libraryByName.get(card.name);
+  if (record) {
+    const ceiling = levelCeilingFor(prof);
+    const patterns = patternsOf(record);
+    return spare(
+      LIBRARY_EXERCISES.filter(
+        (r) =>
+          r.name !== record.name &&
+          r.level <= ceiling &&
+          canPerformWith(r, [tier]) &&
+          patternsOf(r).some((p) => patterns.includes(p))
+      ).map((r) => r.name)
+    );
+  }
+  // A Restore cool-down or rehab drill: Restore is wide and never runs out.
+  return ['(restore)'];
+}
+
+const listExhausted = (type, tier, ex, card, prof = profile) =>
+  couldOfferInstead(card, tier, ex, prof).length === 0;
 
 const naked = [];
 const single = [];
@@ -208,8 +275,8 @@ for (const { type, tier, ex } of sessions) {
   for (const e of ex) {
     if (e.safetyNote) continue;
     if (!e.swapName) {
-      if (e.category === 'cardio' && listExhausted(type, tier, ex)) {
-        exhausted.push({ type, tier, name: e.name });
+      if (listExhausted(type, tier, ex, e)) {
+        exhausted.push({ type, tier, name: e.name, category: e.category, ex });
       } else {
         naked.push(`${type}/${tier}: ${e.name} [${e.category}]`);
       }
@@ -243,22 +310,12 @@ check(
 check(
   `and nothing in the 45 minute sample is left with nothing either (${shortSessions.flatMap(({ ex }) => ex.filter((e) => !e.safetyNote)).length} checked)`,
   shortSessions.every(({ type, tier, ex }) =>
-    ex.every(
-      (e) =>
-        e.safetyNote ||
-        !!e.swapName ||
-        (e.category === 'cardio' && listExhausted(type, tier, ex))
-    )
+    ex.every((e) => e.safetyNote || !!e.swapName || listExhausted(type, tier, ex, e))
   ),
   shortSessions
     .flatMap(({ type, tier, ex }) =>
       ex
-        .filter(
-          (e) =>
-            !e.safetyNote &&
-            !e.swapName &&
-            !(e.category === 'cardio' && listExhausted(type, tier, ex))
-        )
+        .filter((e) => !e.safetyNote && !e.swapName && !listExhausted(type, tier, ex, e))
         .map((e) => `${type}/${tier}: ${e.name}`)
     )
     .slice(0, 6)
@@ -274,7 +331,13 @@ check(
  * running out.
  */
 const wronglyExcused = exhausted.filter(
-  ({ tier, name }) => !conditioningOptions(tier).some((record) => record.name === name)
+  ({ tier, name, ex }) =>
+    couldOfferInstead({ name }, tier, ex, profile).length > 0 ||
+    !(
+      nineByName.has(name) ||
+      mobilityNames.has(name) ||
+      libraryByName.has(name)
+    )
 );
 check(
   `every conditioning block left with nothing really has nothing left to offer (${exhausted.length} excused)`,
@@ -796,7 +859,53 @@ check(
 // ─── 7. The two cases that were asked for ────────────────────────────────────
 console.log('\n[7] The examples the change was specified with');
 
-const T = (name) => templates.get(name.toLowerCase());
+/**
+ * THE EXAMPLES ARE FIXTURES NOW, AND THAT IS THE HONEST WAY TO KEEP THEM.
+ *
+ * These two rules are pure functions of a name and three fields, and the cases
+ * below are the ones the change was SPECIFIED with: the pairs somebody sat down
+ * and argued about - a cable Pallof against a banded one, a press against a
+ * raise, standing against seated, an incline against a flat, a Spanish squat
+ * against a back squat. They are the definition of the rule.
+ *
+ * Most of those exercises were in the old catalogue and the old catalogue is
+ * deleted. Looking them up returned undefined and the section threw. Deleting
+ * the cases would throw the specification away with the exercises; so each one
+ * is written out here exactly as the catalogue held it, and  prefers the
+ * live template wherever the app still has the name.
+ *
+ * The same two rules are asked of REAL library records immediately below, so
+ * this section is a specification and section 8 is the evidence.
+ */
+const SPEC_FIXTURES = {
+  "Pallof Press": { name: "Pallof Press", equipmentRequired: "cable machine", movementPattern: "isometric", primaryMuscle: "Core" },
+  "Banded Pallof Press": { name: "Banded Pallof Press", equipmentRequired: "resistance bands", movementPattern: "isometric", primaryMuscle: "Transversus abdominis" },
+  "DB Shoulder Press": { name: "DB Shoulder Press", equipmentRequired: "dumbbells", movementPattern: "push", primaryMuscle: "Deltoids" },
+  "DB Lateral Raise": { name: "DB Lateral Raise", equipmentRequired: "dumbbells", movementPattern: "push", primaryMuscle: "Lateral deltoid" },
+  "Calf Raise": { name: "Calf Raise", equipmentRequired: "bodyweight", movementPattern: "push", primaryMuscle: "Gastrocnemius" },
+  "Standing Calf Raise": { name: "Standing Calf Raise", equipmentRequired: "machine", movementPattern: "push", primaryMuscle: "Gastrocnemius" },
+  "Overhead Press": { name: "Overhead Press", equipmentRequired: "barbell", movementPattern: "push", primaryMuscle: "Anterior deltoid" },
+  "Standing Overhead Press": { name: "Standing Overhead Press", equipmentRequired: "dumbbells", movementPattern: "push", primaryMuscle: "Anterior deltoid" },
+  "Cable Lateral Raise": { name: "Cable Lateral Raise", equipmentRequired: "cable machine", movementPattern: "push", primaryMuscle: "Lateral deltoid" },
+  "Seated DB Lateral Raise": { name: "Seated DB Lateral Raise", equipmentRequired: "dumbbells", movementPattern: "push", primaryMuscle: "Lateral deltoid" },
+  "Barbell Bench Press": { name: "Barbell Bench Press", equipmentRequired: "barbell", movementPattern: "push", primaryMuscle: "Chest" },
+  "Incline DB Press": { name: "Incline DB Press", equipmentRequired: "cable machine", movementPattern: "push", primaryMuscle: "Upper pectorals" },
+  "Push-Up": { name: "Push-Up", equipmentRequired: "bodyweight", movementPattern: "conditioning", primaryMuscle: "Pectorals" },
+  "Incline Push-Up": { name: "Incline Push-Up", equipmentRequired: "bodyweight", movementPattern: "conditioning", primaryMuscle: "Pectorals" },
+  "Deficit Push-Up": { name: "Deficit Push-Up", equipmentRequired: "bodyweight", movementPattern: "push", primaryMuscle: "Pectorals" },
+  "Back Squat": { name: "Back Squat", equipmentRequired: "barbell", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+  "Spanish Squat": { name: "Spanish Squat", equipmentRequired: "resistance bands", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+  "Sissy Squat": { name: "Sissy Squat", equipmentRequired: "bodyweight", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+  "Goblet Squat": { name: "Goblet Squat", equipmentRequired: "dumbbells", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+  "Rowing Machine Warm-Up": { name: "Rowing Machine Warm-Up", equipmentRequired: "fullgym", movementPattern: "conditioning", primaryMuscle: "Full body" },
+  "Goblet Squat + Arm Swing Warm-Up": { name: "Goblet Squat + Arm Swing Warm-Up", equipmentRequired: "dumbbells", movementPattern: "conditioning", primaryMuscle: "Full body" },
+  "Sled Push + Fast Bear Crawl + Assault Bike": { name: "Sled Push + Fast Bear Crawl + Assault Bike", equipmentRequired: "full gym", movementPattern: "conditioning", primaryMuscle: "Quadriceps" },
+  "Prowler Push/Pull + Bike": { name: "Prowler Push/Pull + Bike", equipmentRequired: "barbell", movementPattern: "conditioning", primaryMuscle: "Quadriceps" },
+  "Leg Press Intervals": { name: "Leg Press Intervals", equipmentRequired: "barbell", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+  "DB Lunge Intervals": { name: "DB Lunge Intervals", equipmentRequired: "dumbbells", movementPattern: "squat", primaryMuscle: "Quadriceps" },
+};
+
+const T = (name) => templates.get(name.toLowerCase()) ?? SPEC_FIXTURES[name];
 
 check(
   'a cable Pallof press offers the banded one as the same movement',

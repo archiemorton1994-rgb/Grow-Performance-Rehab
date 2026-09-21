@@ -76,9 +76,29 @@ export const COMPOUND_PATTERN_ORDER: PatternGroup[] = [
   'vertical_pull',
 ];
 
+/**
+ * THESE LEARNED ARCHIE'S SPELLINGS WHEN HIS LIST BECAME THE ONLY LIST.
+ *
+ * Both were written against the old catalogue and both missed the library by a
+ * space or a word:
+ *
+ *   Pull Ups, Chin Ups        `pull-?up` wanted the hyphen the catalogue used,
+ *   Band Assisted Chin Up     so the library's pulling read as HORIZONTAL and
+ *                             a Push/Pull split put chin-ups next to rows
+ *   Standing Dumbbell Press   the library names its overhead work after the
+ *   Seated Dumbbell Press     stance, so none of it said "overhead" or
+ *   Single Arm Dumbbell Press "shoulder press", and every one of them read as
+ *                             a bench press
+ *
+ * The stance clause is deliberately narrow. "Dumbbell Press" on its own is a
+ * bench press as often as an overhead one - the library holds a Dumbbell Bench
+ * Press and a Dumbbell Floor Press - so only the four stances Archie actually
+ * uses for pressing overhead are listed.
+ */
 const VERTICAL_PUSH =
-  /overhead|\bohp\b|military|shoulder press|push press|\bjerk\b|handstand|pike push|landmine press|arnold|\bz press\b|thruster/i;
-const VERTICAL_PULL = /pull-?up|chin-?up|pulldown|pullover|lat pull|\bhang\b|muscle-?up|climb/i;
+  /overhead|\bohp\b|military|shoulder press|push press|\bjerk\b|handstand|pike push|landmine press|arnold|\bz press\b|thruster|\b(?:standing|seated|single arm|alternating) dumbbell press\b/i;
+const VERTICAL_PULL =
+  /pull[- ]?ups?\b|chin[- ]?ups?\b|pulldown|pullover|lat pull|\bhang\b|muscle-?up|climb/i;
 
 /**
  * What kind of movement this is.
@@ -129,7 +149,22 @@ export type ExerciseTier = 'primary_compound' | 'accessory' | 'isolation';
  * glute kicks alongside the tricep kickbacks that were already here.
  */
 const ISOLATION_NAMES =
-  /\bcurl\b|curls\b|\braise\b|raises\b|\bfly\b|flye|extension|pushdown|\bkick|pec deck|calf raise|shrug|wrist|rotator|face pull|pull-?apart|leg curl|leg extension|pullover|straight.?arm/i;
+  /\bcurl\b|curls\b|\braise\b|raises\b|\bfly\b|flye|extension|pushdown|\bkick|pec deck|calf raise|shrug|wrist|rotator|face pull|pull[- ]?aparts?\b|leg curl|leg extension|pullover|straight.?arm/i;
+
+/**
+ * A HOLD IS NOT A LIFT, WHATEVER PATTERN IT BELONGS TO.
+ *
+ * Nothing moves and nothing progresses: the prescription is a time, so double
+ * progression cannot touch it, and there is no range of motion to load. A Wall
+ * Sit is filed under the squat pattern and lists the quads, the glutes and the
+ * calves behind it, so every rule above read it as a multi-joint squat and
+ * offered it as a movement to build a session around. It is a wall and a
+ * stopwatch.
+ *
+ * At most accessory, never a main lift. The carries and the Pallof holds land
+ * here too, which is correct for all of them.
+ */
+const ISOMETRIC_NAMES = /\bwall sit\b|\bholds?\b|\bisometric\b|\bplank\b/i;
 
 /**
  * Muscles nothing is built around.
@@ -170,6 +205,10 @@ const TIER_OVERRIDES: Record<string, ExerciseTier> = {
   // isolation — the name rule gets this one exactly backwards.
   'nordic hamstring curl': 'accessory',
   'partial nordic curl': 'accessory',
+  // Restore's spelling of the same movement, which is the one the app serves
+  // now that the catalogue's "Nordic Hamstring Curl" is deleted. Both are kept,
+  // so a session logged under either answers the same.
+  'nordic curl negative (slow)': 'accessory',
 };
 
 /** Patterns that can carry a session. Conditioning and mobility cannot. */
@@ -188,6 +227,8 @@ export function tierOf(t: ExerciseTemplate): ExerciseTier {
     return secondaries >= 2 ? 'accessory' : 'isolation';
   }
   if (ISOLATION_NAMES.test(t.name)) return 'isolation';
+  // A hold is at most accessory, whatever pattern it belongs to. See above.
+  if (ISOMETRIC_NAMES.test(t.name)) return secondaries >= 1 ? 'accessory' : 'isolation';
   // Aimed at a stabiliser, so multi-joint or not it is support work.
   if (SUPPORTING_PRIME_MOVERS.test(t.primaryMuscle ?? '')) {
     return secondaries >= 1 ? 'accessory' : 'isolation';

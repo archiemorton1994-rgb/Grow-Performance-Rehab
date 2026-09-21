@@ -24,18 +24,17 @@
  * ────────────────────────────────────────
  * The original rename RETIRED the old name: it left the catalogue, so "the old
  * name is no longer offered" was the same statement as "each movement appears
- * once". Archie's library renames differently. It is built beside the old
- * engine and wired up later, so for now the catalogue still serves "Back Squat"
- * while the library record that keeps its id is called "Barbell Back Squat".
- * The old test would read that as a second row and fail on seventy-four
- * perfectly correct entries.
+ * once". Archie's library is a different list rather than a rename of the old
+ * one, and now that the old catalogue is deleted a good part of the alias table
+ * describes exercises the app no longer has at all.
  *
  * So the rules below are stated over what a user would SEE and what their
  * history would DO, not over which strings are in the table:
  *
  *   - no two rows in the picker mean the same movement
- *   - every name an alias points at is a name the app can actually serve
- *   - the name progression is keyed on is the name the library will use
+ *   - a rename whose OLD name the app can still serve lands on a name it can
+ *     serve too (a rename between two dead names loses nobody anything)
+ *   - every record is served under the name its chart is filed under
  *   - nothing is aliased across implements
  *
  * Run:  npx tsx tests/exercise-aliases.check.mjs
@@ -44,7 +43,7 @@
 
 globalThis.__DEV__ = false;
 
-import { getAllPickableExercises, getMainLift, getExerciseNameMap } from '../lib/exercise-db.ts';
+import { getAllPickableExercises, getExerciseNameMap } from '../lib/exercise-db.ts';
 import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
 import { DUMBBELL_FOR_KETTLEBELL } from '../lib/kit.ts';
 import { EXERCISE_ALIASES, canonicalExerciseName, isSameExercise } from '../lib/exercise-aliases.ts';
@@ -63,7 +62,6 @@ function check(label, condition, detail) {
 const all = getAllPickableExercises();
 const names = new Set(all.map((p) => p.template.name));
 const RECORDS = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
-const recordById = new Map(RECORDS.map((e) => [e.id, e]));
 const libraryNames = new Set(RECORDS.map((e) => e.name));
 
 // ─── 1. Each movement still means one thing ──────────────────────────────────
@@ -72,29 +70,28 @@ console.log('\n[1] Each movement appears once');
 /**
  * The pairs the picker still shows twice, and why they are allowed to.
  *
- * Each of these is ONE movement the old catalogue entered under two spellings,
- * once per pool it appears in. They read as one name here, so both sets of
- * history count together - but the picker de-dupes on the raw name, so it lists
- * them separately. Both rows were already there before any of this; the alias
- * is what makes their charts agree. The library retires each pair by having a
- * single record for the two of them.
+ * Listing a pair here is a deliberate, reviewed admission, not a waiver: the
+ * loop below re-checks that every pair named is still genuinely one movement,
+ * so a pair that stops meaning one thing fails rather than hides. Anything
+ * landing in the duplicate list that is NOT named here is a new fault.
  *
- * Listing a pair here is a deliberate, reviewed admission, not a waiver:
- * the loop below re-checks that every pair named is still genuinely one
- * movement, so a pair that stops meaning one thing fails rather than hides.
- * Anything landing in the duplicate list that is NOT named here is a new fault.
+ * THE PAIRS CHANGED WHEN THE OLD CATALOGUE WENT, AND SO DID THE REASON.
+ *
+ * Every pair here used to be one movement the old catalogue had entered twice,
+ * once per pool. All five of those are deleted along with the pools.
+ *
+ * The three that remain are a different thing entirely, and a legitimate one:
+ * Archie's library and Restore both hold the movement, at two doses, for two
+ * jobs. A Band Pull Apart is accessory work on the library's list and a rehab
+ * drill in Restore's; a Deadbug is a core exercise and a lumbar-control drill.
+ * Both rows belong in the picker because they are prescribed differently. The
+ * alias is what makes their charts count together, which is the whole point.
  */
 const KNOWN_PICKER_DUPLICATES = [
-  // The KPI pool's name for the standing dumbbell press, and the weekly pools'.
-  ['Standing Overhead Press', 'DB Shoulder Press'],
-  // The main-lift pools' barbell row, and the bench pool's accessory spelling.
-  ['Barbell Row', 'Barbell Bent-Over Row'],
-  // The same hinged two-handed dumbbell row, abbreviated and written out.
-  ['DB Bent-Over Row', 'Standing Dumbbell Row'],
-  // One letter between them, same light band.
-  ['Band Pull-Apart', 'Banded Pull-Apart'],
-  // The bench pool drops the "Cable" but still prescribes a cable load.
-  ['Cable Face Pull', 'Face Pull'],
+  // The library's accessory spelling and Restore's rehab spelling.
+  ['Band Pull Aparts', 'Band Pull-Apart'],
+  ['Banded Face Pulls', 'Band Face Pull'],
+  ['Deadbug', 'Dead Bug'],
 ];
 const allowedDuplicate = (group) =>
   KNOWN_PICKER_DUPLICATES.some(
@@ -122,67 +119,88 @@ for (const known of KNOWN_PICKER_DUPLICATES) {
   );
 }
 
-// A name nothing can serve is a name a chart disappears into.
-for (const kept of new Set(Object.values(EXERCISE_ALIASES))) {
+/**
+ * A NAME NOTHING CAN SERVE IS A NAME A CHART DISAPPEARS INTO - asked of the
+ * renames that can still do that.
+ *
+ * This used to demand that every surviving name be servable. That was right
+ * while the alias table and the catalogue described the same universe. Seven
+ * entries now point at names the app no longer has at all: "Bench Press" to
+ * "Barbell Bench Press", "Dead Hangs" to "Dead Hang", and five more. Archie's
+ * library does not contain those movements, so both halves of each of those
+ * renames are history: they still usefully collapse two old spellings of one
+ * old exercise into a single chart, and there is nothing live to disappear.
+ *
+ * What would genuinely lose somebody their history is a rename whose SOURCE the
+ * app can still serve pointing at a name it cannot. Their card would say one
+ * thing and their chart would be filed under another. That is the rule now, and
+ * it is the stronger half of the old one: every live name must land somewhere
+ * live, and a rename between two dead names has to be dead on both sides.
+ */
+const servable = (n) => names.has(n) || libraryNames.has(n);
+for (const [from, kept] of Object.entries(EXERCISE_ALIASES)) {
+  if (!servable(from)) continue;
   check(
-    `"${kept}" is a name the app can serve`,
-    names.has(kept) || libraryNames.has(kept),
-    'the rename pointed at a name that is in neither the catalogue nor the library'
+    `"${from}" is renamed to "${kept}", which the app can serve`,
+    servable(kept),
+    'a live exercise renamed onto a name nothing serves files its chart out of reach'
   );
 }
+const liveTargets = [...new Set(Object.values(EXERCISE_ALIASES))].filter(
+  (kept) => names.has(kept) || libraryNames.has(kept)
+);
+check(
+  `and the table is mostly about live exercises (${liveTargets.length} of ${new Set(Object.values(EXERCISE_ALIASES)).size} surviving names are servable)`,
+  liveTargets.length > 30,
+  'if almost nothing it renames is servable, the rules above are checking history only'
+);
 
 // ─── 2. The survivor is the one the engine already used ──────────────────────
 console.log('\n[2] The name kept is the one progression is keyed on');
 
 /**
- * The whole reason the survivors were not chosen on aesthetics. Personal bests,
- * last-logged weights and the 1RM flow all key off whatever getMainLift
- * returns, so its name has to be the same movement as the record that will take
- * over from it - the one that keeps its id.
+ * THE QUESTION MOVED WHEN THE KPI POOLS DID.
  *
- * Two of the six have no library record behind them: Barbell Bench Press and
- * Romanian Deadlift are not on Archie's list. Those are held to the older rule
- * instead, that the catalogue can still serve the name the engine returns.
+ * This used to ask `getMainLift` for the six lift-and-tier combinations the old
+ * engine had, and check that the name it returned was the same movement as the
+ * library record keeping its id - because personal bests, last-logged weights
+ * and the 1RM flow all keyed off that name. Those pools are deleted and so is
+ * `getMainLift`; the library record IS the main lift now.
+ *
+ * Which turns the same worry into one sentence, asked of every record rather
+ * than of six cells: THE NAME ON THE CARD IS THE NAME THE CHART IS UNDER. A
+ * record served as "Barbell Back Squat" whose canonical name is something else
+ * would show a personal best that belongs to another movement, and file its own
+ * sets where nothing looks for them.
  */
 const templateNames = getExerciseNameMap();
-const KPI = [
-  ['squat', 'fullgym'],
-  ['squat', 'dumbbells'],
-  ['bench', 'fullgym'],
-  ['bench', 'dumbbells'],
-  ['deadlift', 'fullgym'],
-  ['deadlift', 'dumbbells'],
-];
-for (const [lift, tier] of KPI) {
-  const main = getMainLift(lift, tier);
-  const record = recordById.get(main.id);
-  if (record) {
-    check(
-      `${lift}/${tier} main lift "${main.name}" is the same movement as the record that keeps its id`,
-      isSameExercise(main.name, record.name),
-      `the library calls ${main.id} "${record.name}" — one of the two would lose its history`
-    );
-  } else {
-    check(
-      `${lift}/${tier} main lift "${main.name}" was not renamed away`,
-      !EXERCISE_ALIASES[main.name] && names.has(main.name),
-      'the engine points at a name the catalogue no longer has'
-    );
-  }
-}
+const notCanonical = RECORDS.filter((e) => canonicalExerciseName(e.name) !== e.name).map(
+  (e) => `${e.name} charts as "${canonicalExerciseName(e.name)}"`
+);
 check(
-  'every KPI main lift id still resolves to a name',
-  KPI.every(([lift, tier]) => Boolean(templateNames[getMainLift(lift, tier).id])),
-  ''
+  `every one of the ${RECORDS.length} records is served under the name it is charted under`,
+  notCanonical.length === 0,
+  notCanonical.slice(0, 6).join(' | ')
+);
+check(
+  `and every record id resolves to a name (${RECORDS.length} records)`,
+  RECORDS.every((e) => Boolean(templateNames[e.id])),
+  RECORDS.filter((e) => !templateNames[e.id])
+    .slice(0, 6)
+    .map((e) => `${e.id} (${e.name})`)
+    .join(', ')
 );
 
 // ─── 3. Genuine variants were left alone ─────────────────────────────────────
 console.log('\n[3] Different equipment is a different exercise');
 
+// Re-pointed at the library's spellings: the old catalogue's Barbell Bench
+// Press, Back Squat, Goblet Squat and plain Romanian Deadlift are deleted, and
+// a pair of names nothing can serve proves nothing about what the picker shows.
 for (const pair of [
-  ['Barbell Bench Press', 'Dumbbell Bench Press'],
-  ['Back Squat', 'Goblet Squat'],
-  ['Barbell Deadlift', 'Romanian Deadlift'],
+  ['Dumbbell Bench Press', 'Plate Bench Press'],
+  ['Barbell Back Squat', 'Kettlebell Goblet Squats'],
+  ['Barbell Deadlift', 'Kettlebell Romanian Deadlift'],
 ]) {
   check(
     `"${pair[0]}" and "${pair[1]}" both remain`,

@@ -321,23 +321,26 @@ check(
 );
 
 /**
- * AND ALMOST NONE OF THEM IS SUPPORT WORK EITHER, with the exception named.
+ * AND NONE OF THEM IS SUPPORT WORK EITHER, WHICH IS NEW.
  *
- * `tierOf` calls a Banded Serratus Punch support work because it is aimed at a
- * stabiliser, and it is right. It is the only record in Archie's list that ever
- * leads a session: a Beginner whose only kit is bands has one press, one pull
- * and that punch to choose from, and on two of the eight rotations the walk
- * lands on it. Pinned rather than tolerated, in both directions, so a second
- * one appearing fails here and this one going away has to be noticed.
+ * There used to be one exception, written down: a Banded Serratus Punch led a
+ * Beginner's bands-only Upper Body session on two rotations in eight, because
+ * the walk took the first slot from the whole pattern pool and at that rung the
+ * pool is mostly accessory work. The purge made it three exceptions - a Band
+ * Pull Apart and a Wall Sit joined it the moment the classifier was taught the
+ * library's spellings - and three is not an exception, it is a rule with a
+ * mistake in it.
+ *
+ * So the builder now takes the first slot from the records Archie's own list
+ * calls `role: 'main'`, falling back to the whole pool only where a pattern has
+ * no main lift this person owns at this rung. The exception list is empty, and
+ * is asserted empty rather than deleted: a record that starts leading sessions
+ * while the classifier calls it support work has to be looked at.
  */
-const KNOWN_WEAK_MAIN = 'upper_body/beginner/bands: Banded Serratus Punch';
-const unexpectedWeak = [...new Set(weakMains)].filter((m) => m !== KNOWN_WEAK_MAIN);
 check(
-  `and the exercise that leads a session is a compound one, bar the case written down (${new Set(weakMains).size})`,
-  unexpectedWeak.length === 0 && weakMains.includes(KNOWN_WEAK_MAIN),
-  unexpectedWeak.length > 0
-    ? `${unexpectedWeak.slice(0, 4).join(' | ')}`
-    : `${KNOWN_WEAK_MAIN} no longer happens, so take it out of KNOWN_WEAK_MAIN`
+  `and the exercise that leads a session is a compound one (${new Set(weakMains).size} are not)`,
+  weakMains.length === 0,
+  [...new Set(weakMains)].slice(0, 4).join(' | ')
 );
 
 console.log('');

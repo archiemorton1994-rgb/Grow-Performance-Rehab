@@ -142,10 +142,35 @@ const all = getAllPickableExercises();
 const onLadder = all.filter((p) => isLadderPattern(p.template.movementPattern));
 const offLadder = all.filter((p) => !isLadderPattern(p.template.movementPattern));
 
+/**
+ * A LIBRARY-TIED FLOOR, not a number that was true of the old catalogue.
+ *
+ * This read "more than 250 on a ladder and more than 350 off it", which was a
+ * fair description of a seven-hundred-entry catalogue and is simply the wrong
+ * shape of question now: the index is Archie's 160 records, his nine and
+ * Restore's 130 drills, so the true answer is 139 and 158 and a number picked
+ * before the purge can only be wrong in one direction or the other.
+ *
+ * What the section is actually about is that BOTH sides are populated - a
+ * ladder that covered everything, or nothing, would make every assertion under
+ * it vacuous - and that every library record lands on the side it belongs to.
+ * The library is where the strength patterns live, so it is what the floor is
+ * tied to: every one of Archie's records reachable, and every one of them
+ * judged.
+ */
+const libraryNames = new Set(LIBRARY_EXERCISES.map((e) => e.name));
+const libraryPickable = all.filter((p) => libraryNames.has(p.template.name));
+check(
+  `every one of the ${LIBRARY_EXERCISES.length} library records is in the index (${libraryPickable.length} found)`,
+  libraryPickable.length === libraryNames.size,
+  'a record the picker cannot reach is a record no rule below is judging'
+);
 check(
   `the six strength patterns are levelled and nothing else is (${onLadder.length} on, ${offLadder.length} off)`,
-  onLadder.length > 250 && offLadder.length > 350,
-  `${onLadder.length} / ${offLadder.length}`
+  onLadder.length > 0 &&
+    offLadder.length > 0 &&
+    onLadder.length + offLadder.length === all.length,
+  `${onLadder.length} / ${offLadder.length} of ${all.length}`
 );
 check(
   'every exercise on a ladder gets a rung between 1 and 5',

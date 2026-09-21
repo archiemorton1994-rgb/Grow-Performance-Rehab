@@ -380,6 +380,31 @@ const IMPACT_DISCLAIMED =
   /\b(?:low|zero|no|non)[-\s]?impact|without (?:the )?(?:sprint|jump|jumping|impact|running)|without leaving the (?:floor|ground)|no jumping|instead of (?:the )?(?:sprint|jump|run)/i;
 
 /**
+ * WHERE "RUNNING" IS NOT RUNNING, DELETED BEFORE THE IMPACT RULE READS IT.
+ *
+ * This became reachable when the old catalogue went and the prescriptions being
+ * read became Archie's own, which are written as sentences rather than as
+ * terse catalogue lines. Two of them use the word in a sense that has nothing to
+ * do with leaving the ground:
+ *
+ *   Suitcase Deadlift      "the bar with it RUNNING ALONG your side"
+ *   Incline Treadmill Walk "hard work to talk, NOT LIKE RUNNING"
+ *
+ * Both came back tagged high_impact and ankle_load, which would have taken a
+ * treadmill walk - one of the few hard conditioning options a sore knee can
+ * actually keep - away from anybody with a sore ankle, calf, knee, hip or back,
+ * and every beginner reporting anything at all.
+ *
+ * A SCRUB RATHER THAN A DISCLAIMER, and the difference matters. Adding these to
+ * IMPACT_DISCLAIMED above would switch the impact rule OFF for the whole card,
+ * so a prescription that said "not like running" and then prescribed twenty
+ * broad jumps would read as safe. Deleting only the misread phrase leaves every
+ * other word in the prescription still being judged.
+ */
+const IMPACT_WORD_SENSE =
+  /\b(?:not like|rather than|instead of)\s+(?:a\s+)?(?:running|jogging|jumping|sprinting|run|jog)\b|\brunning (?:along|down|up|across|over|through|between|behind|beside)\b/gi;
+
+/**
  * Sprinting a bike, rower or erg is still sprinting, and still nothing lands.
  * "Assault Bike Intervals" prescribes "20s sprint" and is one of the few hard
  * conditioning options a sore knee or achilles can actually keep.
@@ -462,7 +487,18 @@ const SPOKEN_RULES: { tag: StressTag; test: RegExp }[] = [
 const LENGTHENING_RULES: { tag: StressTag; test: RegExp }[] = [
   {
     tag: 'hamstring_lengthen',
-    test: /\bhamstrings?\b[a-z ,'-]{0,14}(stretch|lengthen)|(stretch|lengthen)[a-z ,'-]{0,14}\bhamstrings?\b|back of (the |your )?(thigh|leg)[a-z ,'-]{0,12}lengthen|posterior chain lengthen|standing hamstring reach|seated forward fold|\bhold\b[a-z, ]{0,45}\bhamstrings?\b[a-z, ]{0,45}for \d+ ?s\b/i,
+    /**
+     * THE WALL HINGE IS NAMED BOTH WAYS AND MUST EARN THE TAG BOTH WAYS.
+     *
+     * hamstrings.avoid names it in as many words. Restore calls it "Hip Hinge
+     * Against Wall" and earned the tag from its cue, which says "hamstring
+     * stretch"; Archie's library calls it "Wall Hip Hinge" and its cue says the
+     * hamstrings "should PULL TIGHT before the back rounds" - the same movement,
+     * the same end range, and two words this rule had never been taught. So the
+     * spelling is matched by name, and "pull tight" is added as the plain-English
+     * way a physiotherapist describes a hamstring at length.
+     */
+    test: /\bhamstrings?\b[a-z ,'-]{0,14}(stretch|lengthen)|(stretch|lengthen)[a-z ,'-]{0,14}\bhamstrings?\b|\bhamstrings?\b[a-z ,'-]{0,20}(pull|go) (tight|taut)|back of (the |your )?(thigh|leg)[a-z ,'-]{0,12}lengthen|posterior chain lengthen|standing hamstring reach|seated forward fold|wall hip hinge|hip hinge against (the )?wall|\bhold\b[a-z, ]{0,45}\bhamstrings?\b[a-z, ]{0,45}for \d+ ?s\b/i,
   },
   {
     tag: 'calf_lengthen',
@@ -666,10 +702,24 @@ export function stressTagsFor(
   for (const rule of SPOKEN_RULES) {
     if (rule.test.test(spoken)) tags.add(rule.tag);
   }
+  /**
+   * THE CALLER'S OWN WORDING COUNTS HERE TOO, not only the catalogue's.
+   *
+   * This used to read `prescription` alone - what the name looks up - while
+   * every other rule above read `spoken`, which includes the `cue` a caller
+   * hands in. That asymmetry is exactly backwards for the one rule that exists
+   * because a name can lie: an alternative the catalogue does not own arrives
+   * as a name plus its own wording, and impact was the only stress its wording
+   * was not read for.
+   *
+   * With the two non-locomotor uses of "running" taken out of both - see
+   * IMPACT_WORD_SENSE. Everything else in either is still read.
+   */
+  const landable = `${cue ?? ''} ${prescription}`.replace(IMPACT_WORD_SENSE, ' ');
   if (
-    IMPACT_IN_PRESCRIPTION.test(prescription) &&
-    !IMPACT_DISCLAIMED.test(prescription) &&
-    !SEATED_CONDITIONING.test(`${name} ${prescription}`)
+    IMPACT_IN_PRESCRIPTION.test(landable) &&
+    !IMPACT_DISCLAIMED.test(landable) &&
+    !SEATED_CONDITIONING.test(`${name} ${landable}`)
   ) {
     tags.add('high_impact');
     tags.add('ankle_load');

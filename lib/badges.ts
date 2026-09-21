@@ -1631,6 +1631,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     criteriaType: 'exercise_specific',
     icon: 'trending-up-outline',
     color: C.emerald,
+    retired: true, // no hip thrust on Archie's list; the movement left the app with the old catalogue
   },
   {
     id: 'ex_nordic_first',
@@ -1667,6 +1668,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     criteriaType: 'exercise_specific',
     icon: 'hand-right-outline',
     color: C.grey,
+    retired: true, // no dead hang on Archie's list
   },
   {
     id: 'ex_ghd_first',
@@ -1676,6 +1678,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     criteriaType: 'exercise_specific',
     icon: 'body-outline',
     color: C.crimson,
+    retired: true, // no glute ham raise and no GHD on Archie's list
   },
   {
     id: 'ex_seal_row_first',
@@ -1685,6 +1688,7 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
     criteriaType: 'exercise_specific',
     icon: 'ribbon-outline',
     color: C.purple,
+    retired: true, // no seal row on Archie's list
   },
   {
     id: 'ex_front_squat_first',
@@ -1716,7 +1720,9 @@ const exerciseMilestoneBadges: BadgeSeed[] = [
   {
     id: 'ex_ghd_10_sessions',
     name: 'Hamstring Hero',
-    description: 'Log a Nordic or GHR exercise in 10 different sessions',
+    // GHR left with the old catalogue; the Nordic curl negative is still here,
+    // so the badge is still earnable and says so in the words the app can keep.
+    description: 'Log a Nordic curl in 10 different sessions',
     category: 'exercise_milestone',
     criteriaType: 'exercise_specific',
     icon: 'medal-outline',

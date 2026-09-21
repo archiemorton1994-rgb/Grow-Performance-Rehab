@@ -32,6 +32,7 @@ import {
   CHANNEL_URL,
   isValidVideoUrl,
   videoUrlFor,
+  VIDEO_NAMES_NOT_IN_THE_APP,
 } from '../lib/exercise-videos.ts';
 
 let failures = 0;
@@ -58,7 +59,26 @@ const mapped = Object.entries(EXERCISE_VIDEOS);
 console.log(`\n[1] ${mapped.length} exercise(s) mapped to a video, of ${names.size} in the app`);
 
 // ─── Every key names a real exercise ─────────────────────────────────────────
-const orphans = mapped.map(([k]) => k).filter((k) => !names.has(norm(k)));
+/**
+ * AND THE ONES FILMED FOR MOVEMENTS THE APP NO LONGER HAS.
+ *
+ * Eighty-one mappings are for exercises the deleted Train catalogue held. The
+ * mappings are kept on purpose - see VIDEO_NAMES_NOT_IN_THE_APP in
+ * lib/exercise-videos.ts - so the assertion below excludes exactly those, by
+ * name, and the two lists are then held to agreeing in both directions. A
+ * mapping added with a typo still fails, and a name that comes back into the app
+ * has to be taken off that list.
+ */
+const notInTheApp = new Set(VIDEO_NAMES_NOT_IN_THE_APP.map(norm));
+const orphans = mapped
+  .map(([k]) => k)
+  .filter((k) => !names.has(norm(k)) && !notInTheApp.has(norm(k)));
+const wronglyRetired = VIDEO_NAMES_NOT_IN_THE_APP.filter((n) => names.has(norm(n)));
+check(
+  `every name on the "not in the app" list really is not (${VIDEO_NAMES_NOT_IN_THE_APP.length} listed)`,
+  wronglyRetired.length === 0,
+  `${wronglyRetired.join(', ')} — the app serves these again, so their videos are live mappings`
+);
 check(
   'every mapped name matches an exercise in the app',
   orphans.length === 0,
@@ -148,9 +168,35 @@ if (status) {
       Number(claimed[2]) === names.size,
       `report says ${claimed[2]} — run \`npm run video-status\``
     );
+    /**
+     * The report counts EXERCISES WITH FOOTAGE, not lines in the table.
+     *
+     * Those were the same number while every mapping named a live exercise.
+     * They are not any more: 81 mappings are for movements the deleted Train
+     * catalogue held, and a good many records carry their video on themselves
+     * rather than through the table. So this is asked the way the report asks
+     * it - how many of the app's own exercises resolve to a video - which is
+     * the number a person reading the shooting list is acting on.
+     */
+    const templatesByName = new Map();
+    for (const { template } of getAllPickableExercises()) {
+      templatesByName.set(norm(template.name), [
+        ...(templatesByName.get(norm(template.name)) ?? []),
+        template,
+      ]);
+    }
+    for (const t of allAcuteExercises()) {
+      templatesByName.set(norm(t.name), [...(templatesByName.get(norm(t.name)) ?? []), t]);
+    }
+    const withFootage = [...names].filter(
+      (n) =>
+        !!EXERCISE_VIDEOS[
+          Object.keys(EXERCISE_VIDEOS).find((k) => norm(k) === n) ?? ' '
+        ] || (templatesByName.get(n) ?? []).some((t) => !!t.youtubeUrl || !!t.videoId)
+    ).length;
     check(
-      `and the same ${mapped.length} recorded`,
-      Number(claimed[1]) === mapped.length,
+      `and the same ${withFootage} recorded`,
+      Number(claimed[1]) === withFootage,
       `report says ${claimed[1]} — run \`npm run video-status\``
     );
   }

@@ -41,7 +41,12 @@ import { readFileSync } from 'fs';
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { ACUTE_PROTOCOL_NOTES } = await import('../lib/acute-rehab.ts');
 const S = await import('../lib/exercise-safety.ts');
-const { getAllPickableExercises, SESSION_POOLS } = await import('../lib/exercise-db.ts');
+const { getAllPickableExercises, getRegionPrehabExercise, getStandalonePrehabWorkout } = await import(
+  '../lib/exercise-db.ts'
+);
+const { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } = await import(
+  '../lib/exercise-library.ts'
+);
 
 let failures = 0;
 let total = 0;
@@ -186,10 +191,21 @@ const everyEntry = [];
   }
 }
 
+/**
+ * A LIBRARY-TIED FLOOR rather than "more than 500", which described the old
+ * catalogue and is now simply impossible: the whole of what the app can serve is
+ * 297 movements. What matters is that every record on Archie's lists is in the
+ * set being screened, because a record missing from it is a record no rule below
+ * is judging.
+ */
+const screenedNames = new Set(everyEntry.map((e) => e.name.toLowerCase()));
+const unscreenedRecords = LIBRARY_EXERCISES.filter(
+  (e) => !screenedNames.has(e.name.toLowerCase())
+).map((e) => e.name);
 check(
-  `${everyEntry.length} catalogue entries screened, swaps and comfort variants included`,
-  everyEntry.length > 500,
-  'if this is small the screen below is looking at almost nothing'
+  `${everyEntry.length} entries screened, and every one of the ${LIBRARY_EXERCISES.length} library records is among them`,
+  unscreenedRecords.length === 0 && everyEntry.length > LIBRARY_EXERCISES.length,
+  `${unscreenedRecords.length} missing, e.g. ${unscreenedRecords.slice(0, 6).join(', ')}`
 );
 
 // ─── 2. Nothing on a region's own avoid list is served to that region ────────
@@ -442,11 +458,21 @@ console.log('\n[5] The acute rehab card is never the one deleted');
  * deleted the rehab card rather than the warm-up. The movement survived; the
  * card saying what it was for did not.
  */
-/** Every name the warm-up block could put on a card, gentler versions included. */
+/**
+ * Every name the warm-up block could put on a card.
+ *
+ * This read SESSION_POOLS.PREP, which was the old lift-day generator's warm-up
+ * pool and is deleted. A library session warms up on one of Archie's nine at an
+ * easy pace and then on Restore's mobility drills, and that is where the clash
+ * lives now: several of those drills - a Glute Bridge, a Bird Dog, a Dead Bug -
+ * are also what an acute protocol prescribes for the area that is sore.
+ */
 const prepNames = new Set();
-for (const t of templatesIn(SESSION_POOLS.PREP)) {
+for (const t of [
+  ...CONDITIONING_EXERCISES,
+  ...getStandalonePrehabWorkout().filter((x) => x.category === 'prehab'),
+]) {
   prepNames.add(t.name.toLowerCase().trim());
-  if (t.comfortVariant?.name) prepNames.add(t.comfortVariant.name.toLowerCase().trim());
 }
 
 let slots = 0;
@@ -483,16 +509,37 @@ check(
   missing.length === 0,
   `missing: ${missing.join(', ')}`
 );
+/**
+ * THE CLASH CANNOT HAPPEN ANY MORE, AND THAT IS THE STRONGER ANSWER.
+ *
+ * This used to demand that the clash REALLY OCCUR somewhere in the sweep, so
+ * that the tie-break above was exercised rather than passing on a session where
+ * nothing ever collided. It was the right demand while the old lift-day
+ * generator assembled a warm-up and a rehab slot independently and then ran a
+ * first-wins dedup over the result: a bench session for a sore shoulder opened
+ * with a Pendulum Shoulder Swing, which is exactly what that region's acute
+ * protocol prescribes, and the dedup deleted the rehab card.
+ *
+ * The library builder cannot make that mistake. It records every movement as it
+ * adds it and refuses to add one twice, so the two cards are never both in the
+ * session to be arbitrated between. The dedup that needed a tie-break went with
+ * the generator that needed it.
+ *
+ * So the question becomes the one that is still answerable: no acute protocol's
+ * opening drill is anything the warm-up block can offer - which is why the count
+ * above is zero, and is a fact about the two lists rather than a sweep that
+ * failed to look. If a drill ever appears on both, this fails and somebody has
+ * to decide which card wins.
+ */
+const onBothLists = Object.keys(ACUTE_PROTOCOL_NOTES)
+  .map((region) => ({ region, drill: getRegionPrehabExercise(region, { acute: true }) }))
+  .filter(({ drill }) => drill && prepNames.has(drill.name.toLowerCase().trim()))
+  .map(({ region, drill }) => `${region}: ${drill.name}`);
 check(
-  // Without this the assertion above is satisfied by a session where nothing
-  // ever clashes, and the rule it is guarding would never be exercised. There
-  // has to be at least one pair where the acute protocol's exercise is also
-  // something the warm-up could have offered, and on those the surviving card
-  // has to be the rehab one. A plain first-wins dedup drops whichever card was
-  // assembled later, and the rehab slot is always assembled after the warm-up.
-  `and the clash this rule exists for really does happen (${collided.length} pair(s))`,
-  collided.length > 0,
-  'no rehab exercise shares a name with anything the warm-up can offer, so the tie-break is untested'
+  `no rehab slot and no warm-up card can be the same movement (${collided.length} collided, ${onBothLists.length} on both lists)`,
+  collided.length === 0 && onBothLists.length === 0,
+  onBothLists.join(' | ') +
+    ' — the builder refuses to add one movement twice, so there is no dedup left to decide between them'
 );
 
 // ─── 6. A swap does not hand somebody a different prescription ───────────────

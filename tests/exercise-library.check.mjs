@@ -21,13 +21,16 @@
  * It also guards the thing a person would feel: every load and rep anybody has
  * logged is filed under the id of the exercise they did, so where a record is
  * the same movement with the same implement as an exercise the app already had,
- * it keeps that exercise's id. This asserts that every one of those ids still
- * resolves to a real exercise in the live catalogue, that it resolves to the
- * SAME MOVEMENT it did before (proving an id merely exists let a wrong-but-
- * valid reuse hand somebody another exercise's loads and stay green), that no
- * two records claim the same one, that none of them is Restore content (which
- * keeps serving under its own name), and that a brand-new record never lands on
- * an id that already belongs to something else.
+ * it keeps that exercise's id.
+ *
+ * That used to be asserted against the old catalogue: does the reused id still
+ * resolve to a template, and is that template the same movement. The old
+ * catalogue is deleted, so neither question has anything left to ask - what is
+ * behind a reused id now is somebody's own training history, in their own logs.
+ * What IS still asked, because it can still go wrong, is that no two records
+ * claim one id and that no record takes an id Restore is still serving an
+ * exercise under. Either would be two movements writing sets against one
+ * person's progress.
  *
  * The name side of the same question is here too: no two records may be
  * displayed under one name, because a personal best, a progress chart and a
@@ -62,7 +65,7 @@ import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { getExerciseNameMap, getExerciseCategoryMap } from '../lib/exercise-db.ts';
+import { getCooldown, getRestoreExercises } from '../lib/exercise-db.ts';
 import { canonicalExerciseName } from '../lib/exercise-aliases.ts';
 import {
   LIBRARY_EXERCISES,
@@ -435,9 +438,28 @@ if (singleLegRdl.length === 2) {
 // ─── 5. Ids: progress carries over, and nothing is overwritten ───────────────
 console.log('\n[5] Ids keep logged progress, and never land on somebody else');
 
-const templateNames = getExerciseNameMap();
-const templateCategories = getExerciseCategoryMap();
 const all = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
+
+/**
+ * THE REST OF THE APP, WHICH SINCE THE PURGE MEANS RESTORE.
+ *
+ * These lookups used to be `getExerciseNameMap()` and `getExerciseCategoryMap()`
+ * whole, and that worked while the old Train catalogue was still in the file:
+ * the library was the newcomer and the map was everything it might collide
+ * with. Now the library IS most of what those maps hold, so asking them
+ * directly makes every question below self-referential - "does lib-push-push-up
+ * collide with an exercise that already exists" answers yes, with itself.
+ *
+ * So the comparison is against Restore, which is the only content left that the
+ * library does not own. That is also the only comparison that can still go
+ * wrong: two exercises sharing one id share one person's logged loads, and the
+ * ids the records deliberately REUSE came from templates that no longer exist
+ * to be confused with. Those reuses are frozen in the ids themselves, and what
+ * they protect - a person's history - lives in their logs, not in a table here.
+ */
+const restoreIds = new Map();
+for (const t of getRestoreExercises()) if (!restoreIds.has(t.id)) restoreIds.set(t.id, t.name);
+for (const t of getCooldown()) if (!restoreIds.has(t.id)) restoreIds.set(t.id, t.name);
 
 const ids = all.map((e) => e.id);
 const repeated = ids.filter((id, i) => ids.indexOf(id) !== i);
@@ -451,58 +473,35 @@ const reused = all.filter((e) => !e.id.startsWith('lib-'));
 const fresh = all.filter((e) => e.id.startsWith('lib-'));
 
 /**
- * AND THE ID RESOLVES TO THE SAME MOVEMENT, not merely to something.
+ * THE REUSED IDS, AND WHAT IS STILL ASKABLE ABOUT THEM.
  *
- * The check below proves a reused id exists. On its own that let a
- * wrong-but-valid reuse through: give the Plank sq-acc-db-5, a real template
- * for the Goblet Squat, and every assertion here passed while somebody's squat
- * loads were handed to their plank. The names have to agree, and they agree
- * through EXERCISE_ALIASES, which is where every rename the library makes is
- * written down. A reuse nobody meant would need an alias nobody would write.
+ * 89 records deliberately kept the id of the catalogue exercise they replace, so
+ * that every load, rep count and progression somebody has logged carries
+ * straight over. Two assertions used to guard that: the id still resolved to a
+ * template, and the template it resolved to was the same movement.
+ *
+ * Both were questions about the old catalogue, and the old catalogue is
+ * deleted. There is no template behind `sq-main-db` any more; what is behind it
+ * is somebody's four years of goblet squats, in their own logs, which no test
+ * here can read. The reuse decisions themselves are frozen - the id is written
+ * into the record - and the renames are written down in EXERCISE_ALIASES.
+ *
+ * What CAN still go wrong, and is asserted instead: a library record taking an
+ * id that Restore is still serving an exercise under. That would be two
+ * different movements, under two different names, writing sets against one id.
  */
-const wrongMovement = [];
-for (const e of reused) {
-  const catalogueName = templateNames[e.id];
-  if (!catalogueName) continue;
-  if (canonicalExerciseName(catalogueName) !== e.name) {
-    wrongMovement.push(`${e.id} is "${catalogueName}" but the record is "${e.name}"`);
-  }
-}
+const restoreCollisions = [...reused, ...fresh].filter((e) => restoreIds.has(e.id));
 check(
-  `all ${reused.length} reused ids are the same movement they were`,
-  wrongMovement.length === 0,
-  wrongMovement.slice(0, 6).join(' | ') +
-    ' — an id carries a person\'s logged loads, so the wrong one hands them another exercise\'s weights'
-);
-
-const missingTemplates = reused.filter((e) => !templateNames[e.id]);
-check(
-  `all ${reused.length} reused ids still resolve to an exercise in the catalogue`,
-  missingTemplates.length === 0,
-  missingTemplates.map((e) => `${e.id} (${e.libraryName})`).join(', ')
-);
-
-const collisions = fresh.filter((e) => templateNames[e.id]);
-check(
-  `none of the ${fresh.length} new ids lands on an exercise that already exists`,
-  collisions.length === 0,
-  collisions.map((e) => `${e.id} is already "${templateNames[e.id]}"`).join(', ')
-);
-
-const restoreCategories = new Set(['prehab', 'cooldown']);
-const restoreReuse = reused.filter(
-  (e) =>
-    restoreCategories.has(templateCategories[e.id]) ||
-    e.id.startsWith('ph-') ||
-    e.id.startsWith('fl-') ||
-    e.id.startsWith('acute-')
-);
-check(
-  'no record takes over an id that Restore is still using',
-  restoreReuse.length === 0,
-  restoreReuse
-    .map((e) => `${e.libraryName} took ${e.id} ("${templateNames[e.id]}")`)
+  `none of the ${all.length} record ids lands on one Restore is still using`,
+  restoreCollisions.length === 0,
+  restoreCollisions
+    .map((e) => `${e.libraryName} took ${e.id} ("${restoreIds.get(e.id)}")`)
     .join(', ') + ' — Restore keeps serving that exercise under its own name'
+);
+check(
+  `and the reuse is real: ${reused.length} records kept a catalogue id and ${fresh.length} took a new one`,
+  reused.length > 80 && fresh.length > 50,
+  `${reused.length} reused, ${fresh.length} fresh — if either is near zero the split above proves nothing`
 );
 
 const badSlug = fresh.filter((e) => {

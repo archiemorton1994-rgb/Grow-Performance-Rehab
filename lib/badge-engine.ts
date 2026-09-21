@@ -668,39 +668,45 @@ export function evaluateBadges(state: BadgeEvalState): string[] {
       )
     ).length;
 
-  // Gravity Fighter — first Pull-Up or Chin-Up
+  /**
+   * Gravity Fighter — first Pull-Up or Chin-Up.
+   *
+   * ALL FOUR SPELLINGS, because the app changed how it writes them. The old
+   * catalogue hyphenated ("Pull-Up", "Chin-Up") and Archie's library does not
+   * ("Pull Ups", "Chin Ups", "Band Assisted Chin Up"). With only the hyphenated
+   * forms listed, the badge silently stopped being awardable the day the
+   * library became the only list, while the exercise itself was still there.
+   */
   awardIf(
     hasExercise('pull-up') ||
       hasExercise('pullup') ||
+      hasExercise('pull up') ||
       hasExercise('chin-up') ||
-      hasExercise('chinup'),
+      hasExercise('chinup') ||
+      hasExercise('chin up'),
     'ex_pull_up_first'
   );
-  // Throne — first Hip Thrust
-  awardIf(hasExercise('hip thrust'), 'ex_hip_thrust_first');
   // Nordic Warrior — first Nordic Hamstring Curl
   awardIf(hasExercise('nordic'), 'ex_nordic_first');
   // Iron Grip — first Farmer's Carry or Suitcase Carry
   awardIf(hasExercise('farmer') || hasExercise('suitcase carry'), 'ex_farmers_carry_first');
   // Bird Dog — first Bird Dog
   awardIf(hasExercise('bird dog'), 'ex_bird_dog_first');
-  // Dead Weight — first Dead Hang
-  awardIf(hasExercise('dead hang'), 'ex_dead_hang_first');
-  // GHD Initiate — first Glute Ham Raise
-  awardIf(hasExercise('glute ham raise') || hasExercise('ghd'), 'ex_ghd_first');
-  // Seal of Approval — first Seal Row
-  awardIf(hasExercise('seal row'), 'ex_seal_row_first');
   // Clean Sweep — first Front Squat
   awardIf(hasExercise('front squat'), 'ex_front_squat_first');
   // Landmine — first Landmine Press
   awardIf(hasExercise('landmine'), 'ex_landmine_first');
   // Roller Derby — first Ab Wheel Rollout
   awardIf(hasExercise('ab wheel') || hasExercise('ab-wheel'), 'ex_ab_wheel_first');
-  // Hamstring Hero — Nordic or GHR in 10+ different sessions
-  awardIf(
-    exerciseSessionCount('nordic') + exerciseSessionCount('glute ham raise') >= 10,
-    'ex_ghd_10_sessions'
-  );
+  /**
+   * Hamstring Hero — a Nordic curl in 10 different sessions.
+   *
+   * The GHR half of the rule went with the old catalogue, which is the only
+   * place a glute ham raise ever lived. The Nordic curl negative is on Restore's
+   * list and is still prescribed, so the badge stays earnable and its wording
+   * says only what the app can still give.
+   */
+  awardIf(exerciseSessionCount('nordic') >= 10, 'ex_ghd_10_sessions');
 
   // ── 21. Recovery ─────────────────────────────────────────────────────────
   awardIf(s.recoveryCount >= 5, 'recovery_5');

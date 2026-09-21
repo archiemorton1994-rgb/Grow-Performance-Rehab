@@ -4,9 +4,95 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**103 of 689 recorded (14.9%). 436 still to go.**
+**70 of 297 recorded (23.6%). 227 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
+
+## Filmed, and the movement is not on the list
+
+These are listed in `lib/exercise-videos.ts` and no exercise in the app has that name, so the mapping opens nothing today. Most of them are movements the old Train catalogue held, kept on purpose so the footage is not lost and re-attaches the day one of them joins the library - see VIDEO_NAMES_NOT_IN_THE_APP in that file, which tests/exercise-videos.check.mjs holds to matching this list exactly. Anything here that is NOT on that list is a typo.
+
+- `Banded Good Morning`
+- `Banded Lateral Walk`
+- `Barbell Bulgarian Split Squat`
+- `Barbell Good Morning`
+- `DB Bicep Curl`
+- `DB Hammer Curl`
+- `DB Lateral Raise`
+- `Depth Jump`
+- `Alternating Dumbbell Curl`
+- `Alternating Dumbbell Overhead Press`
+- `Banded March`
+- `Banded Monster Walk`
+- `Bench Dumbbell Reverse Fly`
+- `Box Squat`
+- `DB Split Squat Jump`
+- `DB Split-Stance Romanian Deadlift`
+- `DB Squat Jump`
+- `Gorilla Row`
+- `KB Romanian Deadlift`
+- `KB Side Lunge`
+- `Kneeling Rock-Back`
+- `Seated Box Jump`
+- `Seated Shoulder External Rotation (Band)`
+- `Seated Single-Arm Cable Row`
+- `Seated Wide-Grip Cable Row`
+- `Single-Arm Dumbbell Overhead Press`
+- `Skater Jump`
+- `Sled Row`
+- `Split Squat Jump`
+- `Standing Dumbbell Row`
+- `Supine Med Ball Throw`
+- `Trap Bar Deadlift`
+- `Trap Bar Jump`
+- `Trap Bar Row`
+- `90/90 Hip Switch`
+- `Loaded Jump Squat`
+- `Seated Cable Row`
+- `Back Squat`
+- `Box Jump (Step-Down)`
+- `Chin-Up`
+- `DB Bulgarian Split Squat`
+- `DB Face Pull`
+- `DB Shoulder Press`
+- `Goblet Squat`
+- `Incline DB Press`
+- `KB / DB Swing`
+- `KB Swing (Explosive)`
+- `KB Swing (Steady)`
+- `Lat Pulldown`
+- `Lateral Lunge`
+- `Med Ball Overhead Slam`
+- `Plank Shoulder Tap`
+- `Pull-Up`
+- `Sled Push/Pull Complex`
+- `Dumbbell Walking Lunge`
+- `Calf Raise`
+- `Seated DB Shoulder Press`
+- `Shoulder CARs (Controlled Articular Rotations)`
+- `Single Arm Cable Extension`
+- `Cable Lateral Raise`
+- `Seated DB Lateral Raise`
+- `Single-Arm Cable Curl`
+- `Cable Hip Abduction`
+- `Cable Hip Extension`
+- `Cable Hip Flexion`
+- `Landmine Single-Arm Row`
+- `Landmine Split Squat`
+- `Landmine Goblet Squat`
+- `Bent-Knee Calf Raise`
+- `Bent-Knee Single-Leg Calf Raise`
+- `Seated Calf Raise`
+- `Weighted Seated Calf Raise`
+- `Tib Raise`
+- `Spanish Squat`
+- `Bodyweight Squat`
+- `Bodyweight Hip Hinge`
+- `Ankle Dorsiflexion Drill`
+- `Banded VMO Extension`
+- `Leg Swing`
+- `Lateral Leg Swing`
+- `Seated Butterfly`
 
 ## Uploads not yet used by the app
 
@@ -20,280 +106,182 @@ Each one is either a movement the app does not have — in which case the exerci
 
 ## Recorded
 
-- 90/90 Hip Switch
 - Alternating Dumbbell Bench Press
-- Alternating Dumbbell Curl
-- Alternating Dumbbell Overhead Press
-- Ankle Dorsiflexion Drill
-- Back Squat
+- Alternating Dumbbell Shoulder Press
 - Band Face Pull
+- Band Pull Aparts
 - Band Pull-Apart
 - Banded Clamshell
-- Banded Good Morning
-- Banded Lateral Walk
-- Banded March
-- Banded Monster Walk
+- Banded Face Pulls
+- Banded Good Mornings
 - Banded Pallof Press
-- Banded VMO Extension
-- Barbell Bulgarian Split Squat
-- Barbell Good Morning
-- Bench Dumbbell Reverse Fly
-- Bent-Knee Calf Raise
-- Bent-Knee Single-Leg Calf Raise
-- Bodyweight Hip Hinge
-- Bodyweight Squat
-- Box Jump (Step-Down)
-- Box Squat
+- Barbell Back Squat
+- Barbell Box Squats
+- Barbell Bulgarian Split Squats
+- Barbell Good Mornings
+- Barbell Jump Squats
+- Bench Dumbbell Face Pulls
+- Bent Over Dumbbell Rows
+- Bodyweight Squats
+- Box Jumps
 - Bulgarian Split Squat
-- Cable Hip Abduction
-- Cable Hip Extension
-- Cable Hip Flexion
-- Cable Lateral Raise
-- Calf Raise
-- Chin-Up
-- DB Bicep Curl
-- DB Bulgarian Split Squat
-- DB Face Pull
-- DB Hammer Curl
-- DB Lateral Raise
-- DB Shoulder Press
-- DB Split Squat Jump
-- DB Split-Stance Romanian Deadlift
-- DB Squat Jump
+- Chin Ups
 - Dead Bug
-- Depth Jump
+- Deadbug
+- Depth Jumps
 - Doorway Chest Opener
 - Doorway Chest Stretch
 - Dumbbell Bench Press
-- Dumbbell Walking Lunge
+- Dumbbell Bulgarian Split Squat
+- Dumbbell Jump Squats
+- Dumbbell Split Squat Jumps
+- Dumbbell Walking Lunges
 - Glute Bridge
-- Goblet Squat
-- Gorilla Row
-- Incline DB Press
-- KB / DB Swing
-- KB Romanian Deadlift
-- KB Side Lunge
-- KB Swing (Explosive)
-- KB Swing (Steady)
-- Kneeling Rock-Back
-- Landmine Goblet Squat
+- Gorilla Rows
+- Incline Dumbbell Bench Press
+- Kettlebell Goblet Squats
+- Kettlebell Romanian Deadlift
+- Kettlebell Side Lunge
+- Kettlebell Swings
+- Landmine Goblet Squats
 - Landmine Press
 - Landmine Romanian Deadlift
-- Landmine Single-Arm Row
-- Landmine Split Squat
-- Landmine Split-Stance Romanian Deadlift
-- Lat Pulldown
-- Lateral Leg Swing
-- Lateral Lunge
-- Leg Swing
-- Loaded Jump Squat
-- Med Ball Floor Chest Pass
-- Med Ball Overhead Slam
+- Landmine Single Arm Rows
+- Landmine Split Squats
+- Landmine Split Stance Romanian Deadlift
+- Lat Pulldowns
+- Medball Floor Chest Pass
+- Medball Slams
 - Plank
-- Plank Shoulder Tap
+- Plank Taps
 - Prone Y Raise
-- Pull-Up
-- Push-Up
-- Seated Box Jump
-- Seated Butterfly
-- Seated Cable Row
-- Seated Calf Raise
-- Seated DB Lateral Raise
-- Seated DB Shoulder Press
-- Seated Shoulder External Rotation (Band)
-- Seated Single-Arm Cable Row
-- Seated Wide-Grip Cable Row
-- Shoulder CARs (Controlled Articular Rotations)
-- Single Arm Cable Extension
-- Single-Arm Cable Curl
-- Single-Arm Dumbbell Overhead Press
-- Skater Jump
-- Sled Push/Pull Complex
-- Sled Row
-- Spanish Squat
-- Split Squat Jump
+- Pull Ups
+- Push Up
+- Seated Box Jumps
+- Seated Close Grip Rows
+- Seated Dumbbell Press
+- Seated Single Arm Rows
+- Seated Wide Grip Rows
+- Side Lunge
+- Single Arm Dumbbell Press
+- Skater Jumps
+- Sled Rows
+- Split Squat Jumps
+- Split Stance Romanian Deadlift
 - Squat Jump
-- Standing Dumbbell Row
-- Supine Med Ball Throw
-- Tib Raise
-- Trap Bar Deadlift
-- Trap Bar Jump
-- Trap Bar Romanian Deadlift
-- Trap Bar Row
+- Standing Dumbbell Press
+- Supine Medball Throws
+- Trapbar Jump Squats
+- Trapbar Romanian Deadlift
+- Trapbar Rows
 - Walking Lunges
 - Wall Sit
-- Weighted Seated Calf Raise
 
 ## Still to record
 
-**436 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+**227 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
 
-A further 150 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
+A further 0 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
 
-### Main lifts — the squat, bench and deadlift variations a session is built around (9)
+### Main lifts — the squat, bench and deadlift variations a session is built around (63)
 
-- Barbell Bench Press
+- Alternating Reverse Lunges
+- Assisted Bulgarian Split Squats
+- Assisted Reverse Lunges
+- Assisted Squats
+- Band Assisted Chin Up
+- Band Resisted Back Squats
+- Band Resisted Barbell Press
+- Band Resisted Deadlifts
+- Band Resisted Front Squats
 - Barbell Deadlift
+- Barbell Floor Press
+- Barbell Front Squat
+- Barbell Reverse Lunges
 - Barbell Row
-- Bodyweight Good Morning
-- Lying Leg Curl
-- Pallof Press
-- Romanian Deadlift
-- Single-Leg Hinge
-- Towel Row (Door Handle)
-
-### Accessories — the supporting work in every strength session (148)
-
-- 45 Degree Hyperextension
-- Ab Wheel Rollout
-- Adductor Machine
-- Alternating Reverse Lunge
-- Archer Push-Up
-- Assault Bike (Easy)
-- Assault Bike Escalating Intervals
-- Back Extension
-- Band Bicep Curl
-- Banded Glute Bridge
-- Banded Hip Thrust
-- Banded Pull-Apart
-- Barbell Bent-Over Row
-- Barbell Hip Thrust
-- Barbell Holds
-- Battle Rope Waves
-- Bear Crawl
-- Bear Crawl (Steady Pace)
-- Belt Squat
-- Board Press
-- Box Step-Up
-- Cable Bicep Curl
-- Cable Chest Fly
-- Cable Crunch
-- Cable Face Pull
-- Cable Front Raise
-- Cable Pull-Through
-- Cable Tricep Pushdown
-- Cable Woodchop
-- Chest Supported Row
-- Close-Grip Bench Press
-- Copenhagen Plank
-- Cossack Squat
+- Bench Dips
+- Bench Press Ups
+- Box Squats
+- Box Step Downs
+- Box Step Over
+- Box Step Ups
+- Cable Pull Through
+- Cable Romanian Deadlift
+- Cable Single Arm Rows
+- Chest Supported Dumbbell Row
 - Curtsy Lunge
-- DB Arnold Press
-- DB Bent-Over Lateral Raise
-- DB Bent-Over Row
-- DB Calf Raise
-- DB Chest Fly
-- DB Farmer Carry
-- DB Floor Press
-- DB Front Squat
-- DB Good Morning
-- DB Hip Thrust
-- DB Incline Tricep Extension
-- DB Lateral Lunge
-- DB Overhead Carry
-- DB Power Clean
-- DB Pullover
-- DB Push Press
-- DB Renegade Row
-- DB Reverse Lunge
-- DB Romanian Deadlift
-- DB Shrug
-- DB Single-Arm Row
-- DB Single-Leg Hip Thrust
-- DB Single-Leg RDL
-- DB Skull Crushers
-- DB Step-Up
-- DB Sumo Deadlift
-- DB Sumo Squat
-- DB Tricep Overhead Extension
-- Dead Bug (Steady Tempo)
-- Dead Hang
-- Decline Bench Press
-- Deficit Push-Up
-- Diamond Push-Up
-- Donkey Kick
-- Dumbbell Front Raise
-- External Rotation (Band)
-- EZ Bar Curl
-- EZ Bar Skull Crushers
-- Farmer Walk (Heavy DBs)
-- Farmers Carry
-- Farmers Carry (Heavy)
-- Fat Grip Hold
-- Feet-Elevated Inverted Row
-- Frog Pumps
-- Front Squat
-- Glute Bridge March
-- Glute Ham Raise
-- Goblet March
-- Hack Squat
-- Hanging Leg Raise
-- Hollow Body Hold
-- Incline Barbell Press
-- Incline Push-Up
-- Inverted Row
-- JM Press
-- Lateral Step-Out Squat
-- Leg Curl (Machine)
-- Leg Extension
-- Leg Press
-- Lying Hamstring Curl
-- Machine Chest Press
-- Med Ball Slam (Light)
-- Nordic Hamstring Curl
-- Overhead Cable Tricep Extension
-- Overhead Press
-- Pec Deck (Machine Fly)
-- Pendlay Row
-- Pike Push-Up
-- Plate Pinch Holds
-- Prone Y-T-W Raise
+- Decline Press Ups
+- Deficit Barbell Deadlift
+- Deficit Kettlebell Deadlift
+- Deficit Press Ups
+- Deficit Romanian Deadlift
+- Deficit Split Squats
+- Door Frame Rows
+- Dumbbell Alternating Reverse Lunges
+- Dumbbell Curtsy Lunge
+- Dumbbell Floor Press
+- Dumbbell Front Squats
+- Elevated Feet Rack Rows
+- Kettlebell Box Squats
+- Kettlebell Box Step Over
+- Kettlebell Curtsy Lunge
+- Kettlebell Deadlift
+- Kettlebell Reverse Lunges
+- Kneeling Incline Press Ups
+- Kneeling Press Ups
+- Pause Deadlifts
+- Pause Squats
+- Pin Squats
+- Plate Bench Press
 - Rack Pull
-- Renegade Row
-- Reverse Hyperextension
-- Reverse Hyperextension (floor)
-- Reverse Lunge
-- Reverse Snow Angel
-- Rope Pushdowns
-- Rowing Intervals (Easy)
-- Rowing Machine Pyramid (Easy)
-- Seal Row
-- Seated Hamstring Curl
-- Shuttle Run (10 m x 6)
-- Side Plank
-- Single Leg Hip Thrust
-- Single-Arm KB / DB Swing
-- Single-Arm Towel Row (Door Handle)
-- Sissy Squat
-- Ski Erg Intervals (Easy)
-- Sled Backward Drag
-- Sled Drag
-- Sled Push (Steady)
-- Sprint Interval (30s)
-- Squat to Stand
-- Stability Ball Hamstring Curl
-- Standing Calf Raise
-- Standing Overhead Press
-- Step-Up (Low Step)
-- Step-Up with Knee Drive
-- Stiff-Leg Deadlift
-- Straight Arm Pulldown
-- Suitcase Carry
-- Sumo Goblet Squat
-- Sumo Squat Pulse
-- Superman Hold
-- T-Bar Row
-- Tate Press
-- Treadmill Hill Sprints
-- Tricep Dips (Bench)
-- Wall Ball (Light)
-- Weighted Dips
-- Weighted Plank
-- Weighted Push-Up
-- Wide Push-Up
-- Zottman Curl
+- Rack Rows
+- Reeves Deadlift
+- Single Arm Dumbbell Rows
+- Single Leg Romanian Deadlift (Barbell)
+- Single Leg Romanian Deadlift (Dumbbell)
+- Snatch Grip Deficit Deadlift
+- Suitcase Deadlift
+- Sumo Deadlift
+- Trapbar Deadlift (high handles)
+- Trapbar Deadlift (low handles)
+- TRX Push Ups
+- TRX Rows
+- Zercher Squat
+- Zombie Squat
 
-### Rehab and prehab — the Restore tab, and the rehab slot inside a session (120)
+### Accessories — the supporting work in every strength session (29)
+
+- Ab Wheel Rollout (Kneeling)
+- Banded Deadbugs
+- Banded Serratus Punch
+- Barbell Suitcase Hold
+- Cable Face Pulls
+- Cable Pallof Hold
+- Cable Pallof Press
+- Cable Reverse Woodchops
+- Cable Woodchops
+- Dumbbell Farmers Carry
+- Dumbbell Suitcase Carry
+- Dumbbell Suitcase Hold
+- Earthquake Carry
+- Forearm Side Plank
+- Hanging Knee Raises
+- Kettlebell Farmers Carry
+- Kettlebell Halos
+- Kettlebell Marches
+- Kettlebell Suitcase Carry
+- Kneeling Cable Rotations
+- Landmine Rotations
+- Plate Squeeze Press
+- Side Plank Reach Throughs
+- Side Plank with Abduction
+- Superman Plank
+- Trapbar Farmers Carry
+- TRX Face Pulls
+- Waiter Carry
+- Wall Hip Hinge
+
+### Rehab and prehab — the Restore tab, and the rehab slot inside a session (117)
 
 - Glute Bridge (isometric hold)  _(used in 6 places)_
 - Legs-Up-The-Wall  _(used in 6 places)_
@@ -359,7 +347,6 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Terminal Knee Extension (band)  _(used in 2 places)_
 - Thoracic Cat-Cow  _(used in 2 places)_
 - Wall Angel  _(used in 2 places)_
-- Adductor Side-Lying Stretch
 - Ankle Circles
 - Bicep Stretch (arm back)
 - Book Opener (thoracic rotation)
@@ -370,14 +357,14 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Couch Stretch
 - Cross-Body Shoulder Stretch
 - Cross-Body Tricep Stretch
-- DB Shoulder External Rotation
 - Doorway Lat Stretch
 - Eccentric Wrist Extension
-- Figure-4 Glute Stretch
 - Floor Angel
 - Heel Drop (eccentric)
+- Hip Flexor Kneeling Stretch
 - Hip Flexor Stretch
 - Hip Hinge Against Wall
+- Hollow Body Hold
 - Incline Push-Up (slow)
 - Isometric Wall Sit
 - Lateral Band Walk
@@ -392,6 +379,7 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Pronator Self-Release
 - Prone Shoulder External Rotation
 - Prone T-Spine Extension
+- Seated Forward Fold
 - Shoulder CAR (Controlled Articular Rotation)
 - Side-Lying Hip Abduction
 - Single-Leg Calf Raise
@@ -399,14 +387,11 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Slow Step-Down
 - Slow Step-Down (eccentric)
 - Soleus Stretch
-- Standing Calf Raise (Bodyweight)
-- Standing Calf Raise (loaded)
 - Standing Calf Raise (slow eccentric)
 - Standing Hamstring Stretch
 - Standing Quad Stretch
 - Supine Hamstring Stretch (Strap)
-- Thoracic Extension (foam roll)
-- Thoracic Extension over Rolled Towel
+- Supine Spinal Twist
 - Thread the Needle (Thoracic Rotation)
 - Thread-the-Needle Rotation
 - Tibialis Raise
@@ -416,176 +401,32 @@ A further 150 entries are circuits rather than movements — "Burpee + Reverse L
 - Wrist Extensor Stretch
 - Wrist Flexor Stretch
 
-### Warm-ups (22)
+### Warm-ups (2)
 
-- Adductor Rockback
-- Assault Bike Warm-Up
-- Band Pull-Apart (Warm-Up)
-- Banded Hip Circle
-- Cardio Machine Warm-Up
 - Cardio Warm-Up (Easy Walk / Bike)
-- Cat-Cow Flow
-- Child's Pose
-- Cossack Squat Flow
-- Dynamic Warm-Up
-- Easy Cardio Warm-Up
-- Easy Cardio Warm-Up (No Kit)
-- Hip Circle (Standing)
-- Hip Flexor Kneeling Stretch
-- Jump Rope / Skip Warm-Up
-- Jump Rope Warm-Up
-- Kneeling Thoracic Rotation
-- Rowing Machine Warm-Up
-- Standing Hamstring Reach
-- Stationary Bike Warm-Up
-- Thoracic Extension on Floor
-- World's Greatest Stretch
-
-### Power and speed work (21)
-
-- Broad Jump
-- Clap Push-Up
-- DB Power Clean (light)
-- Depth Drop
-- Depth Drop to Broad Jump
-- Drop Squat
-- Explosive Push-Up
-- Hang Pull
-- Jump Shrug
-- Landmine Push Press
-- Lateral Box Jump
-- Lateral Jump
-- Med Ball Chest Pass (Wall)
-- Med Ball Slam (Simulated)
-- Overhead Slam (Ball or Simulated)
-- Plyo Push-Up (Hands on Bench)
-- Power Clean
-- Power Clean (Light)
-- Power Skip
-- Reactive Step-Off
-- Vertical Jump
-
-### Mechanical drop sets (30)
-
-- Arm Speed Drill
-- Band Pull-Apart (Fast Tempo)
-- Bird Dog (fast tempo)
-- Cable External Rotation
-- DB Hip March (Supine)
-- DB Romanian Deadlift (light)
-- Face Pull
-- Fire Hydrant
-- Glute Bridge Pulse
-- Goblet Squat Primer
-- Goblet Squat Speed Primer
-- Hamstring Curl (light)
-- Hip Abductor Machine Prime
-- Hip Circle (Fast Tempo)
-- Hip Hinge Drill (Wall)
-- Hip Hinge Speed Drill
-- Hip Thrust Activation (Bodyweight)
-- KB Deadbug
-- KB Deadbug (controlled)
-- Lateral Bound (Stick Landing)
-- Leg Press Activation
-- Light DB External Rotation
-- Light DB Speed Press (seated)
-- Machine Rear Delt Fly
-- Scapular Push-Up
-- Single-Leg Hip Hinge (Bodyweight)
-- Single-Leg Hip Hinge (DB)
-- Speed Bench Activation (bar only)
-- Speed Good Morning (bar only)
-- Speed Squat Ramp (bar only)
-
-### Finishers (79)
-
-- Alternating Jump Lunge
-- Assault Bike (Easy Pace)
-- Assault Bike (Moderate)
-- Assault Bike Escalating Finisher
-- Assault Bike Hard Interval Finisher
-- Assault Bike Intervals
-- Assault Bike Intervals (Easy)
-- Assault Bike Sprints
-- Battle Rope Finisher
-- Bear Crawl (Easy Pace)
-- Bear Crawl Finisher
-- Bear Crawl Intervals
-- Bodyweight Squat Pulse
-- Burpee
-- Burpee to Broad Jump
-- Cable Crossover Superset
-- Cable Drop Set Superset
-- Cable Push-Pull Circuit
-- Cable Row Intervals
-- Chest Stretch Walk
-- DB Glute Bridge (Pump)
-- DB Goblet Squat Easy Pace
-- DB Goblet Squat Intervals
-- DB Lunge Intervals
-- DB Man Maker
-- DB Push Press Intervals
-- DB Romanian Deadlift Intervals
-- DB Shoulder Circuit (Light)
-- DB Thruster
-- DB Thruster Finisher
-- Deadlift Drop Set
-- Farmer Walk
-- Farmer Walk Finisher
-- Farmer Walk Finisher (Gym)
-- Glute Bridge Hold
-- Goblet Squat (continuous)
-- Hamstring Curl (Easy Pump)
-- Heavy Carry Finisher
-- Heavy Sled Push Finisher
-- Jump Rope Intervals
-- Jumping Jack Finisher
-- KB / DB Swing Intervals
-- Leg Press 50s Drop Set
-- Leg Press Intervals
-- Light DB Hip Hinge Walk
-- Light DB Lateral Raise Walk
-- Light Farmer Walk
-- Light Sled Drag
-- Machine Chest Fly (Pump)
-- Man Maker Finisher
-- Mountain Climber Intervals
-- Mountain Climbers
-- Prowler Drag (light)
-- Racked Carry Finisher
-- Recovery Walk
-- Renegade Row Finisher
-- Renegade Row Intervals
-- Rowing Finisher
-- Rowing Finisher (Steady)
-- Shadow Boxing
-- Shuttle Run Intervals
-- Ski Erg Interval Finisher
-- Sled Drag Finisher
-- Sled Drag Intervals
-- Sled Push
-- Sled Push Finisher
-- Sled Push Intervals
-- Sprint Interval Finisher
-- Squat Jump Intervals
-- Stationary Bike (Easy)
-- Steady Walk / Light Jog
-- Steady Walk Finisher
-- Step-Up Walk (Chair/Step)
-- Stepping Jack Intervals
-- Stepping Jacks
-- Stiff-Leg Deadlift Intervals
-- Treadmill Incline Walk
-- Treadmill Sprint Intervals
-- Unbroken Carry Finisher
-
-### Cool-downs and stretching (7)
-
-- Cool Down Stretch Sequence
 - Diaphragmatic Breathing
+
+### Power and speed work (5)
+
+- Banded Broad Jumps
+- Broad Jumps
+- High Pulls
+- Slamball Split Jumps
+- Slamball Squat Jumps
+
+### Conditioning (8)
+
+- Assault Bike
+- Bear Crawl
+- Duck Walks
+- Incline Treadmill Walk
+- Rowing Machine
+- Skipping
+- Sled Pull
+- Sled Push
+
+### Cool-downs and stretching (3)
+
+- Figure-4 Glute Stretch
 - Forearm Flexor & Extensor Stretch
-- Legs-Up Recovery Breathing
-- Seated Forward Fold
 - Side-Bend Overhead Reach
-- Supine Spinal Twist

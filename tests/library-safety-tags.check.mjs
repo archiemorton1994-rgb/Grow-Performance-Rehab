@@ -148,6 +148,23 @@ check(
 
 // ─── The screen, run for real ────────────────────────────────────────────────
 
+/** Every stress an exercise carries, by name. Used to ask whether an avoid
+ *  phrase still guards anything when the app has stopped spelling it that way. */
+const tagsOn = (name) => stressTagsFor(name);
+
+/**
+ * Avoid phrases the app has no movement for at all, with the reason.
+ *
+ * Keyed `<region>.<phrase>`. An entry here says "we looked, and Archie's list
+ * genuinely does not contain this movement" - not "this rule stopped working".
+ * The rule itself stays in lib/acute-rehab.ts and in the tag table, so the day
+ * one of these IS added it is screened from the first session it appears in.
+ */
+const NOTHING_DOES_THIS = {
+  'neck.Loaded shrugs':
+    'the library has no shrug, and nothing else in it loads the neck directly - no record in the app carries neck_load',
+};
+
 /** Would this exercise reach someone whose only sore area is `region`? */
 const reaches = (name, region) =>
   restrictedTagsOn(name, restrictedTagsFor([region])).length === 0;
@@ -308,9 +325,20 @@ const AVOID_VOCABULARY = {
     { phrase: 'Upper Trap Stretch', movement: /upper trap stretch/i },
   ],
   neck: [
-    { phrase: 'Loaded shrugs', movement: /\bshrugs?\b/i },
+    { phrase: 'Loaded shrugs', movement: /\bshrugs?\b/i, tag: 'neck_load' },
     { phrase: "farmer's carries", movement: /farmer/i },
-    { phrase: 'overhead pressing', movement: /overhead press/i },
+    /**
+     * Matched by the TAG rather than by the name, because the app's overhead
+     * pressing is not called that any more.
+     *
+     * Archie's library presses overhead as Standing, Seated, Single Arm and
+     * Alternating Dumbbell Press and as a Landmine Press, and not one of those
+     * names contains the words "overhead press". Asked by name this rule went
+     * from guarding six movements to guarding none, while the protection itself
+     * never moved: all five carry `overhead`, which is on the neck's banned
+     * list, so a sore neck refuses every one of them.
+     */
+    { phrase: 'overhead pressing', movement: /overhead press/i, tag: 'overhead' },
     { phrase: 'Neck side stretches', movement: /neck side stretch/i },
   ],
   front_shoulder: [
@@ -381,18 +409,37 @@ const everyName = [
 
 for (const [region, entries] of Object.entries(AVOID_VOCABULARY)) {
   const avoidText = (ACUTE_PROTOCOL_NOTES[region]?.avoid ?? []).join(' ');
-  for (const { phrase, movement: pattern } of entries) {
+  for (const entry of entries) {
+    const { phrase, movement: pattern } = entry;
     check(
       `${region}.avoid still says "${phrase}"`,
       avoidText.toLowerCase().includes(phrase.toLowerCase()),
       'the protocol was reworded and the rule that enforces it was left behind'
     );
     const matches = everyName.filter((n) => pattern.test(n));
+    /**
+     * A phrase guards something, or the app genuinely has nothing it is about.
+     *
+     * Three ways to satisfy this, and the third one has to be written down.
+     *
+     *  - a NAME matches, which is the ordinary case;
+     *  - or the TAG the phrase stands for is carried by something, which is how
+     *    a movement Archie spells differently is still caught (see neck's
+     *    "overhead pressing");
+     *  - or the movement is not in the app at all, in which case it has to be on
+     *    NOTHING_DOES_THIS below with a reason, so a rule that has quietly
+     *    stopped matching cannot be mistaken for one the app has outgrown.
+     */
+    const byTag = entry.tag ? everyName.filter((n) => tagsOn(n).includes(entry.tag)) : [];
+    const declaredAbsent = NOTHING_DOES_THIS[`${region}.${phrase}`];
     check(
-      `...and something in the app matches it (${matches.length} names)`,
-      matches.length > 0,
-      `"${phrase}" now guards nothing`
+      `...and something in the app matches it (${matches.length} by name, ${byTag.length} by tag)`,
+      matches.length > 0 || byTag.length > 0 || !!declaredAbsent,
+      `"${phrase}" now guards nothing, and is not on the list of movements the app does not have`
     );
+    if (declaredAbsent && matches.length === 0 && byTag.length === 0) {
+      console.log(`      (nothing in the app does this: ${declaredAbsent})`);
+    }
     const leaked = matches.filter((n) => reaches(n, region));
     check(
       `...and none of them reach a sore ${region.replace(/_/g, ' ')}`,

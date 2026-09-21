@@ -76,7 +76,20 @@ function check(label, condition, detail) {
   }
 }
 
-const templateNames = getExerciseNameMap();
+const liveNames = getExerciseNameMap();
+
+/**
+ * The name an id answers to, live or frozen.
+ *
+ * A survivor is a library or Restore record and answers live. Everything else
+ * this file names is an id the old catalogue held, and the old catalogue is
+ * deleted - so those answer out of WAS_CALLED below, which is what they were
+ * called on the day before the purge.
+ */
+const templateNames = new Proxy(liveNames, {
+  get: (live, id) => (typeof id === 'string' ? (live[id] ?? WAS_CALLED[id]) : undefined),
+  has: (live, id) => typeof id === 'string' && (id in live || id in WAS_CALLED),
+});
 const templateCategories = getExerciseCategoryMap();
 const RECORDS = [...LIBRARY_EXERCISES, ...CONDITIONING_EXERCISES];
 const recordById = new Map(RECORDS.map((e) => [e.id, e]));
@@ -85,11 +98,150 @@ const pairs = Object.entries(ID_MERGE);
 // ─── 1. Both sides of every pair are real ────────────────────────────────────
 console.log('\n[1] Every id in the table exists');
 
-const unknownFrom = pairs.filter(([from]) => !templateNames[from]);
+/**
+ * WHAT EACH DUPLICATE ID WAS CALLED, FROZEN, BECAUSE THE CATALOGUE IS GONE.
+ *
+ * Every id on the left of ID_MERGE belonged to the old Train catalogue, which
+ * this phase deleted. That is not a problem with the table - it is the whole
+ * point of it. These ids exist now only inside the logs of people who trained
+ * against them, and the table carries their progress forward onto the record
+ * that replaced them.
+ *
+ * But the assertion that mattered most here was that both sides of a pair are
+ * the SAME MOVEMENT, and that could only be asked while the catalogue was
+ * readable. So the names it was asked against are written down here, once,
+ * exactly as the catalogue held them at the commit before the purge.
+ *
+ * THIS IS NOT A SPELLING TEST, even though it is a list of spellings. The old
+ * names can never change again - nothing writes them any more - while the
+ * library names they are compared against are live. Re-point a survivor at a
+ * different record and the two stop agreeing and this fails, which is exactly
+ * what it was catching before.
+ */
+const WAS_CALLED = {
+  "bn-acc-bw-5": "Pull-Up",
+  "bn-acc-db-13": "Standing Overhead Press",
+  "bn-acc-fg-1": "Barbell Bent-Over Row",
+  "bn-acc-fg-4": "Lat Pulldown",
+  "bn-main-bw": "Push-Up",
+  "bn-main-db": "Dumbbell Bench Press",
+  "bn-mech-bw-1": "Band Pull-Apart",
+  "bn-mech-db-1": "Band Pull-Apart",
+  "bn-mech-fg-1": "Band Pull-Apart",
+  "bn-mech-fg-2": "Face Pull",
+  "bn-prep-fg-3": "Band Pull-Apart (Warm-Up)",
+  "bn-pwr-mech-bw-1": "Band Pull-Apart (Fast Tempo)",
+  "bn-pwr-mech-db-1": "Band Pull-Apart (Fast Tempo)",
+  "bn-pwr-mech-fg-1": "Band Pull-Apart (Fast Tempo)",
+  "ch-standing-dumbbell-row": "Standing Dumbbell Row",
+  "cond-bw-e-1a": "Bodyweight Squat",
+  "cond-bw-e-1b": "Push-Up",
+  "cond-bw-e-3b": "Wall Sit",
+  "cond-db-e-1b": "Goblet Squat",
+  "cond-db-e-4a": "DB Bent-Over Row",
+  "cond-db-e-6a": "Suitcase Carry",
+  "dl-acc-bw-12": "Bird Dog",
+  "dl-acc-bw-17": "Ab Wheel Rollout",
+  "dl-acc-bw-4": "Banded Good Morning",
+  "dl-acc-bw-5": "Pull-Up",
+  "dl-acc-bw-6": "Banded Pull-Apart",
+  "dl-acc-db-2": "DB Bent-Over Row",
+  "dl-acc-db-5": "DB Single-Leg RDL",
+  "dl-acc-fg-4": "Cable Pull-Through",
+  "dl-acc-fg-7": "Lat Pulldown",
+  "dl-acc-fg-9": "Cable Face Pull",
+  "dl-main-fg": "Barbell Deadlift",
+  "dl-mech-bw-1": "Glute Bridge",
+  "dl-mech-bw-2": "Bird Dog",
+  "dl-mech-bw-3": "Dead Bug",
+  "dl-mech-bw-4": "Hip Hinge Drill (Wall)",
+  "dl-mech-db-1": "Glute Bridge",
+  "dl-mech-db-4": "Hip Hinge Drill (Wall)",
+  "dl-mech-fg-1": "Glute Bridge",
+  "dl-mech-fg-2": "Banded Good Morning",
+  "dl-mech-fg-3": "Cable Pull-Through",
+  "dl-neuro-bw": "Broad Jump",
+  "dl-neuro-db": "KB Swing (Explosive)",
+  "dl-neuro-db-3": "Broad Jump",
+  "dl-neuro-fg": "KB Swing (Explosive)",
+  "dl-neuro-fg-4": "Broad Jump",
+  "dl-pwr-neuro-bw": "Broad Jump",
+  "gcond-bw-n-2": "Squat Jump",
+  "ph-r-ch-4": "Band Pull-Apart",
+  "ph-r-fs-3": "Band Pull-Apart",
+  "ph-r-lm-3": "Band Pull-Apart",
+  "ph-r-rs-1": "Band Pull-Apart",
+  "ph-r-ub-1": "Band Pull-Apart",
+  "ph-s-4": "Band Pull-Apart",
+  "sq-acc-bw-10": "Lateral Lunge",
+  "sq-acc-bw-17": "Dead Bug",
+  "sq-acc-bw-2": "Glute Bridge",
+  "sq-acc-bw-4": "Wall Sit",
+  "sq-acc-db-1": "DB Bulgarian Split Squat",
+  "sq-acc-db-10": "DB Lateral Lunge",
+  "sq-acc-db-14": "Suitcase Carry",
+  "sq-acc-db-5": "Goblet Squat",
+  "sq-acc-db-9": "DB Single-Leg RDL",
+  "sq-acc-fg-13": "Ab Wheel Rollout",
+  "sq-acc-fg-9": "Cable Pull-Through",
+  "sq-main-bw": "Bodyweight Squat",
+  "sq-main-db": "Goblet Squat",
+  "sq-main-fg": "Back Squat",
+  "sq-neuro-bw": "Squat Jump",
+  "sq-neuro-bw-2": "Broad Jump",
+  "sq-neuro-db": "Box Jump (Step-Down)",
+  "sq-neuro-db-2": "Squat Jump",
+  "sq-neuro-db-3": "Broad Jump",
+  "sq-neuro-fg": "Box Jump (Step-Down)",
+  "sq-neuro-fg-3": "Broad Jump",
+  "wfb-bw-pushup": "Push-Up",
+  "wfb-bw-squat": "Bodyweight Squat",
+  "wfb-db-bench": "Dumbbell Bench Press",
+  "wfb-db-goblet": "Goblet Squat",
+  "wfb-db-ohp": "DB Shoulder Press",
+  "wfb-db-row": "DB Bent-Over Row",
+  "wfb-fg-deadlift": "Barbell Deadlift",
+  "wfb-fg-pulldown": "Lat Pulldown",
+  "wfb-fg-row": "Barbell Row",
+  "wfb-fg-squat": "Back Squat",
+  "wlb-bw-glute-bridge": "Glute Bridge",
+  "wlb-bw-lateral-lunge": "Lateral Lunge",
+  "wlb-bw-squat": "Bodyweight Squat",
+  "wlb-db-goblet": "Goblet Squat",
+  "wlb-db-single-rdl": "DB Single-Leg RDL",
+  "wlb-db-split": "DB Bulgarian Split Squat",
+  "wlb-fg-squat": "Back Squat",
+  "wub-bw-pushup": "Push-Up",
+  "wub-db-bench": "Dumbbell Bench Press",
+  "wub-db-row": "DB Bent-Over Row",
+  "wub-db-shoulder-press": "DB Shoulder Press",
+  "wub-fg-pulldown": "Lat Pulldown",
+  "wub-fg-row": "Barbell Row",
+};
+
+const unnamed = pairs.filter(([from]) => !WAS_CALLED[from]);
 check(
-  `all ${pairs.length} duplicate ids resolve to an exercise in the catalogue`,
-  unknownFrom.length === 0,
-  unknownFrom.map(([f]) => f).join(', ') + ' — an id nobody ever logged against carries nothing'
+  `all ${pairs.length} duplicate ids are written down with the movement they were`,
+  unnamed.length === 0,
+  unnamed.map(([f]) => f).join(', ') + ' — a pair nobody can read is a pair nobody can check'
+);
+
+/**
+ * AND EVERY ONE OF THEM IS DEAD, which is the invariant the purge created.
+ *
+ * This assertion used to be its opposite - "resolves to an exercise in the
+ * catalogue" - and it was right while the duplicates were live entries the
+ * generator could still serve. They are deleted now, and that makes the
+ * dangerous case the reverse one: a pair whose LEFT side is still being served
+ * would copy a live exercise's progress onto another id and then keep writing
+ * to the original, so the person's history would silently fork in two.
+ */
+const stillServed = pairs.filter(([from]) => liveNames[from]);
+check(
+  'and every one of them is an id nothing in the app serves any more',
+  stillServed.length === 0,
+  stillServed.map(([f]) => `${f} is still "${liveNames[f]}"`).join(', ') +
+    ' — carrying progress off a live id forks somebody’s history'
 );
 
 const unknownTo = pairs.filter(([, to]) => !recordById.has(to));
@@ -111,7 +263,7 @@ const notSameMovement = [];
 for (const [from, to] of pairs) {
   const record = recordById.get(to);
   if (!record) continue;
-  const oldName = templateNames[from];
+  const oldName = WAS_CALLED[from];
   if (!oldName) continue;
   if (canonicalExerciseName(oldName) !== record.name) {
     notSameMovement.push(`${from} "${oldName}" -> ${to} "${record.name}"`);
@@ -144,7 +296,7 @@ function implementsIn(name) {
 }
 const crossedImplements = [];
 for (const [from, to] of pairs) {
-  const a = implementsIn(templateNames[from] ?? '');
+  const a = implementsIn(WAS_CALLED[from] ?? '');
   const b = implementsIn(recordById.get(to)?.name ?? '');
   // A qualifier the library adds is fine ("Back Squat" becoming "Barbell Back
   // Squat"). A qualifier SWAPPED for a different one is not.

@@ -86,6 +86,23 @@ const DISCLAIMS_IMPACT =
  */
 const SEATED_MACHINE = /\bbike|cycling|\berg\b|rower|rowing|elliptical|airdyne|arc trainer|\bswim/i;
 
+/**
+ * …and where "running" is not running at all, deleted before any of it is read.
+ *
+ * Reachable since the old catalogue went and the prescriptions being read
+ * became Archie's own, which are written as sentences rather than as terse
+ * catalogue lines. Two of them use the word in a sense with nothing to do with
+ * leaving the ground - a bar "running along your side", a treadmill walk that
+ * "should feel like hard work to talk, not like running" - and a treadmill walk
+ * is one of the few hard conditioning options a sore knee can actually keep.
+ *
+ * Deleted rather than forgiven, which is the same choice lib/exercise-safety.ts
+ * makes in IMPACT_WORD_SENSE: a prescription that said "not like running" and
+ * then prescribed twenty broad jumps is still read as landing.
+ */
+const NOT_LOCOMOTION =
+  /\b(?:not like|rather than|instead of)\s+(?:a\s+)?(?:running|jogging|jumping|sprinting|run|jog)\b|\brunning (?:along|down|up|across|over|through|between|behind|beside)\b/gi;
+
 const prescriptionByName = new Map(
   getAllPickableExercises().map(({ template: t }) => [t.name.toLowerCase(), `${t.reps} ${t.cue}`])
 );
@@ -93,7 +110,10 @@ const prescriptionByName = new Map(
 /** Does this exercise ask the user to leave the ground? */
 function lands(name) {
   if (IMPACT_WORDS.test(name)) return true;
-  const prescription = prescriptionByName.get(name.toLowerCase()) ?? '';
+  const prescription = (prescriptionByName.get(name.toLowerCase()) ?? '').replace(
+    NOT_LOCOMOTION,
+    ' '
+  );
   if (!IMPACT_WORDS.test(prescription)) return false;
   if (DISCLAIMS_IMPACT.test(prescription)) return false;
   return !SEATED_MACHINE.test(name);

@@ -109,23 +109,21 @@ for (const [label, readiness] of scenarios) {
   );
 }
 
-// A grip variant must keep the base's video — that was a condition of accepting
-// the variant in the first place.
-const { applyGripVariant, GRIP_VARIANTS } = await import('../lib/grip-variants.ts');
-const base = {
-  id: 'x',
-  name: Object.keys(GRIP_VARIANTS)[0],
-  cue: 'c',
-  sets: 3,
-  reps: '8',
-  suggestedLoad: 'Bodyweight',
-  videoId: 'abc123',
-};
-check(
-  'a grip variant keeps the base video',
-  applyGripVariant(base, 1).videoId === 'abc123',
-  'variants were only accepted where the base footage still teaches the movement'
-);
+/**
+ * THE GRIP VARIANTS ARE GONE, AND SO IS THE ASSERTION THAT GUARDED THEM.
+ *
+ * lib/grip-variants.ts took an exercise and handed back a close-grip or
+ * wide-grip version of it, keeping the base movement's footage because a
+ * narrower grip on a bench press is still a bench press to watch. The Train
+ * generator stopped calling it when the library took over, and the file has now
+ * gone with the catalogue it served. A library record IS its own row - its own
+ * id, its own level, its own video or an honest blank - so there is no variant
+ * left that has to borrow somebody else's footage.
+ *
+ * The promise it made is kept by the sweeps above instead: every card of every
+ * generated session carries a videoId field, whatever produced it.
+ */
+
 
 console.log('');
 if (failures > 0) {

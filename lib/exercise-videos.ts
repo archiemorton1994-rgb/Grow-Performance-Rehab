@@ -67,7 +67,7 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'Dumbbell Bench Press': 'https://www.youtube.com/shorts/lV1C-jOp55g',
   'Glute Bridge': 'https://www.youtube.com/shorts/PKXzz7XSxv4',
   'Landmine Press': 'https://www.youtube.com/shorts/vL4UV9-NY_o',
-  'Push-Up': 'https://www.youtube.com/shorts/f4LAlzZ7jMs',
+  'Push Up': 'https://www.youtube.com/shorts/f4LAlzZ7jMs',
   'Squat Jump': 'https://www.youtube.com/shorts/mHL97bDjXdM',
 
   // ── Movements added BECAUSE they had been filmed ───────────────────────
@@ -87,7 +87,7 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'KB Romanian Deadlift': 'https://www.youtube.com/shorts/QffukPkOKsg',
   'KB Side Lunge': 'https://www.youtube.com/shorts/eI6JDGd2Nf0',
   'Kneeling Rock-Back': 'https://www.youtube.com/shorts/JS9vTaMTfwM',
-  'Med Ball Floor Chest Pass': 'https://www.youtube.com/shorts/9hWzbW2XQ9c',
+  'Medball Floor Chest Pass': 'https://www.youtube.com/shorts/9hWzbW2XQ9c',
   'Plank': 'https://www.youtube.com/shorts/iH-ZhUE3j3U',
   'Seated Box Jump': 'https://www.youtube.com/shorts/n76RaN51AFg',
   'Seated Shoulder External Rotation (Band)': 'https://www.youtube.com/shorts/JqRjE-haFOM',
@@ -101,7 +101,7 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'Supine Med Ball Throw': 'https://www.youtube.com/shorts/3GCUM05ig5o',
   'Trap Bar Deadlift': 'https://www.youtube.com/shorts/3yjg8We2hEc',
   'Trap Bar Jump': 'https://www.youtube.com/shorts/CRWrBIcRJKg',
-  'Trap Bar Romanian Deadlift': 'https://www.youtube.com/shorts/sK90sn5FYgo',
+  'Trapbar Romanian Deadlift': 'https://www.youtube.com/shorts/sK90sn5FYgo',
   'Trap Bar Row': 'https://www.youtube.com/shorts/5jnD2PFf_Mc',
 
   // ── Decided by Archie, 13 Aug 2026 ────────────────────────────────────
@@ -208,7 +208,7 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   // video "Landmine Romanian Deadlifts"
   'Landmine Romanian Deadlift': 'https://www.youtube.com/shorts/J-vaoprV2uM',
   // video "Landmine Split Stance Romanian Deadlifts"
-  'Landmine Split-Stance Romanian Deadlift': 'https://www.youtube.com/shorts/R-l6_GQMJ_M',
+  'Landmine Split Stance Romanian Deadlift': 'https://www.youtube.com/shorts/R-l6_GQMJ_M',
   // video "Landmine Split Squats"
   'Landmine Split Squat': 'https://www.youtube.com/shorts/TGb7vq84olQ',
   // video "Landmine Goblet Squats"
@@ -337,3 +337,107 @@ function lookup(name: string): string | undefined {
 export function mappedExerciseNames(): string[] {
   return Object.keys(EXERCISE_VIDEOS);
 }
+
+/**
+ * FILMED, AND THE MOVEMENT IS NOT ON ARCHIE'S LIST.
+ *
+ * Eighty-one of the mappings above are for exercises the app used to have and
+ * does not any more: the old Train catalogue was deleted when every session
+ * moved onto docs/EXERCISE-LIBRARY.md, and it took a cable lateral raise, a
+ * hammer curl, a barbell good morning and seventy-eight others with it.
+ *
+ * THE MAPPINGS STAY, and this list is why. The footage exists and is the only
+ * record of which video demonstrates which movement - the channel snapshot in
+ * scripts/channel-videos.json holds titles and ids, not what they are for. If
+ * Archie adds a hammer curl to the library next month, its video is already
+ * attached and nobody has to remember that it was filmed.
+ *
+ * Written out rather than counted, so that a mapping added with a TYPO in the
+ * name is not quietly waved through as one more exercise the app does not have.
+ * tests/exercise-videos.check.mjs asserts this list and the orphans agree in
+ * BOTH directions: a new orphan fails, and a name that comes back into the app
+ * has to be taken off this list.
+ */
+export const VIDEO_NAMES_NOT_IN_THE_APP: readonly string[] = [
+  '90/90 Hip Switch',
+  'Alternating Dumbbell Curl',
+  'Alternating Dumbbell Overhead Press',
+  'Ankle Dorsiflexion Drill',
+  'Back Squat',
+  'Banded Good Morning',
+  'Banded Lateral Walk',
+  'Banded March',
+  'Banded Monster Walk',
+  'Banded VMO Extension',
+  'Barbell Bulgarian Split Squat',
+  'Barbell Good Morning',
+  'Bench Dumbbell Reverse Fly',
+  'Bent-Knee Calf Raise',
+  'Bent-Knee Single-Leg Calf Raise',
+  'Bodyweight Hip Hinge',
+  'Bodyweight Squat',
+  'Box Jump (Step-Down)',
+  'Box Squat',
+  'Cable Hip Abduction',
+  'Cable Hip Extension',
+  'Cable Hip Flexion',
+  'Cable Lateral Raise',
+  'Calf Raise',
+  'Chin-Up',
+  'DB Bicep Curl',
+  'DB Bulgarian Split Squat',
+  'DB Face Pull',
+  'DB Hammer Curl',
+  'DB Lateral Raise',
+  'DB Shoulder Press',
+  'DB Split Squat Jump',
+  'DB Split-Stance Romanian Deadlift',
+  'DB Squat Jump',
+  'Depth Jump',
+  'Dumbbell Walking Lunge',
+  'Goblet Squat',
+  'Gorilla Row',
+  'Incline DB Press',
+  'KB / DB Swing',
+  'KB Romanian Deadlift',
+  'KB Side Lunge',
+  'KB Swing (Explosive)',
+  'KB Swing (Steady)',
+  'Kneeling Rock-Back',
+  'Landmine Goblet Squat',
+  'Landmine Single-Arm Row',
+  'Landmine Split Squat',
+  'Lat Pulldown',
+  'Lateral Leg Swing',
+  'Lateral Lunge',
+  'Leg Swing',
+  'Loaded Jump Squat',
+  'Med Ball Overhead Slam',
+  'Plank Shoulder Tap',
+  'Pull-Up',
+  'Seated Box Jump',
+  'Seated Butterfly',
+  'Seated Cable Row',
+  'Seated Calf Raise',
+  'Seated DB Lateral Raise',
+  'Seated DB Shoulder Press',
+  'Seated Shoulder External Rotation (Band)',
+  'Seated Single-Arm Cable Row',
+  'Seated Wide-Grip Cable Row',
+  'Shoulder CARs (Controlled Articular Rotations)',
+  'Single Arm Cable Extension',
+  'Single-Arm Cable Curl',
+  'Single-Arm Dumbbell Overhead Press',
+  'Skater Jump',
+  'Sled Push/Pull Complex',
+  'Sled Row',
+  'Spanish Squat',
+  'Split Squat Jump',
+  'Standing Dumbbell Row',
+  'Supine Med Ball Throw',
+  'Tib Raise',
+  'Trap Bar Deadlift',
+  'Trap Bar Jump',
+  'Trap Bar Row',
+  'Weighted Seated Calf Raise',
+];

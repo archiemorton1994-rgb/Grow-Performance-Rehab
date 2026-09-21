@@ -53,7 +53,9 @@ globalThis.Date = class FixedDate extends RealDate {
 // Imported after the clock is frozen, so nothing in lib/ can read the real one.
 const { generateWorkout } = await import('../lib/workout-engine.ts');
 const { SESSION_POOLS } = await import('../lib/exercise-db.ts');
-const { CARDIO_MACHINES } = await import('../lib/cardio-warmup.ts');
+const { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } = await import(
+  '../lib/exercise-library.ts'
+);
 
 let failures = 0;
 let total = 0;
@@ -90,88 +92,29 @@ function arraysIn(value, out = []) {
 }
 
 /**
- * MOST OF THE TABLES ARE NOT POOLS ANY MORE, and that is the point.
+ * EVERY LIST A SESSION IS NOW BUILT FROM, AND THERE ARE ONLY SEVEN.
  *
- * Nothing in the app builds a session out of any of them, so emptying one
- * changes nothing and the "the pool really was emptied" half of section 2 would
- * correctly fail on it. They are still in SESSION_POOLS because the exercises
- * somebody logged out of them years ago have to keep resolving to a name on the
- * history screens.
+ * This was twenty-two entries long and eighteen of them were the old Train
+ * catalogue - MAIN_LIFTS, ACCESSORIES, PREP, MECHANICAL, NEURO, the two POWER
+ * pools, FINISHERS, the four CONDITIONING pools, GOAL_CONDITIONING_BLOCKS,
+ * ORM_TEST and the three WEEKLY tables. They were held on a separate
+ * "unreached" list with a whole section asserting that emptying them changed
+ * nothing, which was the right guard while they were still in the file. They
+ * are deleted now, so there is nothing left to assert about them and that
+ * section has gone with them.
  *
- *   ORM_TEST - the 1RM testing protocols. Strength test weeks are retired and
- *     the generator that read them is deleted.
- *
- *   MECHANICAL, POWER_MECHANICAL, NEURO and GOAL_CONDITIONING_BLOCKS - the
- *     priming, explosive and goal-conditioning blocks of the old lift-day
- *     generator. That generator was only ever reached through the session ids
- *     'squat', 'bench' and 'deadlift', and those now build a lower, upper or
- *     full body session instead (lib/session-type.ts), so the branch that reads
- *     these four is unreachable.
- *
- *   WEEKLY_LOWER_BODY, WEEKLY_UPPER_BODY and WEEKLY_FULL_BODY - the old main
- *     lifts of the three weekly sessions. All three types are built from
- *     Archie's library now (LIBRARY_LIVE_TYPES in lib/workout-engine.ts), and
- *     'squat', 'bench' and 'deadlift' map to them, so no session reads any of
- *     the three.
- *
- *   CARDIO_WARMUPS, ACCESSORIES, PREHAB, FINISHERS and CARDIO_MACHINES - the
- *     warm-up, the optional slots, the rehab slot, the finisher and the gym
- *     warm-up machines of the WEEKLY generator. Those five were live right up
- *     until Full Body switched over, because the weekly generator was the one
- *     path still reading them. With all three weekly types on the library, that
- *     generator builds nothing, and the whole of it went dark in one step: a
- *     library session takes its warm-up and its finisher off the nine
- *     conditioning records, its pattern slots off Archie's list and its cool
- *     down and its rehab slot out of Restore.
- *
- *   CONDITIONING_WORKOUTS, CONDITIONING_WARMUPS, CONDITIONING_FINISHERS and
- *     CONDITIONING_COOLDOWNS, plus PREP - the old conditioning session, and the
- *     stretches that were spliced into the top of it. Conditioning is built from
- *     Archie's nine conditioning records now, on an interval clock, and it takes
- *     its cool-down out of Restore (COOLDOWN, still live below). PREP went dark
- *     with it: the conditioning session was the last thing reading it, because
- *     the lift-day and weekly generators that also did are themselves
- *     unreachable. See lib/library-conditioning.ts.
- *
- * COOLDOWN is the one that is still live, and it is still tested in section 2:
- * the conditioning session closes on it, and the rehab and stretching sessions
- * are still built by the old engine.
- *
- * Listed here rather than quietly dropped, so section 5 can ASSERT the
- * unreachability instead of leaving it as a thing this file stopped looking at.
- * For the weekly tables that assertion is the whole point: emptying the old
- * lower, upper or full body lifts, or the accessories that hung off them, has
- * to change nothing, because no session may be built out of them any more.
+ * What is here instead is the real answer to "what would an empty pool cost
+ * somebody today": Archie's library, his nine conditioning records and the five
+ * Restore tables. Every one of them is read while a session is being built, so
+ * emptying any of them has to drop a block rather than throw - and section 2
+ * still proves each one really was emptied by requiring at least one session to
+ * come out different.
  */
-const UNREACHED_NAMES = [
-  'ORM_TEST',
-  'MECHANICAL',
-  'POWER_MECHANICAL',
-  'NEURO',
-  'GOAL_CONDITIONING_BLOCKS',
-  'WEEKLY_LOWER_BODY',
-  'WEEKLY_UPPER_BODY',
-  'WEEKLY_FULL_BODY',
-  'CARDIO_WARMUPS',
-  'ACCESSORIES',
-  'PREHAB',
-  'FINISHERS',
-  'PREP',
-  'CONDITIONING_WORKOUTS',
-  'CONDITIONING_WARMUPS',
-  'CONDITIONING_FINISHERS',
-  'CONDITIONING_COOLDOWNS',
+const POOLS = [
+  ...Object.entries(SESSION_POOLS).map(([name, value]) => ({ name, arrays: arraysIn(value) })),
+  { name: 'LIBRARY_EXERCISES', arrays: arraysIn(LIBRARY_EXERCISES) },
+  { name: 'CONDITIONING_EXERCISES', arrays: arraysIn(CONDITIONING_EXERCISES) },
 ];
-const UNREACHED_POOLS = [
-  ...UNREACHED_NAMES.map((name) => ({ name, arrays: arraysIn(SESSION_POOLS[name]) })),
-  // The gym warm-up machines live in their own file. They were only ever
-  // reached through the weekly generator's warm-up slot, so they went dark
-  // with it.
-  { name: 'CARDIO_MACHINES', arrays: arraysIn(CARDIO_MACHINES) },
-];
-const POOLS = Object.entries(SESSION_POOLS)
-  .filter(([name]) => !UNREACHED_NAMES.includes(name))
-  .map(([name, value]) => ({ name, arrays: arraysIn(value) }));
 
 function emptied(pools, run) {
   const arrays = [...new Set(pools.flatMap((p) => p.arrays))];
@@ -401,47 +344,6 @@ check(
   drifted.length === 0,
   firstFew(drifted)
 );
-
-// ─── 5. The retired tables are unreachable ───────────────────────────────────
-console.log('\n[5] Nothing builds a session out of the retired tables');
-
-for (const pool of UNREACHED_POOLS) {
-  check(
-    `${pool.name} still holds the exercises it always did`,
-    pool.arrays.length > 0 && pool.arrays.some((a) => a.length > 0),
-    'emptying an already-empty table would prove nothing about reachability'
-  );
-
-  const reach = emptied([pool], () => {
-    const built = buildAll();
-    const problems = [];
-    let differs = 0;
-    for (const [key, r] of built) {
-      for (const p of problemsWith(r)) problems.push(`${key}: ${p}`);
-      if (signature(r) !== signature(intact.get(key))) differs++;
-    }
-    return { problems, differs };
-  });
-  check(
-    `emptying ${pool.name} changes no session at all`,
-    reach.differs === 0,
-    `${reach.differs} session(s) changed, so some code path is still building out of ${pool.name}`
-  );
-  check(
-    `and every session still builds with no blank card while ${pool.name} is empty`,
-    reach.problems.length === 0,
-    firstFew(reach.problems)
-  );
-
-  const afterRetired = buildAll();
-  check(
-    `${pool.name} is put back exactly as it was`,
-    [...intact.keys()].every(
-      (key) => signature(afterRetired.get(key)) === signature(intact.get(key))
-    ),
-    'the table is history, so the check must not leave it damaged'
-  );
-}
 
 console.log(`\n${total - failures}/${total} passed`);
 process.exitCode = failures === 0 ? 0 : 1;

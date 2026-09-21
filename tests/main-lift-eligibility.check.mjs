@@ -92,14 +92,26 @@ const LIBRARY_ROLE = new Map(LIBRARY_EXERCISES.map((e) => [e.name.toLowerCase(),
 // ─── 1. The movements that are not lifts ─────────────────────────────────────
 console.log('\n[1] A hold, a kick and a stabiliser drill are not main lifts');
 
+/**
+ * RE-POINTED AT WHAT THE APP CAN ACTUALLY SERVE.
+ *
+ * Four of the six were old-catalogue exercises - a Dead Hang, a Donkey Kick, a
+ * DB Pullover and a Straight Arm Pulldown - and they are deleted. A name
+ * nothing can serve cannot be offered as a main lift, so asserting that it is
+ * not offered proves nothing at all.
+ *
+ * Each rule they stood for keeps an example the app still has: the grip is not
+ * a prime mover (a carry), the glute medius is not one either (a curtsy lunge),
+ * a scapular drill is not a lift (Restore's Scapular Setting), and a movement
+ * whose elbows never bend is not a pull (a Band Straight-Arm Press-Down).
+ */
 const DEMOTED = [
-  ['Dead Hang', 'a hang is not a lift, and the grip is not a prime mover'],
-  ['Donkey Kick', 'one joint, on all fours, against a band'],
+  ['Dumbbell Farmers Carry', 'a carry is held, not lifted, and the grip is not a prime mover'],
   ['Curtsy Lunge', 'glute-medius work — nobody builds a session on it'],
-  ['DB Pullover', 'the elbows never bend'],
-  // Caught by the same two rules, and just as wrong where they were.
-  ['Straight Arm Pulldown', 'the same movement as a pullover, on a cable'],
-  ['Scapular Push-Up', 'a scapular drill, listed under the serratus'],
+  ['Band Straight-Arm Press-Down (Short Range)', 'the elbows never bend'],
+  ['Scapular Setting (Isometric Squeeze)', 'a scapular drill, listed under the serratus'],
+  ['Wall Sit', 'an isometric hold is not a lift'],
+  ['Band Pull Aparts', 'a light band for the rear shoulder, one joint'],
 ];
 for (const [name, why] of DEMOTED) {
   const t = get(name);
@@ -133,23 +145,32 @@ check(
 // ─── 2. The real lifts survived ──────────────────────────────────────────────
 console.log('\n[2] The rules did not take the actual lifts with them');
 
+/**
+ * THE REAL LIFTS, IN ARCHIE'S SPELLINGS.
+ *
+ * The same sixteen movements as far as the library still has them: it holds no
+ * Leg Press, no Barbell Hip Thrust and no barbell bench or overhead press, so
+ * those are covered by the nearest thing on the list that does the same job.
+ * A name the app cannot serve cannot be verified as still able to lead a
+ * session, which is what every one of these read as after the purge.
+ */
 const KEPT = [
-  'Back Squat',
+  'Barbell Back Squat',
   'Barbell Deadlift',
-  'Barbell Bench Press',
+  'Dumbbell Bench Press',
   'Barbell Row',
-  'Overhead Press',
-  'Goblet Squat',
-  'Romanian Deadlift',
-  'Lat Pulldown',
-  'Leg Press',
-  'Pull-Up',
-  'Chin-Up',
-  'Push-Up',
+  'Standing Dumbbell Press',
+  'Kettlebell Goblet Squats',
+  'Kettlebell Romanian Deadlift',
+  'Lat Pulldowns',
+  'Trapbar Deadlift (low handles)',
+  'Pull Ups',
+  'Chin Ups',
+  'Push Up',
   'Bulgarian Split Squat',
-  'Barbell Hip Thrust',
-  'Inverted Row',
-  'DB Shoulder Press',
+  'Sumo Deadlift',
+  'Rack Rows',
+  'Seated Dumbbell Press',
 ];
 for (const name of KEPT) {
   const t = get(name);

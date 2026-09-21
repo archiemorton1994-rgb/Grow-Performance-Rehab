@@ -683,6 +683,9 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   const conditioningPool = CONDITIONING_EXERCISES.filter(
     (e) => hasAuthoredContent(e) && canPerformWith(e, equipment)
   );
+  /** The same pool by id, so the swap pass below can tell one of the nine from a
+   *  Restore drill that stood in for it. */
+  const conditioningById = new Map(conditioningPool.map((e) => [e.id, e]));
   const pulse = pickFrom(conditioningPool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
   if (pulse) {
     add({ ...templateToExercise(pulse), category: 'prep', sets: 1, suggestedLoad: 'Easy pace' });
@@ -763,7 +766,24 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
       role === 'main'
         ? Math.floor(n / MAIN_ROTATION_EVERY)
         : Math.floor(n / SLOT_ROTATION_EVERY) + i;
-    const pool = slotPool(pattern, ceiling, equipment);
+    const wholePool = slotPool(pattern, ceiling, equipment);
+    /**
+     * THE MAIN SLOT TAKES A MAIN LIFT, AND ARCHIE'S LIST SAYS WHICH THEY ARE.
+     *
+     * Every record carries a `role` - main, accessory or power - and the first
+     * slot is the exercise the session is built around. Walking the whole
+     * pattern pool for it put a Band Pull Apart at the top of a beginner's Upper
+     * Body session and a Wall Sit at the top of their Lower Body one: both are
+     * the right pattern, both are level 1, and neither is a lift. A beginner is
+     * the person most likely to meet this, because the shallow end of every
+     * pattern is where the accessory work lives.
+     *
+     * The whole pool is still there to fall back on. A pattern whose only owned
+     * record at this rung is an accessory gives an accessory rather than a gap:
+     * "no pressing at all today" is a worse answer than "pressing, lightly".
+     */
+    const mainPool = wholePool.filter((e) => e.role === 'main');
+    const pool = role === 'main' && mainPool.length > 0 ? mainPool : wholePool;
 
     /**
      * SCREEN BEFORE PICKING, and take the same pattern wherever one is clean.
@@ -799,10 +819,31 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * Nothing changes when nothing is blocked: `wanted` is chosen and the
      * second walk never runs.
      */
-    const easier =
-      wanted && !choosable(wanted) ? pool.filter((record) => record.level <= wanted.level) : [];
+    /**
+     * AND THE RUNG RULE OUTRANKS THE MAIN-LIFT RULE, in the one case they meet.
+     *
+     * The main slot is drawn from `mainPool` above, so the easier walk runs over
+     * the main lifts alone - and if none of those at or below the rung is clean
+     * today it would fall through to a HARDER main lift while an easier clean
+     * record of the same pattern sat in the accessory half of the pool. Measured:
+     * an upper body session at home with a sore wrist replaced Door Frame Rows
+     * (rung 1) with Bent Over Dumbbell Rows (rung 3).
+     *
+     * Which of the two rules gives way is a clinical question rather than a
+     * tidiness one, and it is not close. "The first slot should be a lift" is
+     * about how a session reads; "do not hand somebody more load than you were
+     * about to, straight after they told you something hurts" is the promise the
+     * substitution exists to keep. So the second walk widens to the whole pattern
+     * before the fall-through to a harder record, and the main-lift preference
+     * still decides every slot where nothing is blocked.
+     */
+    const atOrBelow = (from: readonly LibraryExercise[]) =>
+      wanted && !choosable(wanted) ? from.filter((record) => record.level <= wanted.level) : [];
+    const easier = atOrBelow(pool);
+    const easierAnyRole = pool === wholePool ? [] : atOrBelow(wholePool);
     const chosen =
       (easier.length > 0 ? pickFrom(easier, index, choosable) : null) ??
+      (easierAnyRole.length > 0 ? pickFrom(easierAnyRole, index, choosable) : null) ??
       pickFrom(pool, index, choosable);
     /**
      * Only labelled when today's areas are what moved it.
@@ -974,5 +1015,71 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   const eased = readiness.deload ? easeForDeloadWeek(targeted, loadUnit) : targeted;
   const capped = capToKit(eased, profile?.maxKitKg ?? 0, effectiveTier);
 
-  return { exercises: capped, gaps };
+  /**
+   * WHAT ELSE ON THE NINE THE PULSE RAISER AND THE FINISHER COULD BE.
+   *
+   * Every other card in this session is answered by `fillSwapAlternatives` in
+   * lib/workout-engine.ts, which walks the picker's index for exercises of the
+   * same CATEGORY. These two are the pair it cannot answer: the session files
+   * them as 'prep' and 'finisher', which are jobs in a session rather than
+   * anything a record calls itself, so the walk finds an empty category and
+   * offers nothing at all. Archie's rule about the button is plain -
+   * "EVERYthing should be swappable at least once, sometimes twice" - and a
+   * finisher with nothing behind it is the complaint that rule came from.
+   *
+   * So they are answered here, from the same nine the session drew them from,
+   * and only from the records this person can do today and is not already
+   * doing. Two cards built from one record share an id and the session screen
+   * logs sets against the id, so offering a record already in the session would
+   * write one card's sets on top of another's.
+   *
+   * WHICH MEANS AT HOME THE BUTTON CAN STILL BE EMPTY, and that is the honest
+   * answer: three of the nine need no equipment, and a home session that has
+   * already used two of them has one left to offer and then nothing. Reaching
+   * off Archie's list to fill it would put work in front of somebody that the
+   * rest of the app has stopped prescribing.
+   */
+  const conditioningRoles = new Set(['prep', 'finisher']);
+  const usedIds = new Set(capped.map((e) => e.id));
+  const usedNames = new Set(capped.map((e) => sameMovementKey(e.name)));
+  const spareConditioning = conditioningPool.filter(
+    (record) => !usedIds.has(record.id) && !usedNames.has(sameMovementKey(record.name))
+  );
+  /**
+   * AND THE MOBILITY DRILLS, WHICH HAVE THE SAME PROBLEM FOR THE SAME REASON.
+   *
+   * A mobility card is a Restore drill filed as 'prep' because that is its job
+   * here, and no template calls itself 'prep', so the engine's category walk
+   * finds nothing for it either. A Copenhagen Adductor Hold was left with
+   * nothing behind its button on every session that opened with one.
+   */
+  const spareMobility = mobilityPool.filter(
+    (t) => !usedIds.has(t.id) && !usedNames.has(sameMovementKey(t.name))
+  );
+  const mobilityByName = new Map(mobilityPool.map((t) => [sameMovementKey(t.name), t]));
+  const withOwnSwaps = capped.map((card) => {
+    if (!conditioningRoles.has(card.category) || card.safetyNote) return card;
+    const fromNine = conditioningById.has(card.id);
+    const fromRestore = mobilityByName.has(sameMovementKey(card.name));
+    if (!fromNine && !fromRestore) return card;
+    const options = (fromNine ? spareConditioning : spareMobility).filter((record) =>
+      choosable(record)
+    );
+    if (options.length === 0) return card;
+    const [first, second] = options;
+    return {
+      ...card,
+      hasSwap: true,
+      swapId: first.id,
+      swapName: first.name,
+      swapCue: first.cue,
+      swapLoad: first.suggestedLoad,
+      swap2Id: second?.id,
+      swap2Name: second?.name,
+      swap2Cue: second?.cue,
+      swap2Load: second?.suggestedLoad,
+    };
+  });
+
+  return { exercises: withOwnSwaps, gaps };
 }

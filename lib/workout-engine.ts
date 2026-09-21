@@ -20,7 +20,8 @@ import { trainTypeOf, type TrainSessionType } from './session-type';
 import { kgToDisplayUnit, roundToLoadable, toLoadableForUnit } from './utils';
 // Same reasoning as session-type above: lib/kit.ts imports nothing from the
 // store at runtime, so reading the supply-tier rule from it adds no edge back.
-import { isSupplyTier } from './kit';
+import { canPerformWith as canPerformWithKit, isSupplyTier } from './kit';
+import type { KitDemand } from './kit';
 /**
  * The library builder, which this module also supplies with its own helpers.
  *
@@ -31,7 +32,11 @@ import { isSupplyTier } from './kit';
  * anything from the other while it is being loaded - every reference is inside a
  * function body - so the cycle never has a half-built module to resolve.
  */
-import { generateLibrarySession, type LibrarySessionType } from './library-session';
+import {
+  generateLibrarySession,
+  levelCeilingFor,
+  type LibrarySessionType,
+} from './library-session';
 // Same cycle, same reason: the conditioning session is built from Archie's nine
 // records and reuses this module's injury screen and easier week, and the one
 // door every session comes through is `generateWorkout` below.
@@ -2073,6 +2078,9 @@ export function generateWorkout(
  *  is available to them. */
 const TIER_RANK: InternalTier[] = ['bodyweight', 'dumbbells', 'fullgym'];
 
+/** What a beginner is never OFFERED, mirroring the library builder's own rule. */
+const BEGINNER_NEVER_SET = new Set<StressTag>(['high_impact']);
+
 /**
  * Every safe stand-in for a movement, best match first.
  *
@@ -2096,6 +2104,73 @@ interface AlternativePool {
   byName: Map<string, PickableExercise>;
   source?: ExerciseTemplate;
   isUsable: (p: PickableExercise) => boolean;
+}
+
+/**
+ * RESTORE'S OPENING INSTRUCTION, WHICH IS NOT A MOVEMENT AND NOT A TRAIN CARD.
+ *
+ * The standalone Joint Health session opens on ph-s-1, "Cardio Warm-Up (Easy
+ * Walk / Bike)". Inside Restore that is exactly right: it is the sentence that
+ * says "get warm before any of this". It has no video, nothing to demonstrate,
+ * and it names a stationary bike the app stopped offering months ago.
+ *
+ * On a Train card it was reachable one tap behind the button - a mobility drill
+ * in a Lower Body session offered it as an alternative - which is the same
+ * fault as generating it, with an extra step. The pulse raiser stopped standing
+ * in with it in this phase; this is the other door.
+ *
+ * Found by its CATEGORY in Restore's own list rather than by its id, so a
+ * second instruction card added to the head of that session is covered the day
+ * it lands. Restore sessions are unaffected: they pass a `within` of their own
+ * and keep offering their whole list to themselves.
+ */
+let _restoreOpeners: Set<string> | null = null;
+function isRestoreOpener(name: string): boolean {
+  if (!_restoreOpeners) {
+    _restoreOpeners = new Set(
+      getStandalonePrehabWorkout()
+        .filter((t) => t.category === 'prep')
+        .map((t) => t.name.toLowerCase())
+    );
+  }
+  return _restoreOpeners.has(name.toLowerCase());
+}
+
+/**
+ * CAN THEY DO THIS, ASKED OF WHICHEVER KIT MODEL THE EXERCISE ANSWERS TO.
+ *
+ * Two live at once, and they are not interchangeable. A Restore drill declares
+ * `equipmentRequired`, one of the three rungs, which is the model this file was
+ * written against: a rung test plus `canPerformWith`. A library or conditioning
+ * record declares `kit`, an AND of ORs, so "Box or Bench" and "Barbell and
+ * Plates" can both be said exactly.
+ *
+ * A record's `equipmentRequired` is a HOLDING ANSWER - see the docblock in
+ * lib/exercise-library.ts. It says 'bodyweight' when the record needs nothing
+ * and 'fullgym' when it needs anything at all, which was the safe reading while
+ * nothing read `kit`. Asked through it here, every dumbbell, kettlebell, band
+ * and weight-plate record in the library reads as gym-only, and the swap button
+ * empties for everybody training at home: measured on a bodyweight Upper Body
+ * session, the press-up, the rows and the kneeling press-up were all left with
+ * nothing at all behind them, while Deficit Press Ups - which needs a block,
+ * and a block is always owned - sat there unreachable.
+ *
+ * So a record is asked with its own kit and nothing else, because that answer
+ * is exact and the rung it was filed under is a guess. Everything that has no
+ * kit line keeps both tests it already had. Neither model is loosened; they are
+ * each asked only the question they can answer.
+ */
+function ownsIt(p: PickableExercise, tier: EquipmentTier, tierRank: number): boolean {
+  // The WHOLE record, not a copy of its kit line. `canPerformWith` reads
+  // libraryName as well, to know where decision 5 lets a dumbbell stand in for
+  // a kettlebell - so a copy carrying only `kit` quietly loses every kettlebell
+  // exercise a dumbbell owner is allowed to do.
+  const demand = p.template as unknown as KitDemand;
+  if (Array.isArray(demand.kit)) return canPerformWithKit(demand, [tier]);
+  return (
+    p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
+    canPerformWith(p.template.equipmentRequired, [tier])
+  );
 }
 
 /**
@@ -2160,7 +2235,25 @@ function alternativePool(
    * which is every Train session. A Restore session passes the Restore test -
    * see hasRestoreRow.
    */
-  within?: (t: ExerciseTemplate) => boolean
+  within?: (t: ExerciseTemplate) => boolean,
+  /**
+   * AND THE PERSON, FOR THE TWO RULES A LIST OF TAGS CANNOT CARRY.
+   *
+   * The library files every exercise at one of four levels, and that ceiling is
+   * the only thing between a brand-new beginner and a depth jump. The session
+   * builder applies it when it PICKS; this applies it when the app OFFERS,
+   * which became reachable the moment the picker index became the library. A
+   * pain-free beginner could be shown Split Squat Jumps behind the button on a
+   * card they were given precisely because it is gentle.
+   *
+   * The beginner impact rule rides with it for the same reason. It is not a
+   * pain adaptation - nothing is swapped and labelled - so it is not in the
+   * banned set, which is empty for somebody with nothing sore.
+   *
+   * Absent means no ceiling, which is what a caller with no profile has always
+   * had and is correct for Restore: a rehab drill is not a rung of the ladder.
+   */
+  profile?: UserProfile
 ): AlternativePool {
   const pickable = getAllPickableExercises();
   const byName = pickableByName();
@@ -2169,6 +2262,25 @@ function alternativePool(
 
   const isClean = (t: ExerciseTemplate) =>
     restrictedTagsOn(t.name, banned, t.movementPattern).length === 0;
+
+  /**
+   * NOT ABOVE THE RUNG THEY HAVE REACHED, AND NOTHING THAT LANDS FOR A BEGINNER.
+   *
+   * Both are the library builder's `neverChoose` rules, asked again of what the
+   * app OFFERS rather than of what it picks. A record with no level is Restore
+   * or one of the nine, which have no rung and are not meant to: a rehab drill
+   * is not a step on the strength ladder.
+   */
+  const ceiling = profile ? levelCeilingFor(profile) : null;
+  const beginner = profile?.experienceLevel === 'beginner';
+  const withinCeiling = (t: ExerciseTemplate) => {
+    if (beginner && restrictedTagsOn(t.name, BEGINNER_NEVER_SET, t.movementPattern).length > 0) {
+      return false;
+    }
+    if (ceiling === null) return true;
+    const level = (t as { level?: number }).level;
+    return typeof level !== 'number' || level <= ceiling;
+  };
   // A stand-in has to train the same half of the body. Without this, a
   // lower-body session with a sore quad had its main lift replaced by a BENCH
   // PRESS and an accessory by a FACE PULL — both safe for the quad, neither a
@@ -2183,12 +2295,15 @@ function alternativePool(
   // lift, because the dumbbell and bodyweight squats were invisible to it.
   const tierRank = TIER_RANK.indexOf(internal);
   const isUsable = (p: PickableExercise) =>
-    p.tiers.some((t) => TIER_RANK.indexOf(t) <= tierRank) &&
-    // AND the kit it actually needs. The rank test above is a three-rung ladder
-    // that cannot tell a band from a press-up, so somebody who ticked "No
-    // Equipment" was offered banded stand-ins behind the swap button and as
-    // forced injury substitutions. canPerformWith asks the real question.
-    canPerformWith(p.template.equipmentRequired, [tier]) &&
+    // The kit they actually have, asked the way this exercise can answer it.
+    // Somebody who ticked "No Equipment" was being offered banded stand-ins
+    // behind the swap button and as forced injury substitutions; a library
+    // record filed 'fullgym' as a holding answer was invisible to everybody
+    // training at home. See ownsIt.
+    ownsIt(p, tier, tierRank) &&
+    // Restore's opening instruction stays inside Restore. See isRestoreOpener.
+    (!!within || !isRestoreOpener(p.template.name)) &&
+    withinCeiling(p.template) &&
     !usedNames.has(p.template.name.toLowerCase()) &&
     // The set carries ids as well as names — see fillSwapAlternatives. An
     // exercise already on another card cannot be offered as an alternative
@@ -2207,14 +2322,17 @@ function rankedAlternatives(
   banned: Set<StressTag>,
   tier: EquipmentTier,
   usedNames: Set<string>,
-  within?: (t: ExerciseTemplate) => boolean
+  within?: (t: ExerciseTemplate) => boolean,
+  /** Whose session this is, for the level ceiling. See alternativePool. */
+  profile?: UserProfile
 ): ExerciseTemplate[] {
   const { pickable, byName, source, isUsable } = alternativePool(
     original,
     banned,
     tier,
     usedNames,
-    within
+    within,
+    profile
   );
 
   const ranked: ExerciseTemplate[] = [];
@@ -2287,9 +2405,11 @@ function findSafeReplacement(
   banned: Set<StressTag>,
   tier: EquipmentTier,
   usedNames: Set<string>,
-  seed: number
+  seed: number,
+  /** Whose session this is, for the level ceiling. See alternativePool. */
+  profile?: UserProfile
 ): ExerciseTemplate | null {
-  const ranked = rankedAlternatives(original, banned, tier, usedNames);
+  const ranked = rankedAlternatives(original, banned, tier, usedNames, undefined, profile);
   if (ranked.length > 0) {
     // Seeded rather than always-first so the same session regenerated produces
     // the same substitution, but two different sessions do not both land on the
@@ -2494,7 +2614,9 @@ function sameJobAlternatives(
   used: Set<string>,
   seed: number,
   /** The list boundary - see alternativePool. Restore sessions stay in Restore. */
-  within?: (t: ExerciseTemplate) => boolean
+  within?: (t: ExerciseTemplate) => boolean,
+  /** Whose session this is, for the level ceiling. See alternativePool. */
+  profile?: UserProfile
 ): SwapOption[] {
   const source = pickableByName().get(ex.name.toLowerCase())?.template;
   const area = bodyRegionOf(ex.primaryMuscle ?? source?.primaryMuscle);
@@ -2558,7 +2680,7 @@ function sameJobAlternatives(
   const isAccommodation = (t: ExerciseTemplate) =>
     disclaimsLengthening(`${t.name} ${t.cue ?? ''}`);
 
-  const candidates = rankedAlternatives(ex, banned, tier, used, within).filter(
+  const candidates = rankedAlternatives(ex, banned, tier, used, within, profile).filter(
     (t) =>
       t.name !== ex.name &&
       t.category === ex.category &&
@@ -2599,7 +2721,7 @@ function sameJobAlternatives(
    */
   if (out.length === 0 && ex.category === 'cooldown') {
     take(
-      rankedAlternatives(ex, banned, tier, used, within).filter(
+      rankedAlternatives(ex, banned, tier, used, within, profile).filter(
         (t) => t.name !== ex.name && t.category === 'cooldown' && cueIsClean(t)
       ),
       'Another way to finish.'
@@ -2701,7 +2823,15 @@ export function fillSwapAlternatives(
     // all. See sameJobAlternatives for why they cannot go through the general
     // fill, and why leaving them with nothing was the worse of the two answers.
     if (ex.category === 'cooldown' || ex.category === 'prehab') {
-      const options = sameJobAlternatives(ex, banned, tier, new Set(inSession), seed + i, within);
+      const options = sameJobAlternatives(
+        ex,
+        banned,
+        tier,
+        new Set(inSession),
+        seed + i,
+        within,
+        profile
+      );
       if (options.length === 0) return ex;
       return {
         ...ex,
@@ -2724,7 +2854,7 @@ export function fillSwapAlternatives(
     // `inSession` still contains this exercise's own name, so it can never be
     // offered as its own alternative.
     const used = new Set(inSession);
-    const { byName, source, isUsable } = alternativePool(ex, banned, tier, used, within);
+    const { byName, source, isUsable } = alternativePool(ex, banned, tier, used, within, profile);
     // What the comparison needs to know about the exercise on the card. The
     // generated exercise carries the name it is shown under, and the card and
     // the catalogue entry are not always the same record - a library session
@@ -2917,7 +3047,9 @@ export function fillSwapAlternatives(
     //     back to the ranking the injury screen uses, so the button still does
     //     something. Labelled as the weaker claim it is.
     if (options.length < SWAP_OPTIONS) {
-      const ranked = rankedAlternatives(ex, banned, tier, used, within).filter((t) => t.name !== ex.name);
+      const ranked = rankedAlternatives(ex, banned, tier, used, within, profile).filter(
+        (t) => t.name !== ex.name
+      );
       for (const t of rotate(ranked, seed + i)) {
         if (options.length >= SWAP_OPTIONS) break;
         if (options.some((o) => o.name === t.name)) continue;
@@ -3016,7 +3148,14 @@ export function applyInjurySafety(
       return;
     }
     usedNames.delete(ex.name.toLowerCase());
-    const replacement = findSafeReplacement(ex, bannedForSubstitution, tier, usedNames, seed + i);
+    const replacement = findSafeReplacement(
+      ex,
+      bannedForSubstitution,
+      tier,
+      usedNames,
+      seed + i,
+      profile
+    );
     if (!replacement) {
       // Nothing safe to put here. Optional blocks go; anything else stays, with
       // the warning attached — silently deleting someone's main lift and saying

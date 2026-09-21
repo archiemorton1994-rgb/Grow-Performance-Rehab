@@ -3,7 +3,6 @@ import { EquipmentTier, ExerciseCategory, ExperienceLevel, SessionType, PainRegi
 // they are the safety-critical half of the rehab content and need to be
 // readable on their own, not buried at line 18,000 of a 20,000-line database.
 import { ACUTE_PREHAB_BY_REGION } from './acute-rehab';
-import { CHANNEL_EXERCISES } from './channel-exercises';
 // The one fact this file needs about the new kit model: which equipment
 // answers are supplies rather than rungs. lib/kit.ts has no runtime imports
 // from here, so there is no cycle.
@@ -10043,20 +10042,6 @@ const PREHAB: Record<MainSessionType, Record<InternalTier, ExerciseTemplate[]>> 
  * are generated into sessions, offered in the custom builder and counted in the
  * catalogue exactly like anything declared inline.
  */
-function spliceChannelExercises(): void {
-  const pools = { ACCESSORIES, NEURO, PREP, PREHAB };
-  for (const entry of CHANNEL_EXERCISES) {
-    if (entry.collection === 'FINISHERS') {
-      // FINISHERS nests one level deeper, by how hard the session is meant to
-      // be. A new finisher joins the normal tier; easy and hard are deliberate
-      // selections, not a place to append to.
-      FINISHERS[entry.sessionType][entry.tier].normal.push(entry.template);
-      continue;
-    }
-    pools[entry.collection][entry.sessionType][entry.tier].push(entry.template);
-  }
-}
-
 const FINISHERS: Record<
   MainSessionType,
   Record<
@@ -20716,42 +20701,33 @@ export function getWeeklyFullBodyExercises(tier: EquipmentTier): ExerciseTemplat
 /**
  * Every pool a session generator reads from, by name.
  *
- * FOR tests/empty-pools.check.mjs, NOT FOR THE APP. The rebuild onto the
- * exercise library empties many of these, and a read of an empty pool used to
- * throw and take the whole session with it. That check empties each pool in
- * turn, in memory, and builds every kind of session to prove none of them
- * crashes or shows a blank card. It can only empty what it can reach, so a new
- * pool that a generator reads belongs in this list too.
+ * FOR tests/empty-pools.check.mjs, NOT FOR THE APP. That check empties each
+ * pool in turn, in memory, and builds every kind of session to prove none of
+ * them crashes or shows a blank card - because a read of an empty pool used to
+ * throw and take the whole session with it. It can only empty what it can
+ * reach, so a new pool that a generator reads belongs in this list too.
+ *
+ * WHAT IS LEFT ON IT IS RESTORE, and that is the point. It was twenty-two
+ * entries and eighteen of them were the old Train catalogue, which the library
+ * replaced. The library and the nine conditioning records are not here on
+ * purpose: they are not pools that can be empty in the sense this list means.
+ * A pool here is a cell keyed by session type and equipment tier that a
+ * generator indexes into blind; the library builders ask their own list what it
+ * holds, report an honest gap when it holds nothing, and are held to that by
+ * tests/train-library.check.mjs and tests/library-conditioning.check.mjs.
  *
  * The same arrays, not copies. Nothing in the app should read or change them
  * through here; the accessors above are the way in.
  *
- * Not listed: MAIN_LIFTS, POWER_NEURO and PREHAB_COOLDOWN_BY_REGION, which hold
- * one exercise per cell rather than a pool, so there is nothing to empty.
+ * Not listed: PREHAB_COOLDOWN_BY_REGION, which holds one exercise per cell
+ * rather than a pool, so there is nothing to empty.
  */
 export const SESSION_POOLS = {
-  CARDIO_WARMUPS,
-  PREP,
-  MECHANICAL,
-  POWER_MECHANICAL,
-  NEURO,
-  ACCESSORIES,
-  PREHAB,
-  FINISHERS,
   COOLDOWN,
-  CONDITIONING_WARMUPS,
-  CONDITIONING_WORKOUTS,
-  CONDITIONING_FINISHERS,
-  CONDITIONING_COOLDOWNS,
-  GOAL_CONDITIONING_BLOCKS,
-  ORM_TEST,
   STANDALONE_PREHAB,
   STANDALONE_FLEXIBILITY,
   PREHAB_BY_REGION,
   ACUTE_PREHAB_BY_REGION,
-  WEEKLY_LOWER_BODY,
-  WEEKLY_UPPER_BODY,
-  WEEKLY_FULL_BODY,
 };
 
 export interface PickableExercise {
@@ -20845,53 +20821,32 @@ export function getAllPickableExercises(): PickableExercise[] {
 
   walk(
     [
-      MAIN_LIFTS,
-      ACCESSORIES,
-      PREHAB_BY_REGION,
-
-      // The acute protocols were missing from every one of these lookups, so a
-
-      // rehab session shaded the wrong body parts on the summary map: the chest
-
-      // protocol lit up hip, lower back and core; the groin protocol never lit the
-
-      // groin. Their ids are unique (acute-NN-...), so adding the collection here
-
-      // fixes all 97 at once.
-
-      ACUTE_PREHAB_BY_REGION,
-      CARDIO_WARMUPS,
-      PREP,
-      MECHANICAL,
-      NEURO,
-      POWER_MECHANICAL,
-      POWER_NEURO,
-      PREHAB,
-      FINISHERS,
-      COOLDOWN,
-      CONDITIONING_WORKOUTS,
-      CONDITIONING_WARMUPS,
-      CONDITIONING_FINISHERS,
-      CONDITIONING_COOLDOWNS,
-      CONDITIONING_WARMUPS,
-      CONDITIONING_FINISHERS,
-      CONDITIONING_COOLDOWNS,
-      CONDITIONING_WARMUPS,
-      CONDITIONING_FINISHERS,
-      CONDITIONING_COOLDOWNS,
-      CONDITIONING_WARMUPS,
-      CONDITIONING_FINISHERS,
-      CONDITIONING_COOLDOWNS,
-      CONDITIONING_WARMUPS,
-      CONDITIONING_FINISHERS,
-      CONDITIONING_COOLDOWNS,
-      GOAL_CONDITIONING_BLOCKS,
+      /**
+       * ARCHIE'S LIBRARY, HIS NINE, AND WHAT RESTORE PRESCRIBES. THAT IS ALL.
+       *
+       * This list used to be twenty collections long, and everything but the last
+       * few was the old Train catalogue: MAIN_LIFTS, ACCESSORIES, PREP,
+       * MECHANICAL, NEURO, the two POWER pools, FINISHERS, the four CONDITIONING
+       * pools, GOAL_CONDITIONING_BLOCKS, ORM_TEST and the three WEEKLY tables.
+       * Every session type they fed is built from the library now, so a collection
+       * left in this walk would put deleted movements back into the app through
+       * the side door: the swap sheet, the injury screen's forced substitutions,
+       * the muscle maps, the video status document and the count on the paywall
+       * all read one of these walks.
+       *
+       * tests/library-only.check.mjs holds this to exactly the three lists, by
+       * name and in both directions: nothing reachable that has no record, and no
+       * record that cannot be reached.
+       */
+      LIBRARY_EXERCISES,
+      CONDITIONING_EXERCISES,
       STANDALONE_PREHAB,
-      PREHAB_COOLDOWN_BY_REGION,
       STANDALONE_FLEXIBILITY,
-      WEEKLY_LOWER_BODY,
-      WEEKLY_UPPER_BODY,
-      WEEKLY_FULL_BODY,
+      PREHAB_BY_REGION,
+      ACUTE_PREHAB_BY_REGION,
+      PREHAB_WARMUP,
+      PREHAB_COOLDOWN_BY_REGION,
+      COOLDOWN,
     ],
     null
   );
@@ -20948,55 +20903,32 @@ export function getExerciseCategoryMap(): Record<string, ExerciseCategory> {
   };
 
   walk([
-    CARDIO_WARMUPS,
-    PREP,
-    MECHANICAL,
-    NEURO,
-    POWER_MECHANICAL,
-    POWER_NEURO,
-    MAIN_LIFTS,
-    ACCESSORIES,
-    PREHAB,
-    FINISHERS,
-    COOLDOWN,
-    CONDITIONING_WORKOUTS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    ORM_TEST,
-    GOAL_CONDITIONING_BLOCKS,
+    /**
+     * ARCHIE'S LIBRARY, HIS NINE, AND WHAT RESTORE PRESCRIBES. THAT IS ALL.
+     *
+     * This list used to be twenty collections long, and everything but the last
+     * few was the old Train catalogue: MAIN_LIFTS, ACCESSORIES, PREP,
+     * MECHANICAL, NEURO, the two POWER pools, FINISHERS, the four CONDITIONING
+     * pools, GOAL_CONDITIONING_BLOCKS, ORM_TEST and the three WEEKLY tables.
+     * Every session type they fed is built from the library now, so a collection
+     * left in this walk would put deleted movements back into the app through
+     * the side door: the swap sheet, the injury screen's forced substitutions,
+     * the muscle maps, the video status document and the count on the paywall
+     * all read one of these walks.
+     *
+     * tests/library-only.check.mjs holds this to exactly the three lists, by
+     * name and in both directions: nothing reachable that has no record, and no
+     * record that cannot be reached.
+     */
+    LIBRARY_EXERCISES,
+    CONDITIONING_EXERCISES,
     STANDALONE_PREHAB,
+    STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
-
-    // The acute protocols were missing from every one of these lookups, so a
-
-    // rehab session shaded the wrong body parts on the summary map: the chest
-
-    // protocol lit up hip, lower back and core; the groin protocol never lit the
-
-    // groin. Their ids are unique (acute-NN-...), so adding the collection here
-
-    // fixes all 97 at once.
-
     ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
-    STANDALONE_FLEXIBILITY,
-    WEEKLY_LOWER_BODY,
-    WEEKLY_UPPER_BODY,
-    WEEKLY_FULL_BODY,
+    COOLDOWN,
   ]);
 
   _categoryMapCache = map;
@@ -21026,62 +20958,32 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
   };
 
   walk([
-    // FIRST, so that anything this file already knew keeps the answer it had.
-    // The library is here to cover the records nothing else in the app holds,
-    // not to restate the ones it shares an id with. A later write wins in this
-    // walk, so listing the library last would have quietly re-pointed every
-    // matched record's regions at the library's copy of them.
+    /**
+     * ARCHIE'S LIBRARY, HIS NINE, AND WHAT RESTORE PRESCRIBES. THAT IS ALL.
+     *
+     * This list used to be twenty collections long, and everything but the last
+     * few was the old Train catalogue: MAIN_LIFTS, ACCESSORIES, PREP,
+     * MECHANICAL, NEURO, the two POWER pools, FINISHERS, the four CONDITIONING
+     * pools, GOAL_CONDITIONING_BLOCKS, ORM_TEST and the three WEEKLY tables.
+     * Every session type they fed is built from the library now, so a collection
+     * left in this walk would put deleted movements back into the app through
+     * the side door: the swap sheet, the injury screen's forced substitutions,
+     * the muscle maps, the video status document and the count on the paywall
+     * all read one of these walks.
+     *
+     * tests/library-only.check.mjs holds this to exactly the three lists, by
+     * name and in both directions: nothing reachable that has no record, and no
+     * record that cannot be reached.
+     */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
-    CARDIO_WARMUPS,
-    PREP,
-    MECHANICAL,
-    NEURO,
-    POWER_MECHANICAL,
-    POWER_NEURO,
-    MAIN_LIFTS,
-    ACCESSORIES,
-    PREHAB,
-    FINISHERS,
-    COOLDOWN,
-    CONDITIONING_WORKOUTS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    ORM_TEST,
-    GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
+    STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
-
-    // The acute protocols were missing from every one of these lookups, so a
-
-    // rehab session shaded the wrong body parts on the summary map: the chest
-
-    // protocol lit up hip, lower back and core; the groin protocol never lit the
-
-    // groin. Their ids are unique (acute-NN-...), so adding the collection here
-
-    // fixes all 97 at once.
-
     ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
-    STANDALONE_FLEXIBILITY,
-    WEEKLY_LOWER_BODY,
-    WEEKLY_UPPER_BODY,
-    WEEKLY_FULL_BODY,
+    COOLDOWN,
   ]);
 
   _targetRegionsMapCache = map;
@@ -21136,59 +21038,32 @@ export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
   };
 
   walk([
-    // First, for the reason given in getExerciseTargetRegionsMap above: a name
-    // this file already indexes keeps the regions this file gave it.
+    /**
+     * ARCHIE'S LIBRARY, HIS NINE, AND WHAT RESTORE PRESCRIBES. THAT IS ALL.
+     *
+     * This list used to be twenty collections long, and everything but the last
+     * few was the old Train catalogue: MAIN_LIFTS, ACCESSORIES, PREP,
+     * MECHANICAL, NEURO, the two POWER pools, FINISHERS, the four CONDITIONING
+     * pools, GOAL_CONDITIONING_BLOCKS, ORM_TEST and the three WEEKLY tables.
+     * Every session type they fed is built from the library now, so a collection
+     * left in this walk would put deleted movements back into the app through
+     * the side door: the swap sheet, the injury screen's forced substitutions,
+     * the muscle maps, the video status document and the count on the paywall
+     * all read one of these walks.
+     *
+     * tests/library-only.check.mjs holds this to exactly the three lists, by
+     * name and in both directions: nothing reachable that has no record, and no
+     * record that cannot be reached.
+     */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
-    CARDIO_WARMUPS,
-    PREP,
-    MECHANICAL,
-    NEURO,
-    POWER_MECHANICAL,
-    POWER_NEURO,
-    MAIN_LIFTS,
-    ACCESSORIES,
-    PREHAB,
-    FINISHERS,
-    COOLDOWN,
-    CONDITIONING_WORKOUTS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    ORM_TEST,
-    GOAL_CONDITIONING_BLOCKS,
     STANDALONE_PREHAB,
+    STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
-
-    // The acute protocols were missing from every one of these lookups, so a
-
-    // rehab session shaded the wrong body parts on the summary map: the chest
-
-    // protocol lit up hip, lower back and core; the groin protocol never lit the
-
-    // groin. Their ids are unique (acute-NN-...), so adding the collection here
-
-    // fixes all 97 at once.
-
     ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
-    STANDALONE_FLEXIBILITY,
-    WEEKLY_LOWER_BODY,
-    WEEKLY_UPPER_BODY,
-    WEEKLY_FULL_BODY,
+    COOLDOWN,
   ]);
 
   for (const [name, regions] of Object.entries(fromVariants)) {
@@ -21222,64 +21097,38 @@ export function getExerciseNameMap(): Record<string, string> {
   };
 
   walk([
-    CARDIO_WARMUPS,
-    PREP,
-    MECHANICAL,
-    NEURO,
-    POWER_MECHANICAL,
-    POWER_NEURO,
-    MAIN_LIFTS,
-    ACCESSORIES,
-    PREHAB,
-    FINISHERS,
-    COOLDOWN,
-    CONDITIONING_WORKOUTS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    CONDITIONING_WARMUPS,
-    CONDITIONING_FINISHERS,
-    CONDITIONING_COOLDOWNS,
-    ORM_TEST,
-    GOAL_CONDITIONING_BLOCKS,
+    /**
+     * ARCHIE'S LIBRARY, HIS NINE, AND WHAT RESTORE PRESCRIBES. THAT IS ALL.
+     *
+     * This list used to be twenty collections long, and everything but the last
+     * few was the old Train catalogue: MAIN_LIFTS, ACCESSORIES, PREP,
+     * MECHANICAL, NEURO, the two POWER pools, FINISHERS, the four CONDITIONING
+     * pools, GOAL_CONDITIONING_BLOCKS, ORM_TEST and the three WEEKLY tables.
+     * Every session type they fed is built from the library now, so a collection
+     * left in this walk would put deleted movements back into the app through
+     * the side door: the swap sheet, the injury screen's forced substitutions,
+     * the muscle maps, the video status document and the count on the paywall
+     * all read one of these walks.
+     *
+     * tests/library-only.check.mjs holds this to exactly the three lists, by
+     * name and in both directions: nothing reachable that has no record, and no
+     * record that cannot be reached.
+     */
+    LIBRARY_EXERCISES,
+    CONDITIONING_EXERCISES,
     STANDALONE_PREHAB,
+    STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
-
-    // The acute protocols were missing from every one of these lookups, so a
-
-    // rehab session shaded the wrong body parts on the summary map: the chest
-
-    // protocol lit up hip, lower back and core; the groin protocol never lit the
-
-    // groin. Their ids are unique (acute-NN-...), so adding the collection here
-
-    // fixes all 97 at once.
-
     ACUTE_PREHAB_BY_REGION,
     PREHAB_WARMUP,
     PREHAB_COOLDOWN_BY_REGION,
-    STANDALONE_FLEXIBILITY,
-    WEEKLY_LOWER_BODY,
-    WEEKLY_UPPER_BODY,
-    WEEKLY_FULL_BODY,
+    COOLDOWN,
   ]);
 
   _nameMapCache = map;
   return map;
 }
 
-// Must run before anything reads a pool — EXERCISE_COUNT on the next line is
-// evaluated at module load and would otherwise be short by thirty.
-spliceChannelExercises();
 
 /**
  * LAZY, because this used to run on every cold start.

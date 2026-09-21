@@ -1422,7 +1422,9 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     secondaryMuscles: ['Glutes', 'Erector spinae'],
     targetRegions: ['hamstrings', 'glutes', 'hip_groin', 'lower_back'],
     videoId: '',
-    stress: ['loaded_hinge'],
+    // The cue says the hamstrings 'should pull tight', and hamstrings.avoid names
+    // this movement in as many words. See LENGTHENING_RULES in exercise-safety.
+    stress: ['loaded_hinge', 'hamstring_lengthen'],
   },
   {
     id: 'sq-acc-bw-2',
@@ -1488,7 +1490,9 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     secondaryMuscles: ['Glutes', 'Erector spinae', 'Core'],
     targetRegions: ['hamstrings', 'glutes', 'lower_back'],
     videoId: 'QffukPkOKsg',
-    stress: ['grip_load', 'loaded_hinge'],
+    // Same wording, same end range: the bell slides down 'until the hamstrings
+    // pull tight'. A hamstring at length under load is what an RDL is.
+    stress: ['grip_load', 'loaded_hinge', 'hamstring_lengthen'],
   },
   {
     id: 'lib-hinge-kettlebell-deadlift',

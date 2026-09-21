@@ -82,14 +82,31 @@ console.log('\nthe tag table now describes lengthening, not only loading\n');
  * tag it has to earn. These are RUN through stressTagsFor rather than read out
  * of the source, so a rule that stops matching fails here.
  */
+/**
+ * RE-POINTED AT WALL HIP HINGE, AND EVERY EXAMPLE IS NOW ONE THE APP SERVES.
+ *
+ * Four of the hamstring examples were old-catalogue exercises - a Standing
+ * Hamstring Reach, a Bodyweight Hip Hinge, a Bodyweight Good Morning and a Cool
+ * Down Stretch Sequence - and three of them earned the tag from their CUE
+ * rather than from their name, so with the catalogue deleted there was no cue
+ * left to read and they failed.
+ *
+ * The rule they stood for has not moved an inch, and Archie's list carries the
+ * movement they were about: "Wall Hip Hinge" is the library's deloaded hinge
+ * pattern, named in hamstrings.avoid and in lower_back.avoid in those words.
+ * Restore's own spelling of it, "Hip Hinge Against Wall", is kept beside it -
+ * both are live, and a rule that recognised one and not the other would be the
+ * exact failure this file exists for.
+ *
+ * The floor under the list is asserted below: every name here is one the app can
+ * actually put in front of somebody. An example nothing can serve is a rule
+ * nobody is being protected by.
+ */
 const MUST_TAG = [
   ['Standing Hamstring Stretch', 'hamstring_lengthen'],
   ['Supine Hamstring Stretch (Strap)', 'hamstring_lengthen'],
   ['Hip Hinge Against Wall', 'hamstring_lengthen'],
-  ['Standing Hamstring Reach', 'hamstring_lengthen'],
-  ['Bodyweight Hip Hinge', 'hamstring_lengthen'],
-  ['Bodyweight Good Morning', 'hamstring_lengthen'],
-  ['Cool Down Stretch Sequence', 'hamstring_lengthen'],
+  ['Wall Hip Hinge', 'hamstring_lengthen'],
   ['Calf Stretch (Wall)', 'calf_lengthen'],
   ['Soleus Stretch', 'calf_lengthen'],
   ['Couch Stretch', 'quad_hipflexor_lengthen'],
@@ -113,7 +130,7 @@ const MUST_TAG = [
   ['Neck Side Stretch', 'neck_trap_lengthen'],
   ['Upper Trap Stretch', 'neck_trap_lengthen'],
   ['Levator Scapulae Stretch', 'neck_trap_lengthen'],
-  ["Child's Pose", 'spinal_end_range'],
+  ["Child's Pose with Side Reach", 'spinal_end_range'],
   ['Cat-Cow', 'spinal_end_range'],
 ];
 
@@ -124,6 +141,20 @@ for (const [name, tag] of MUST_TAG) {
     'named in its region’s avoid list in lib/acute-rehab.ts'
   );
 }
+
+// The library-tied floor under the list above: an example nothing can serve is
+// a rule protecting nobody. See the docblock on MUST_TAG.
+const servableNames = new Set(
+  (await import('../lib/exercise-db.ts')).getAllPickableExercises().map((p) =>
+    p.template.name.toLowerCase()
+  )
+);
+const unservable = MUST_TAG.map(([n]) => n).filter((n) => !servableNames.has(n.toLowerCase()));
+check(
+  `every one of the ${MUST_TAG.length} examples is an exercise the app can serve`,
+  unservable.length === 0,
+  `${unservable.join(', ')} — tagging a name nothing prescribes protects nobody`
+);
 
 // A lat stretch performed in a doorway is a lat stretch, not a chest stretch.
 check(
@@ -391,10 +422,20 @@ for (const sessionType of ['lower_body', 'upper_body', 'full_body', 'deadlift', 
 
 const uniq = (a) => [...new Set(a)];
 
+/**
+ * A STRUCTURAL FLOOR rather than three numbers taken from the old catalogue.
+ *
+ * "More than 400 sessions, 4,000 cards and 6,000 swap slots" measured a sweep
+ * drawing on a seven-hundred-entry catalogue. The session count is fixed by the
+ * loops themselves, so it is asserted as exactly that - nothing threw - and the
+ * cards and slots are tied to it: a real session is several cards, and Archie's
+ * rule is that everything has something behind its button.
+ */
+const SWEEP_SIZE = 6 * 4 * Object.keys(HAZARD).length * 2 * 2;
 check(
   `the sweep actually ran (${sessions} sessions, ${cardCount} cards, ${slotCount} swap slots)`,
-  sessions > 400 && cardCount > 4000 && slotCount > 6000,
-  'a sweep that generates nothing proves nothing'
+  sessions === SWEEP_SIZE && cardCount > sessions * 4 && slotCount > sessions,
+  `expected ${SWEEP_SIZE} sessions — a sweep that generates nothing proves nothing`
 );
 check(
   'no session card stretches the tissue the user reported',

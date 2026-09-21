@@ -74,26 +74,44 @@ const get = (n) => byName.get(n.toLowerCase());
 console.log('\n[1] A main lift is a movement, not a template slot');
 
 const eligible = all.filter((p) => canBeMainLift(p.template));
+/**
+ * A LIBRARY-TIED FLOOR: MORE THAN ARE FILED AS 'main', NOT A ROUND NUMBER.
+ *
+ * It read "more than 100", which described a seven-hundred-entry catalogue that
+ * no longer exists. What the rule is about is that eligibility is decided by the
+ * MOVEMENT rather than by the slot a record happens to be filed in, so the
+ * honest floor is that comparison itself: strictly more exercises can lead a
+ * session than are filed as main lifts.
+ */
+const filedAsMain = all.filter((p) => p.template.category === 'main').length;
 check(
-  `far more than the 22 filed as category 'main' (now ${eligible.length})`,
-  eligible.length > 100,
+  `more can lead a session than are filed as one (${eligible.length} against ${filedAsMain})`,
+  filedAsMain > 0 && eligible.length > filedAsMain,
   'the whole point is that a goblet squat can lead a session'
 );
 
+// Re-pointed at the library's spellings. The old catalogue's Goblet Squat,
+// Romanian Deadlift, Lat Pulldown, Push-Up and Leg Press are deleted, and a name
+// nothing can serve proves nothing about what may lead a session.
 for (const name of [
-  'Goblet Squat',
-  'Romanian Deadlift',
-  'Lat Pulldown',
-  // Renamed to its canonical form — see lib/exercise-aliases.ts.
+  'Kettlebell Goblet Squats',
+  'Kettlebell Romanian Deadlift',
+  'Lat Pulldowns',
   'Dumbbell Bench Press',
-  'Push-Up',
-  'Leg Press',
+  'Push Up',
+  'Barbell Back Squat',
 ]) {
   const t = get(name);
   check(`"${name}" can be a main lift`, !!t && canBeMainLift(t), t ? 'classified below compound' : 'not in the catalogue');
 }
 
-for (const name of ['DB Bicep Curl', 'Cable Front Raise', 'Standing Calf Raise']) {
+// Likewise: the library's isolation work is banded, plated and bodyweight rather
+// than the old catalogue's cable stations and dumbbell curls.
+for (const name of [
+  'Banded Face Pulls',
+  'Cable Face Pulls',
+  'Standing Calf Raise (slow eccentric)',
+]) {
   const t = get(name);
   check(`"${name}" is isolation, not a main lift`, !!t && !canBeMainLift(t), '');
 }
@@ -116,15 +134,15 @@ check(
 // distinction a Push/Pull/Legs or Upper/Lower week actually needs.
 check(
   'bench press and overhead press are different patterns',
-  patternGroupOf(get('Barbell Bench Press')) === 'horizontal_push' &&
-    patternGroupOf(get('Overhead Press')) === 'vertical_push',
-  `${patternGroupOf(get('Barbell Bench Press'))} vs ${patternGroupOf(get('Overhead Press'))}`
+  patternGroupOf(get('Dumbbell Bench Press')) === 'horizontal_push' &&
+    patternGroupOf(get('Standing Dumbbell Press')) === 'vertical_push',
+  `${patternGroupOf(get('Dumbbell Bench Press'))} vs ${patternGroupOf(get('Standing Dumbbell Press'))}`
 );
 check(
   'rows and pull-ups are different patterns',
   patternGroupOf(get('Barbell Row')) === 'horizontal_pull' &&
-    patternGroupOf(get('Pull-Up')) === 'vertical_pull',
-  `${patternGroupOf(get('Barbell Row'))} vs ${patternGroupOf(get('Pull-Up'))}`
+    patternGroupOf(get('Pull Ups')) === 'vertical_pull',
+  `${patternGroupOf(get('Barbell Row'))} vs ${patternGroupOf(get('Pull Ups'))}`
 );
 
 // ─── 3. Tier and category stay separate ──────────────────────────────────────
@@ -141,7 +159,17 @@ console.log('\n[3] What it is, and where the generator puts it, are different qu
  * Named rather than tolerated, so the list cannot quietly grow. If a third
  * appears, this fails and someone has to look at it.
  */
-const KNOWN_MISFILED = ['Lying Leg Curl', 'Pallof Press'];
+/**
+ * The old catalogue's two went with it; Archie's list has three of its own.
+ *
+ * All three curtsy lunges are filed `category: 'main'` because a curtsy lunge is
+ * what the library puts in a lunge SLOT, and the classifier says none of them
+ * can open a session because their prime mover is the glute medius - which is
+ * the rule's own documented judgement, written down beside
+ * SUPPORTING_PRIME_MOVERS: nobody builds a session around a stabiliser. The two
+ * answers are about different questions and are both right.
+ */
+const KNOWN_MISFILED = ['Curtsy Lunge', 'Dumbbell Curtsy Lunge', 'Kettlebell Curtsy Lunge'];
 const mainCategory = all.filter((p) => p.template.category === 'main');
 const misfiled = mainCategory
   .filter((p) => !canBeMainLift(p.template))
@@ -151,17 +179,33 @@ check(
   misfiled.every((n) => KNOWN_MISFILED.includes(n)),
   `${misfiled.filter((n) => !KNOWN_MISFILED.includes(n)).join(', ')} — filed as a main lift but classified below compound`
 );
+/**
+ * Tier and category disagree in BOTH directions, which is the whole claim.
+ *
+ * The floor was "more than 50 compounds are filed as something other than
+ * main", a number taken from the old catalogue. Said as the rule instead: there
+ * are compounds filed elsewhere, and there are records filed as main that are
+ * not compounds. If either were empty, tier really would be category under
+ * another name.
+ */
+const compoundsFiledElsewhere = eligible.filter((p) => p.template.category !== 'main').length;
 check(
-  'but plenty of compounds are filed elsewhere',
-  eligible.filter((p) => p.template.category !== 'main').length > 50,
+  `compounds are filed elsewhere (${compoundsFiledElsewhere}) and main-filed records are not all compounds (${misfiled.length})`,
+  compoundsFiledElsewhere > 0 && misfiled.length > 0,
   'if these matched, tier would just be category under another name'
 );
 
-// Nordic curls are named "curl" and are a hamstring compound. The name rule
-// gets this exactly backwards, which is what the override list is for.
+/**
+ * Nordic curls are named "curl" and are a hamstring compound. The name rule
+ * gets this exactly backwards, which is what the override list is for.
+ *
+ * Asked of Restore's "Nordic Curl Negative (slow)", which is what the app
+ * serves now: the old catalogue's "Nordic Hamstring Curl" is deleted, and the
+ * override list still carries both spellings so neither loses its answer.
+ */
 check(
   'the override list catches what the name rule gets wrong',
-  tierOf(get('Nordic Hamstring Curl')) !== 'isolation',
+  tierOf(get('Nordic Curl Negative (slow)')) !== 'isolation',
   'a nordic curl is not a bicep curl'
 );
 

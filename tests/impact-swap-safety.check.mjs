@@ -68,24 +68,59 @@ const all = getAllPickableExercises();
 // ─── 1. The measured offenders ───────────────────────────────────────────────
 console.log('\n[1] The exercises that were served as "safe" are screened as impact');
 
-const REPORTED = [
-  'AMRAP Finisher',
-  'Dynamic Warm-Up',
+/**
+ * THE FIVE, AND WHY TWO OF THEM ARE NOW ASKED WITH THEIR PRESCRIPTION IN HAND.
+ *
+ * All five were real catalogue exercises when this was written. Three still are
+ * names the screen knows on their own, because the words "shuttle" and "run" are
+ * in them. The other two - "AMRAP Finisher" and "Dynamic Warm-Up" - said nothing
+ * at all in their names; the burpees and the jumping jacks were in their reps
+ * and cue, and the screen found them by looking the prescription up.
+ *
+ * Those two exercises are deleted with the rest of the old catalogue, so there
+ * is no prescription left to look up and asking by name alone proves nothing.
+ * The rule they were the evidence for is very much still live: Archie can add a
+ * circuit tomorrow. So the prescription is handed in directly, which tests the
+ * same rule on the same words without needing the exercise to exist.
+ */
+const REPORTED_BY_NAME = [
   'Shuttle Run Intervals',
   'DB Thruster + Shuttle Run',
   'KB Swing + Shuttle',
 ];
-for (const name of REPORTED) {
+const REPORTED_BY_PRESCRIPTION = [
+  ['AMRAP Finisher', '8 min AMRAP: 10 burpees, 15 squat jumps, 20 mountain climbers'],
+  ['Dynamic Warm-Up', '2 rounds: jumping jacks, butt kicks, high knees'],
+];
+for (const name of REPORTED_BY_NAME) {
   check(
     `"${name}" carries the impact tag`,
     stressTagsFor(name).includes('high_impact'),
     'its name never says jump — the jumping is in its reps and cue'
   );
 }
+for (const [name, prescription] of REPORTED_BY_PRESCRIPTION) {
+  check(
+    `"${name}" carries it from its prescription, with nothing in the name`,
+    !stressTagsFor(name).includes('high_impact') &&
+      stressTagsFor(name, undefined, prescription).includes('high_impact'),
+    `the name says nothing and "${prescription}" was not read`
+  );
+}
+/** All five, each with whatever the screen has to read to recognise it. */
+const REPORTED = [
+  ...REPORTED_BY_NAME.map((name) => [name, undefined]),
+  ...REPORTED_BY_PRESCRIPTION,
+];
+const reachesSoreKnee = ([name, prescription]) =>
+  restrictedTagsOn(name, restrictedTagsFor(['knee'], 'advanced'), undefined, prescription)
+    .length === 0;
 check(
   'and a sore knee therefore rules it out',
-  REPORTED.every((n) => restrictedTagsOn(n, restrictedTagsFor(['knee'], 'advanced')).length > 0),
-  REPORTED.filter((n) => restrictedTagsOn(n, restrictedTagsFor(['knee'], 'advanced')).length === 0).join(', ')
+  !REPORTED.some(reachesSoreKnee),
+  REPORTED.filter(reachesSoreKnee)
+    .map(([name]) => name)
+    .join(', ')
 );
 check(
   'running counts, whatever the name calls it',
@@ -110,6 +145,20 @@ const PRESCRIBES_IMPACT =
  */
 const IMPACT_FREE_BY_DESIGN = {
   'Assault Bike Intervals': 'sprinting a bike is still sprinting, and still nothing lands',
+  /**
+   * These two use the word "running" in a sense that has nothing to do with
+   * leaving the ground, and they only became reachable here when the old
+   * catalogue went and the prescriptions being read became Archie's own, which
+   * are written as sentences rather than as terse catalogue lines.
+   *
+   * The app agrees: lib/exercise-safety.ts deletes exactly these two senses
+   * before the impact rule reads a prescription (IMPACT_WORD_SENSE), so a card
+   * that said "not like running" and then prescribed twenty broad jumps is
+   * still caught. This list is the same judgement, written where the vocabulary
+   * above can see it.
+   */
+  'Suitcase Deadlift': 'the bar "running along your side" is a direction, not a stride',
+  'Incline Treadmill Walk': 'the cue says it should NOT feel like running, which is the point of it',
 };
 
 const missed = [];
