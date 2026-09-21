@@ -1,4 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
+// Type-only on purpose: the one use below is `keyof typeof Ionicons.glyphMap`,
+// and a value import would pull @expo/vector-icons into every node check that
+// reads this file for its words.
+import type { Ionicons } from '@expo/vector-icons';
 import { distinctExerciseCount } from './exercise-db';
 import { PAIN_ADAPTATION_REGION_COUNT } from './store';
 import { TRAIN_SESSION_COUNT } from './train-screen';

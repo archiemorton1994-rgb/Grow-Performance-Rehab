@@ -207,7 +207,12 @@ check(
 // Naming a sore area does two things, and the tour used to describe one. The
 // half it left out is the half a user needs to recognise their own session.
 console.log('\n[5] The pain step describes both halves of what happens');
-const readiness = read('app/readiness.tsx');
+// The readiness cards moved to lib/readiness-screen.ts, for the same reason
+// Home's, Train's and Stats' did: a check can import them there. The two
+// sections below still slice the source because they ask about ONE step at a
+// time and the extractor above is what tells the copy from the comments; the
+// file they slice is the only thing that changed.
+const readiness = read('lib/readiness-screen.ts');
 const painStep = userFacingCopy(
   readiness.slice(
     readiness.indexOf('const READINESS_TUTORIAL'),

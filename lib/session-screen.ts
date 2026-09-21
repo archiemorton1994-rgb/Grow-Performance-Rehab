@@ -40,6 +40,24 @@ import type { Exercise } from './workout-engine';
  * about logging a weight and saying how it felt, and a bodyweight card would
  * leave them narrating boxes that are not there.
  *
+ * ONE MAIN EXERCISE, AND THE REST ACCESSORIES. THE CATEGORY IS NOT COSMETIC.
+ * ─────────────────────────────────────────────────────────────────────────
+ * app/session.tsx reads `category` three times and a 'main' card comes out
+ * looking different every time: it prints "Your main strength move for today"
+ * under the cue, it adds "Consider a spotter for heavy lifts" to anything
+ * carrying external load, and it labels the sets on the bottom bar Warm-up,
+ * Approach set and Working set instead of leaving them unnamed.
+ *
+ * A real session has exactly one of those. Three of these four cards were
+ * filed as 'main' for a while, so the session shown to somebody deciding
+ * whether to pay named three different exercises as the day's main one and
+ * asked for a spotter on a kettlebell goblet squat. Generate a beginner Full
+ * Body session at this kit and it comes back as a warm-up, one main exercise
+ * and accessories, which is the shape below.
+ *
+ * tests/copy-sweep.check.mjs generates real sessions of exactly this shape and
+ * holds the demo to them, so this cannot drift back.
+ *
  * Nothing logged here is ever persisted; see tests/demo-session-no-persist.
  */
 
@@ -96,14 +114,14 @@ const DEMO_CARDS: DemoCard[] = [
   },
   {
     id: 'ch-kb-romanian-deadlift', // Kettlebell Romanian Deadlift
-    category: 'main',
+    category: 'accessory',
     load: '20 kg',
     swap: { id: 'lib-hinge-cable-romanian-deadlift', load: '25 kg', reason: 'Same movement on a cable.' },
     swap2: { id: 'sq-acc-bw-2', reason: 'Different exercise, same glutes and hamstrings.' },
   },
   {
     id: 'bn-main-db', // Dumbbell Bench Press
-    category: 'main',
+    category: 'accessory',
     load: '20 kg',
     swap: { id: 'bn-main-bw', reason: 'Same movement, nothing but you.' },
     swap2: { id: 'bn-acc-db-13', load: '12 kg', reason: 'Different exercise, same shoulders and triceps.' },

@@ -28,6 +28,23 @@
  *   Archie's list. The one thing most people see of the app before they decide
  *   whether to pay was demonstrating movements it cannot prescribe.
  *
+ * TWO MORE WERE FOUND BY THE REVIEW OF THAT SAME COMMIT, and sections 1, 5
+ * and 6 were widened for them.
+ *
+ *   THE SHAPE OF THE PRACTICE SESSION. Rebuilding it from the library gave
+ *   three of its four cards the category 'main', where a real session has one.
+ *   The category is not decoration on that screen, so the demo named three
+ *   different exercises as the day's main strength move and asked for a spotter
+ *   on a kettlebell goblet squat. Section 5 now generates real sessions of the
+ *   same shape and holds the demo to what they look like.
+ *
+ *   "MAIN LIFT". The sweep to "main exercise" reached the showcase and the
+ *   paywall and missed seven other places, so the readiness screen described the
+ *   same 30 / 45 / 60 rule as the assistant did in different words. It is in
+ *   the ban now, which is also why lib/readiness-screen.ts and the in-session
+ *   assistant are collected below: a ban over strings nobody collects is not a
+ *   ban.
+ *
  * HOW IT WORKS, AND WHY IT IS NOT A GREP
  * ──────────────────────────────────────
  * This repo's commonest defect is a test that pins a spelling: a regular
@@ -74,6 +91,8 @@ const {
 } = await import('../lib/train-screen.ts');
 const { STATS_TUTORIAL } = await import('../lib/stats-screen.ts');
 const { HOME_TUTORIAL, FIRST_SESSION_COPY } = await import('../lib/home-screen.ts');
+const { READINESS_TUTORIAL } = await import('../lib/readiness-screen.ts');
+const { sessionCoachTips } = await import('../lib/session-coach.ts');
 const { SHOWCASE_CARDS, paywallStats, PAYWALL_BENEFITS } = await import('../lib/pitch-copy.ts');
 const { DEMO_EXERCISES, SESSION_TUTORIAL } = await import('../lib/session-screen.ts');
 const { BADGE_CATALOG, BADGE_CATEGORY_LABELS, CRITERIA_HINTS } = await import('../lib/badges.ts');
@@ -82,17 +101,40 @@ const { getCoachMessages, getCoachBriefing, getCoachSnapshot, getLayoffMessage }
   '../lib/coach.ts'
 );
 const { nonStrengthContextMessage, programContextMessage } = await import('../lib/program-copy.ts');
-const { BUILDER_CATEGORY_LABELS, blocksForGoal } = await import('../lib/session-builder.ts');
+const { BUILDER_CATEGORY_LABELS, SESSION_GOALS, blocksForGoal } = await import(
+  '../lib/session-builder.ts'
+);
+const { generateWorkout } = await import('../lib/workout-engine.ts');
 
 /**
- * THE FOUR THINGS NO WORD A USER READS MAY CONTAIN.
+ * THE FIVE THINGS NO WORD A USER READS MAY CONTAIN.
  *
  * "Squat" on its own is allowed and has to be. The Lower Body tile's own
  * subtitle is "Squat · Hinge · Lunge", which names a movement pattern, and half
  * the exercise library has the word in its name. What is banned is a SESSION
  * named after a lift, and the acronym, in either case.
+ *
+ * "MAIN LIFT" IS THE FIFTH, AND IT WAS ADDED BECAUSE HALF A SWEEP IS WORSE
+ * THAN NONE. The showcase and the paywall were changed to say "main exercise"
+ * and seven other places were missed, so the readiness screen described the very
+ * same 30 / 45 / 60 rule as the assistant did, in different words: the app said
+ * two things where it had previously said one wrong thing consistently. Nothing
+ * the app prescribes is a barbell lift by default any more - a beginner's Full
+ * Body session leads on goblet squats - so the word is wrong as well as
+ * inconsistent.
+ *
+ * The ban is on the words a user reads ONLY. Variable names, comments and test
+ * labels still say main lift, which is why nothing here matches source text:
+ * lib/readiness-screen.ts alone has the banned phrase six times in the comments
+ * that explain why the copy does not.
  */
-const BANNED = [/Squat Session/i, /Bench Session/i, /Deadlift Session/i, /\bKPI\b/i];
+const BANNED = [
+  /Squat Session/i,
+  /Bench Session/i,
+  /Deadlift Session/i,
+  /\bKPI\b/i,
+  /\bmain lifts?\b/i,
+];
 const offendingWords = (text) =>
   BANNED.filter((re) => re.test(text))
     .map((re) => String(re))
@@ -123,6 +165,10 @@ for (const [name, tour] of [
   ['TRAIN_TUTORIAL', TRAIN_TUTORIAL],
   ['STATS_TUTORIAL', STATS_TUTORIAL],
   ['SESSION_TUTORIAL', SESSION_TUTORIAL],
+  // The three cards over the readiness check. It is the screen that describes
+  // what 30, 45 and 60 minutes buy you, which is the same rule the assistant
+  // explains, so the two have to use the same words for the same thing.
+  ['READINESS_TUTORIAL', READINESS_TUTORIAL],
 ]) {
   check(
     `${name} was found and has cards (${tour.length})`,
@@ -135,9 +181,58 @@ say('FIRST_SESSION_COPY', ...Object.values(FIRST_SESSION_COPY ?? {}).flatMap((v)
   typeof v === 'string' ? [v] : Object.values(v ?? {})
 ));
 say('BUILDER_CATEGORY_LABELS', ...Object.values(BUILDER_CATEGORY_LABELS));
+for (const g of SESSION_GOALS) say(`builder goal ${g.key}`, g.label, g.blurb);
 for (const goal of ['strength', 'muscle', 'athletic']) {
   for (const b of blocksForGoal(goal)) say(`builder block ${goal}`, b.title, b.purpose);
 }
+
+/**
+ * The in-session assistant, which has a tip for every block a card can be in.
+ *
+ * Its tips are picked by category, so a sweep that ran one context would leave
+ * seven of the eight blocks unread. Both states of the weight tip are asked
+ * for as well, because the two sentences are different copy.
+ */
+const SESSION_COACH_BASE = {
+  exerciseName: 'Kettlebell Goblet Squats',
+  setNumber: 2,
+  totalSets: 4,
+  suggestedKg: 20,
+  typedKg: 20,
+  weightUnit: 'kg',
+  isBandOrBodyweight: false,
+  loggedAnySet: true,
+  exercisesLeft: 3,
+};
+let sessionTips = 0;
+for (const category of [
+  'prep',
+  'mechanical',
+  'neuro',
+  'main',
+  'accessory',
+  'prehab',
+  'finisher',
+  'cooldown',
+]) {
+  for (const over of [
+    {},
+    { typedKg: 25 },
+    { isBandOrBodyweight: true, suggestedKg: 0 },
+    { loggedAnySet: false },
+    { painRegionLabel: 'left knee' },
+  ]) {
+    for (const tip of sessionCoachTips({ ...SESSION_COACH_BASE, category, ...over })) {
+      say(`session tip ${category}`, tip.title, tip.body);
+      sessionTips++;
+    }
+  }
+}
+check(
+  `the in-session assistant said something for every block (${sessionTips} tips)`,
+  sessionTips > 60,
+  'a silent assistant passes the ban below without proving anything'
+);
 
 // ─── 2. The pitch: the showcase and the paywall ──────────────────────────────
 console.log('\n[2] The words a stranger reads before they have paid');
@@ -399,8 +494,91 @@ for (const e of DEMO_EXERCISES) {
   say('demo card', e.name, e.cue, e.swapName, e.swapCue, e.swapReason, e.swap2Name, e.swap2Cue, e.swap2Reason);
 }
 
+/**
+ * THE PRACTICE SESSION HAS THE SHAPE OF A REAL ONE, MEASURED AGAINST REAL ONES.
+ *
+ * `category` is the least visible field on a demo card and the one that changes
+ * the screen most. app/session.tsx reads it three times and a 'main' card comes
+ * out different every time:
+ *
+ *   it prints "Your main strength move for today" under the cue;
+ *   it adds "Consider a spotter for heavy lifts" to anything carrying load;
+ *   it names the sets on the bottom bar Warm-up, Approach set and Working set
+ *   rather than leaving them unnamed.
+ *
+ * Three of the four cards were filed 'main' when the demo was rebuilt from the
+ * library, so the session a stranger runs before the paywall named three
+ * different exercises as the day's main one and asked for a spotter on a
+ * kettlebell goblet squat. Nothing failed, because nothing was looking.
+ *
+ * So the demo is held to the sessions the app really builds, not to a number
+ * typed in here. Beginner Full Body at the demo's own kit is generated over
+ * several seeds and all three durations, and what comes back decides the rule.
+ */
+const DEMO_KIT = ['bodyweight', 'dumbbells', 'kettlebells', 'bench'];
+const realShapes = [];
+for (const seed of [0, 1, 2, 3, 4]) {
+  for (const timeAvailable of ['30', '45', '60']) {
+    realShapes.push(
+      generateWorkout(
+        'full_body',
+        'dumbbells',
+        { hasAches: false, energy: 'normal', timeAvailable },
+        {
+          name: 'Practice',
+          experienceLevel: 'beginner',
+          goals: ['muscle', 'fitness'],
+          bodyweightKg: 78,
+          ageYears: 34,
+          equipmentTiers: DEMO_KIT,
+        },
+        undefined,
+        undefined,
+        seed,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        'kg',
+        undefined,
+        undefined,
+        0,
+        { equipment: DEMO_KIT, sessionTypeCount: seed }
+      )
+    );
+  }
+}
+const mainsIn = (cards) => cards.filter((c) => c.category === 'main').length;
+check(
+  `${realShapes.length} real beginner Full Body sessions were built at the demo's kit (${realShapes.reduce((n, s) => n + s.length, 0)} cards)`,
+  realShapes.length >= 10 && realShapes.every((s) => s.length >= 4),
+  'everything below this compares the demo against nothing otherwise'
+);
+const wrongMainCount = realShapes.filter((s) => mainsIn(s) !== 1);
+check(
+  'every one of them has exactly one main exercise',
+  wrongMainCount.length === 0,
+  `${wrongMainCount.length} did not: ${wrongMainCount.map(mainsIn).join(', ')} - if the app has started building sessions with two, the rule below is the thing to re-read`
+);
+check(
+  `and so does the practice session (${DEMO_EXERCISES.map((e) => e.category).join(', ')})`,
+  mainsIn(DEMO_EXERCISES) === 1,
+  `it has ${mainsIn(DEMO_EXERCISES)}: ${DEMO_EXERCISES.filter((e) => e.category === 'main')
+    .map((e) => e.name)
+    .join(', ')} - the screen tells the user each one of those is their main strength move for today`
+);
+const realCategories = new Set(realShapes.flatMap((s) => s.map((c) => c.category)));
+const strangeCategories = DEMO_EXERCISES.map((e) => e.category).filter(
+  (c) => !realCategories.has(c)
+);
+check(
+  `no demo card is in a block a real session of that shape has no card in (real: ${[...realCategories].sort().join(', ')})`,
+  strangeCategories.length === 0,
+  `${[...new Set(strangeCategories)].join(', ')} - the demo would be showing a kind of card the app never actually prescribes here`
+);
+
 // ─── 6. The ban, over everything collected above ─────────────────────────────
-console.log('\n[6] Not one of those strings names a session after a lift');
+console.log('\n[6] Not one of those strings names a session, or an exercise, after a lift');
 
 check(
   `${collected.length} strings were collected from ${new Set(collected.map(([s]) => s)).size} sources`,
@@ -409,7 +587,7 @@ check(
 );
 const offenders = collected.filter(([, v]) => BANNED.some((re) => re.test(v)));
 check(
-  'none says Squat Session, Bench Session, Deadlift Session, or the word KPI',
+  'none says Squat Session, Bench Session, Deadlift Session, main lift, or the word KPI',
   offenders.length === 0,
   offenders.map(([s, v]) => `${s}: "${v}" (${offendingWords(v)})`).join(' | ')
 );

@@ -279,7 +279,7 @@ const EXPLAINERS: { id: string; icon: string; title: string; body: string }[] = 
     id: 'how-time',
     icon: 'time-outline',
     title: 'Short on time is a real answer',
-    body: 'Tell the readiness check you have 30 minutes and the app cuts accessories and finishers rather than trimming a bit off everything. The main lift stays whole, because that is the part that drives the progress.',
+    body: 'Tell the readiness check you have 30 minutes and the app cuts accessories and finishers rather than trimming a bit off everything. The main exercise stays whole, because that is the part that drives the progress.',
   },
 ];
 
@@ -525,7 +525,7 @@ function buildCoachBuckets(input: CoachInput): Bucket {
       id: 'prompt-1rm',
       icon: 'barbell-outline',
       title: 'No max on record yet',
-      body: 'Your main lifts are working from what you log week to week, which is a good guide. Putting in a one-rep max gives every percentage something real to hang off, and you can work one out from a set you have already done.',
+      body: 'Your main exercises are working from what you log week to week, which is a good guide. Putting in a one-rep max gives every percentage something real to hang off, and you can work one out from a set you have already done.',
       tone: 'info',
       action: { label: 'Work one out', kind: 'open-stats' },
       dismissible: true,

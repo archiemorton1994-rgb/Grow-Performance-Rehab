@@ -66,7 +66,7 @@ const BLOCK_TIPS: Record<string, SessionTip> = {
   },
   main: {
     title: 'This is the one that matters today',
-    body: 'Your main lift is what the rest of the week is built around. If one thing goes well today, make it this. Take the rest you need between sets, even if it is longer than the timer.',
+    body: 'Your main exercise is what the rest of the week is built around. If one thing goes well today, make it this. Take the rest you need between sets, even if it is longer than the timer.',
   },
   accessory: {
     title: 'Chase the muscle, not the number',

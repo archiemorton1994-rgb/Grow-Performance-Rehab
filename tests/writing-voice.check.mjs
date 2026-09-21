@@ -149,7 +149,21 @@ check(
 
 console.log('\n[4] The tour in particular, since that is where it was noticed');
 
-/** Every guided-tour and coach-mark body in the app. */
+/**
+ * Every guided-tour and coach-mark body in the app.
+ *
+ * THE TOURS HAVE BEEN MOVING OUT OF THE SCREENS, one at a time, so that a node
+ * check can import the cards instead of matching a regular expression over six
+ * thousand lines of React. Home's, Train's, Stats', the session tour's and now
+ * the readiness cards all live in lib/ - and each move quietly took its bodies
+ * out of this list. The count had fallen from twelve to nine, which is what the
+ * guard below is for: it fired the moment the readiness cards left, rather than
+ * letting the section carry on proving nothing.
+ *
+ * So the list follows the copy. The lib modules are where the words are now;
+ * the screens stay because several of them still hold coach-mark bodies of
+ * their own.
+ */
 const TOUR_FILES = [
   'app/(tabs)/index.tsx',
   'app/(tabs)/train.tsx',
@@ -160,6 +174,11 @@ const TOUR_FILES = [
   'app/readiness.tsx',
   'app/onboarding.tsx',
   'app/subscription.tsx',
+  'lib/home-screen.ts',
+  'lib/train-screen.ts',
+  'lib/stats-screen.ts',
+  'lib/session-screen.ts',
+  'lib/readiness-screen.ts',
 ];
 
 let tourBodies = 0;

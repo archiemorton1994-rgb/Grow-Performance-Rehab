@@ -461,7 +461,7 @@ export const SESSION_GOALS: { key: SessionGoal; label: string; blurb: string }[]
   {
     key: 'athletic',
     label: 'Athletic Performance',
-    blurb: 'Explosive power primer before the main lift',
+    blurb: 'Explosive power primer before the main exercise',
   },
   {
     key: 'aesthetic',
@@ -606,7 +606,7 @@ const MOBILITY_BLOCK: BuilderBlock = {
   category: 'active_stretch',
   sessionCategory: 'prep',
   title: 'Active Mobility',
-  purpose: 'Open the range the day’s main lift asks for.',
+  purpose: 'Open the range the day’s main exercise asks for.',
   picks: 2,
   optional: true,
   followsLift: true,
@@ -617,7 +617,7 @@ const ACTIVATION_BLOCK: BuilderBlock = {
   category: 'activation',
   sessionCategory: 'mechanical',
   title: 'Specific Activation',
-  purpose: 'Wake up the muscles the main lift depends on.',
+  purpose: 'Wake up the muscles the main exercise depends on.',
   picks: 1,
   optional: true,
   followsLift: true,
