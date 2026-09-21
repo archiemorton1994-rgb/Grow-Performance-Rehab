@@ -58,6 +58,15 @@ import {
   getRegionsByExerciseNameMap,
 } from '@/lib/exercise-db';
 import { getSessionLabel } from '@/lib/workout-engine';
+import { getSessionImage } from '@/lib/session-images';
+import {
+  EXERCISE_GROUP_ORDER,
+  displayTypeFilter,
+  groupByTrainType,
+  matchesTypeFilter,
+  sessionTypeRows,
+} from '@/lib/progress-groups';
+import type { TrainSessionType } from '@/lib/session-type';
 import {
   formatDate,
   formatWeight,
@@ -77,18 +86,20 @@ const BAR_CHART_HEIGHT = 100;
 const LINE_CHART_HEIGHT = 90;
 const HISTORY_PAGE_SIZE = 30;
 
-const SESSION_IMAGES: Record<string, any> = {
-  squat: require('@/assets/images/sessions/squat.png'),
-  bench: require('@/assets/images/sessions/bench.png'),
-  deadlift: require('@/assets/images/sessions/deadlift.png'),
-  conditioning: require('@/assets/images/sessions/conditioning.png'),
-  prehab: require('@/assets/images/sessions/targeted-prehab.png'),
-  flexibility: require('@/assets/images/sessions/mobility.png'),
-  custom: require('@/assets/images/sessions/custom.png'),
-  lower_body: require('@/assets/images/sessions/lower-body.png'),
-  upper_body: require('@/assets/images/sessions/upper-body.png'),
-  full_body: require('@/assets/images/sessions/full-body.png'),
-};
+/*
+ * THE SESSION ARTWORK COMES FROM lib/session-images.ts NOW.
+ *
+ * This screen kept its own copy of the old table, and that copy still had a
+ * barbell back squat photograph filed under 'squat'. So once the labels merged,
+ * a history list filtered to Lower Body showed two rows both reading "Lower
+ * Body", one beside a picture of a barbell and one beside the lower body
+ * artwork - the app disagreeing with itself about what a session was, in the
+ * one place a person is comparing the two directly.
+ *
+ * The shared resolver answers with the session the id MEANS today, and picks
+ * the female set when that is the profile, which the other four screens showing
+ * session art have done since it landed.
+ */
 
 function formatSessionDuration(seconds: number): string {
   const totalMins = Math.round(seconds / 60);
@@ -994,6 +1005,7 @@ function MonthCalendar({
   onNavigateToDate?: (dateStr: string) => void;
   C: ReturnType<typeof useColors>;
 }) {
+  const sex = useAppStore((s) => s.userProfile?.sex);
   const todayKey = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [displayMonth, setDisplayMonth] = useState<Date>(() => {
     const d = new Date();
@@ -1254,7 +1266,7 @@ function MonthCalendar({
                 }}
               >
                 <Image
-                  source={SESSION_IMAGES[s.sessionType]}
+                  source={getSessionImage(s.sessionType, sex)}
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="contain"
                 />
@@ -1628,6 +1640,7 @@ function SessionHistoryList({
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showCount, setShowCount] = useState(HISTORY_PAGE_SIZE);
+  const sex = useAppStore((s) => s.userProfile?.sex);
   const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
   const energyColors = useMemo(() => getEnergyColors(C), [C]);
 
@@ -1705,7 +1718,7 @@ function SessionHistoryList({
                 }}
               >
                 <Image
-                  source={SESSION_IMAGES[session.sessionType]}
+                  source={getSessionImage(session.sessionType, sex)}
                   style={{ width: '100%', height: '100%' }}
                   resizeMode="contain"
                 />
@@ -2258,19 +2271,6 @@ function SessionHistoryList({
 
 const SESSION_TYPE_LABELS = SESSION_SHORT_LABELS;
 
-const ALL_SESSION_TYPES: SessionType[] = [
-  'squat',
-  'bench',
-  'deadlift',
-  'lower_body',
-  'upper_body',
-  'full_body',
-  'conditioning',
-  'prehab',
-  'flexibility',
-  'custom',
-];
-
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
@@ -2298,6 +2298,17 @@ function donutSegmentPath(
   ].join(' ');
 }
 
+/**
+ * ONE ROW PER KIND OF SESSION, WHATEVER IT WAS FILED UNDER.
+ *
+ * Somebody training here before the rebuild has days stored as 'squat' and days
+ * stored as 'lower_body', and every label table resolves both to the words
+ * "Lower Body". Counted on the raw id, this drew them as two rows with the same
+ * name - four here, three there, and no seven anywhere on the screen. The
+ * counting goes through lib/progress-groups.ts now, which folds an old id into
+ * the session it means today. Nothing is rewritten: the stored history is
+ * untouched and only the grouping moved.
+ */
 function SessionTypeBreakdown({
   sessions,
   activeFilter,
@@ -2305,33 +2316,15 @@ function SessionTypeBreakdown({
   C,
 }: {
   sessions: CompletedSession[];
-  activeFilter: SessionType | null;
-  onFilterChange: (type: SessionType | null) => void;
+  activeFilter: TrainSessionType | null;
+  onFilterChange: (type: TrainSessionType | null) => void;
   C: ReturnType<typeof useColors>;
 }) {
   const sessionTypeColors = useMemo(() => getSessionTypeColors(C), [C]);
 
-  const counts = useMemo(() => {
-    const map: Record<SessionType, number> = {
-      squat: 0,
-      bench: 0,
-      deadlift: 0,
-      conditioning: 0,
-      prehab: 0,
-      flexibility: 0,
-      custom: 0,
-      lower_body: 0,
-      upper_body: 0,
-      full_body: 0,
-    };
-    for (const s of sessions) {
-      if (map[s.sessionType] !== undefined) map[s.sessionType]++;
-    }
-    return map;
-  }, [sessions]);
+  const rows = useMemo(() => sessionTypeRows(sessions), [sessions]);
 
   const total = sessions.length;
-  const activeTypes = ALL_SESSION_TYPES.filter((t) => counts[t] > 0);
 
   const SIZE = 140;
   const cx = SIZE / 2;
@@ -2341,21 +2334,21 @@ function SessionTypeBreakdown({
   const GAP = 2;
 
   const segments = useMemo(() => {
-    const result: { type: SessionType; startAngle: number; endAngle: number }[] = [];
+    const result: { type: TrainSessionType; startAngle: number; endAngle: number }[] = [];
     let angle = 0;
-    for (const type of activeTypes) {
-      const fraction = counts[type] / total;
+    for (const row of rows) {
+      const fraction = row.count / total;
       const sweep = fraction * 360;
       const segGap = Math.min(GAP, sweep * 0.4);
       const startAngle = angle + segGap / 2;
       const endAngle = angle + sweep - segGap / 2;
       if (endAngle > startAngle) {
-        result.push({ type, startAngle, endAngle });
+        result.push({ type: row.type, startAngle, endAngle });
       }
       angle += sweep;
     }
     return result;
-  }, [counts, total, activeTypes]);
+  }, [rows, total]);
 
   if (total === 0) return null;
 
@@ -2453,7 +2446,7 @@ function SessionTypeBreakdown({
           </SvgText>
         </Svg>
         <View style={{ flex: 1, gap: 6 }}>
-          {activeTypes.map((type) => {
+          {rows.map(({ type, count }) => {
             const meta = sessionTypeColors[type];
             const isSelected = activeFilter === type;
             const isDimmed = hasFilter && !isSelected;
@@ -2513,7 +2506,7 @@ function SessionTypeBreakdown({
                     textAlign: 'right',
                   }}
                 >
-                  {counts[type]}
+                  {count}
                 </Text>
               </Pressable>
             );
@@ -2980,24 +2973,6 @@ function OneRMCalculator({
   );
 }
 
-// Every session type, because the grouping below FILTERS by this list — a type
-// missing here is not merely unsorted, its exercises vanish from the Progress
-// tab entirely. Upper/Lower/Full Body were omitted, so anyone training the
-// weekly balanced sessions logged real weight for weeks and was told
-// "No weighted exercises yet".
-const PROGRESS_GROUP_ORDER: SessionType[] = [
-  'squat',
-  'bench',
-  'deadlift',
-  'upper_body',
-  'lower_body',
-  'full_body',
-  'conditioning',
-  'prehab',
-  'flexibility',
-  'custom',
-];
-
 type TrendDirection = 'up' | 'down' | 'flat' | null;
 
 function computeTrend(appearances: { avgWorkingWeight: number }[]): TrendDirection {
@@ -3178,25 +3153,27 @@ function ExerciseProgressList({
     return vol;
   }, [completedSessions]);
 
+  /**
+   * Grouped through `trainTypeOf`, for the same reason the donut above is.
+   *
+   * Each exercise remembers the type of the session it was last logged in, so
+   * somebody whose Back Squat last appeared on an old squat day and whose Leg
+   * Press last appeared on a lower body day had the two filed under separate
+   * headings, both reading LOWER BODY. EXERCISE_GROUP_ORDER lists every train
+   * type, because this FILTERS by that list: a type missing from it does not
+   * merely sort oddly, its exercises vanish from the tab.
+   */
   const grouped = useMemo(() => {
-    const map = new Map<SessionType, ExerciseProgress[]>();
-    for (const p of progress) {
-      const arr = map.get(p.sessionType) ?? [];
-      arr.push(p);
-      map.set(p.sessionType, arr);
-    }
+    const groups = groupByTrainType(progress, EXERCISE_GROUP_ORDER);
     // Heaviest PB first within each group.
-    for (const arr of map.values()) {
-      arr.sort((a, b) => {
+    for (const group of groups) {
+      group.items.sort((a, b) => {
         const pbA = a.appearances.reduce((m, ap) => Math.max(m, ap.bestSetWeight), 0);
         const pbB = b.appearances.reduce((m, ap) => Math.max(m, ap.bestSetWeight), 0);
         return pbB - pbA;
       });
     }
-    return PROGRESS_GROUP_ORDER.filter((t) => map.has(t)).map((t) => ({
-      type: t,
-      items: map.get(t)!,
-    }));
+    return groups;
   }, [progress]);
 
   const totalVolumeDisplay = Math.round(kgToDisplayUnit(totalVolumeKg, weightUnit));
@@ -3894,7 +3871,15 @@ export default function StatsScreen() {
     [getAllExerciseProgress, completedSessions]
   );
 
-  const historyFilter = historyTypeFilter;
+  /**
+   * The stored filter, taken through the same fold as the rows it selects.
+   *
+   * `historyTypeFilter` is persisted, so anybody who last left this screen
+   * filtered to their squat days has 'squat' in storage. Read raw it matched
+   * neither the merged Lower Body row nor any session grouped under it, so the
+   * effect below would quietly clear it the moment they came back.
+   */
+  const historyFilter = displayTypeFilter(historyTypeFilter);
   const setHistoryFilter = setHistoryTypeFilter;
 
   // The Strength tab is built entirely around squat/bench/deadlift 1RMs. With
@@ -4105,7 +4090,10 @@ export default function StatsScreen() {
   const [specificDateFilter, setSpecificDateFilter] = useState<string | null>(null);
 
   useEffect(() => {
-    if (historyFilter && !completedSessions.some((s) => s.sessionType === historyFilter)) {
+    if (
+      historyFilter &&
+      !completedSessions.some((s) => matchesTypeFilter(s.sessionType, historyFilter))
+    ) {
       setHistoryFilter(null);
     }
   }, [historyFilter, completedSessions, setHistoryFilter]);
@@ -4186,7 +4174,7 @@ export default function StatsScreen() {
       cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
     }
     return completedSessions.filter((s) => {
-      if (historyFilter && s.sessionType !== historyFilter) return false;
+      if (!matchesTypeFilter(s.sessionType, historyFilter)) return false;
       if (cutoff && new Date(s.date) < cutoff) return false;
       if (painRegionFilter) {
         const regions = s.painRegions?.length ? s.painRegions : s.painRegion ? [s.painRegion] : [];

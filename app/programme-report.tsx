@@ -44,6 +44,7 @@ import { PAGE } from '@/lib/session-identity';
  */
 import { GO } from '@/lib/go-colors';
 import { SESSION_DISPLAY_NAMES } from '@/lib/session-meta';
+import { mergeTypeCounts } from '@/lib/progress-groups';
 import { getPainRegionLabel } from '@/lib/workout-engine';
 import { LEVEL_NAMES } from '@/lib/exercise-levels';
 import type { CompletedProgramme, ProgrammeReport } from '@/lib/programme-report';
@@ -324,8 +325,16 @@ export default function ProgrammeReportScreen() {
                 ? ` ${legacyDeloadWeeks(r) === 1 ? 'One week of it was' : `${legacyDeloadWeeks(r)} weeks of it were`} a planned easier week.`
                 : ''}
           </Text>
+          {/* MERGED FOR THE READER, NOT IN THE DOCUMENT. A block trained under
+              the old rotation has its sessions counted under 'squat', 'bench'
+              and 'deadlift', and the stored report keeps them that way for ever
+              - it is frozen, and lib/programme-report.ts goes on writing what
+              was true on the day. Every one of those ids resolves to the name of
+              the session it means today, so printed one chip per id the row read
+              "Lower Body · 4" beside "Lower Body · 3". Added up here it reads
+              seven, which is what the block was. */}
           <View style={styles.typeRow}>
-            {r.byType.map((t) => (
+            {mergeTypeCounts(r.byType).map((t) => (
               <View key={t.type} style={styles.typeChip}>
                 <Text style={styles.typeChipText}>
                   {SESSION_DISPLAY_NAMES[t.type]} · {t.count}

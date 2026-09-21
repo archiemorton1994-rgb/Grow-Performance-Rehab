@@ -39,7 +39,7 @@ import {
 } from '@/lib/store';
 import { getSessionLabel } from '@/lib/workout-engine';
 import { nameOf } from '@/lib/programme';
-import { countLiftingSessions } from '@/lib/session-type';
+import { countLiftingSessions, trainTypeOf } from '@/lib/session-type';
 import { levelStepOffer } from '@/lib/level-step';
 import {
   getExerciseCategoryMap,
@@ -922,8 +922,15 @@ export default function SessionSummaryScreen() {
     // one from the history compared it against today and reported a rise as a
     // fall. completedSessions is newest first, so the first match older than
     // this one is the session immediately before it.
+    // MATCHED ON THE SESSION IT MEANS, not on the id it was filed under. An old
+    // squat day IS the lower body session before this one, so "vs last time"
+    // reaches back into history stored under the retired ids instead of going
+    // blank on the first Lower Body session somebody logs after the rebuild.
     const prev = completedSessions.find(
-      (s) => s.sessionType === session.sessionType && s.id !== session.id && s.date < session.date
+      (s) =>
+        trainTypeOf(s.sessionType) === trainTypeOf(session.sessionType) &&
+        s.id !== session.id &&
+        s.date < session.date
     );
     return prev ? computeSessionTotals(prev) : null;
   }, [session, completedSessions]);

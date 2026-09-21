@@ -15,7 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useColors } from '@/constants/colors';
 import { SessionType, useAppStore, CompletedSession } from '@/lib/store';
-import { countLiftingSessions, rotatesSessions } from '@/lib/session-type';
+import { countLiftingSessions, rotatesSessions, trainTypeOf } from '@/lib/session-type';
+import { lastSessionOfTrainType, trainingMixTypes } from '@/lib/progress-groups';
 import { sessionTimeline } from '@/lib/your-sessions';
 import { getSessionImage } from '@/lib/session-images';
 import {
@@ -64,13 +65,23 @@ const RECENT_TIMELINE = 4;
  * was due on, and a dot marking every twelfth session as a test.
  */
 
+/**
+ * When they last did this kind of session, counting the old ids as what they
+ * now mean.
+ *
+ * Matched on the raw stored id, somebody with six years of squat days and
+ * nothing filed under 'lower_body' was told Lower Body was "Not done yet",
+ * which is both wrong and a little insulting. lastSessionOfTrainType folds the
+ * legacy ids in; completedSessions is newest first, so the first match is the
+ * most recent one.
+ */
 function getLastTrainedLabel(
   completedSessions: CompletedSession[],
   sessionType: SessionType
 ): string {
-  const matches = completedSessions.filter((s) => s.sessionType === sessionType);
-  if (matches.length === 0) return 'Not done yet';
-  const days = daysSince(matches[0].date);
+  const last = lastSessionOfTrainType(completedSessions, trainTypeOf(sessionType));
+  if (!last) return 'Not done yet';
+  const days = daysSince(last.date);
   if (days === 0) return 'Today';
   if (days === 1) return 'Yesterday';
   return `${days} days ago`;
@@ -155,17 +166,16 @@ export default function ProgramScreen() {
   const progCycleLength = 12;
   const progCyclePos = strengthCount % progCycleLength;
 
-  // What this person actually trains, most-used first, used in place of the
-  // subtitle that named three barbell lifts.
+  /**
+   * What this person actually trains, most-used first, used in place of the
+   * subtitle that named three barbell lifts.
+   *
+   * Counted through trainTypeOf. Without that fold an old history read back as
+   * "Lower Body · Lower Body · Upper Body": the names already resolved to the
+   * same three words while the counting still saw six separate ids.
+   */
   const trainingMix = useMemo(() => {
-    const counts = new Map<SessionType, number>();
-    for (const s of completedSessions) {
-      counts.set(s.sessionType, (counts.get(s.sessionType) ?? 0) + 1);
-    }
-    const top = [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([t]) => SESSION_DISPLAY_NAMES[t]);
+    const top = trainingMixTypes(completedSessions).map((t) => SESSION_DISPLAY_NAMES[t]);
     return top.length > 0 ? top.join(' · ') : 'Your own mix';
   }, [completedSessions]);
 
