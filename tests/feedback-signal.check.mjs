@@ -31,7 +31,8 @@ import {
   nextPrescription,
   parseReps,
   prescriptionFor,
-  restSecondsFor,
+  restSecondsForSet,
+  setKindFor,
 } from '../lib/rep-scheme.ts';
 
 let passed = 0;
@@ -259,28 +260,65 @@ check(
   '"RIR 2" means nothing to a beginner and this app is used by beginners'
 );
 
-console.log('\n[7] Rest finally depends on the goal');
+/**
+ * ── [7] REST STOPPED DEPENDING ON THE GOAL ─────────────────────────────────
+ *
+ * This section used to assert the opposite, and it was right at the time: rest
+ * came out of the category alone, and one number covered a powerlifter and
+ * somebody chasing fat loss. Making it answer to the goal was the improvement
+ * available then.
+ *
+ * The physiotherapist who owns the app disagreed with the whole shape of it.
+ * How long you need between two sets is a property of what you just did, not of
+ * what you are ultimately training for, so the goal is not an input any more
+ * and the movement is. The old assertion - a strength main lift rests more than
+ * twice as long as a fat-loss one - describes a promise the app deliberately
+ * no longer makes, so it is re-expressed here against the promise it does make.
+ * The full rule is owned by tests/rest-and-sets.check.mjs; what is asserted
+ * here is the half this file introduced, the wiring into the card.
+ */
+console.log('\n[7] Rest answers to the movement, and no longer to the goal');
+
+const GOAL_SETS = [['strength'], ['muscle'], ['fat_loss'], ['rehab'], ['power'], ['fitness'], []];
+const restFor = (category, libraryRole, setKind = 'working') =>
+  restSecondsForSet({ category, libraryRole, setKind });
 
 check(
-  'a strength main lift rests far longer than a fat-loss one',
-  restSecondsFor(['strength'], 'main') > 2 * restSecondsFor(['fat_loss'], 'main'),
-  `${restSecondsFor(['strength'], 'main')}s vs ${restSecondsFor(['fat_loss'], 'main')}s - one number covered both before`
+  'a strength lifter and a fat-loss lifter rest the same on the same main lift',
+  restFor('main', 'main') === 180,
+  'three minutes for everybody: the goal was removed from this answer on purpose'
 );
 check(
-  'the timer takes the goal-aware number',
-  /const duration = seconds \?\? REST_PERIOD_SECONDS\[category\] \?\? 0;/.test(sessionCode),
-  ''
+  'the goal-shaped prescription no longer carries a rest window for anything to read',
+  GOAL_SETS.every((goals) => {
+    const p = prescriptionFor(goals, 'main');
+    return p !== null && !('restSeconds' in p);
+  }),
+  'rest used to sit in the same cell as the rep range and the RIR, which is how it came to answer to the goal in the first place'
 );
 check(
-  'but only on the lifting tiers',
-  /goalTier === 'tier1' \|\| goalTier === 'tier2' \? restSecondsFor/.test(sessionCode),
-  'prehab, activation and power-primer rest is written per category and is more specific than the goal table, which has one number covering all three'
+  'what DOES change the answer is what the movement is',
+  restFor('accessory', 'main') === 120 &&
+    restFor('accessory', 'accessory') === 60 &&
+    restFor('accessory', 'main') > restFor('accessory', 'accessory'),
+  `${restFor('accessory', 'main')}s for a compound in the accessory slot vs ${restFor('accessory', 'accessory')}s for isolation`
+);
+check(
+  'and which kind of set it was, so the warm-up climb is not three minutes a rung',
+  restFor('main', 'main', setKindFor('main', 0, 5)) === 60 &&
+    restFor('main', 'main', setKindFor('main', 4, 5)) === 180,
+  'a five-set barbell squat is three rungs, an approach set and then the work'
+);
+check(
+  'the timer is handed that number with nothing to fall back on',
+  /const duration = seconds \?\? 0;/.test(sessionCode) && !/REST_PERIOD_SECONDS/.test(sessionCode),
+  'a per-category fallback meant a dropped answer silently became a different, older prescription instead of an absent clock'
 );
 check(
   'so the categories that deliberately have no timer still have none',
-  /seconds=\{goalRestSeconds\}/.test(sessionCode) &&
-    restSecondsFor(['muscle'], 'cooldown') === null &&
-    restSecondsFor(['muscle'], 'finisher') === null,
+  /<RestTimer seconds=\{restSeconds\}/.test(sessionCode) &&
+    restFor('cooldown') === null &&
+    restFor('finisher') === null,
   'a countdown on a cooldown is the app interrupting someone breathing'
 );
 

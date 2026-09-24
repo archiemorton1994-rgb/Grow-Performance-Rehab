@@ -391,11 +391,43 @@ check(
 );
 
 check(
-  'the button labels are exactly Easy / Challenging / Too Hard',
+  'the button labels are exactly Easy / Just right / Too Hard',
   SET_FEEDBACK_LABELS.easy === 'Easy' &&
-    SET_FEEDBACK_LABELS.challenging === 'Challenging' &&
+    SET_FEEDBACK_LABELS.challenging === 'Just right' &&
     SET_FEEDBACK_LABELS.too_hard === 'Too Hard',
   JSON.stringify(SET_FEEDBACK_LABELS)
+);
+/**
+ * The rename, asked as the reason for it rather than as a spelling.
+ *
+ * "Challenging" sat next to "Too Hard" and both of them described something
+ * being hard, so the answer that actually means "the weight was correct" read
+ * as a complaint. What the middle button has always DONE is hold the weight,
+ * which is what you do when the prescription was right.
+ */
+check(
+  'the middle answer says the prescription was right, not that the set was hard',
+  !/hard|challeng|tough|heav|difficult/i.test(SET_FEEDBACK_LABELS.challenging),
+  `"${SET_FEEDBACK_LABELS.challenging}" - only one of the three answers should be describing difficulty`
+);
+check(
+  'the three answers are three different words',
+  new Set(Object.values(SET_FEEDBACK_LABELS)).size === 3,
+  JSON.stringify(SET_FEEDBACK_LABELS)
+);
+/**
+ * And the KEY is untouched, which is the half of the rename that would be
+ * invisible until it had already gone wrong.
+ *
+ * `challenging` is written into every stored per-set answer on every device.
+ * Renaming it to match the label would turn all of that history into an answer
+ * the app no longer recognises.
+ */
+check(
+  'the stored key is still `challenging`, and it still means "change nothing"',
+  Object.keys(SET_FEEDBACK_LABELS).sort().join(',') === 'challenging,easy,too_hard' &&
+    feedbackRatingFor(['challenging', 'challenging', 'challenging']) === null,
+  `keys: ${Object.keys(SET_FEEDBACK_LABELS).join(',')}`
 );
 
 console.log('');

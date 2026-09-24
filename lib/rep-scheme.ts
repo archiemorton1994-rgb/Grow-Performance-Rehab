@@ -1,4 +1,7 @@
 import type { ExerciseCategory, FitnessGoal } from './store';
+// Type only. lib/exercise-library.ts imports nothing from here, and a type
+// import is erased before anything runs, so this adds no edge to the graph.
+import type { RecordRole } from './exercise-library';
 
 /**
  * HOW MANY REPS, HOW MANY SETS, HOW HARD, AND HOW LONG TO REST.
@@ -8,8 +11,11 @@ import type { ExerciseCategory, FitnessGoal } from './store';
  * ─────────────────────────────────────────────────────────────────────────────
  * The programming spec, written as data a coach can read and disagree with.
  * Goal decides the rep range, tier decides how far that range bends for a given
- * movement, and together they decide how close to failure a set should be and
- * how long the rest is.
+ * movement, and together they decide how close to failure a set should be.
+ *
+ * Rest is decided separately and further down, because it answers to different
+ * things: what the movement IS and which kind of set was just finished. See
+ * restSecondsForSet.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT IT DELIBERATELY DOES NOT DO
@@ -28,9 +34,8 @@ import type { ExerciseCategory, FitnessGoal } from './store';
  *   2. THE EFFORT TARGET. Reps in reserve is information the app never gave:
  *      the weight says how heavy, RIR says how hard, and without it "8 reps" is
  *      half a prescription.
- *   3. REST. The app already varies rest by category, but not by goal - and the
- *      same back squat wants three minutes for a powerlifter and ninety seconds
- *      for someone chasing size.
+ * Rest used to be a fourth of these, varied by goal. It is not any more, and
+ * the reasoning is written out at restSecondsForSet below.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * THE TIERS
@@ -124,8 +129,6 @@ export interface RepPrescription {
   sets: { min: number; max: number };
   /** Reps left in the tank on a normal working set. Lower is harder. */
   rir: { min: number; max: number };
-  /** Seconds between working sets. */
-  restSeconds: { min: number; max: number };
   /**
    * Whether the last working set is pushed close to failure.
    *
@@ -148,21 +151,18 @@ export const REP_SCHEME: Record<Intent, Record<ExerciseTier, RepPrescription>> =
       reps: { min: 3, max: 5 },
       sets: { min: 3, max: 5 },
       rir: { min: 1, max: 2 },
-      restSeconds: { min: 180, max: 300 },
       lastSetToFailure: false,
     },
     tier2: {
       reps: { min: 6, max: 8 },
       sets: { min: 3, max: 4 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 120, max: 180 },
       lastSetToFailure: false,
     },
     tier3: {
       reps: { min: 10, max: 15 },
       sets: { min: 2, max: 3 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 45, max: 75 },
       lastSetToFailure: false,
     },
   },
@@ -171,21 +171,18 @@ export const REP_SCHEME: Record<Intent, Record<ExerciseTier, RepPrescription>> =
       reps: { min: 6, max: 10 },
       sets: { min: 3, max: 4 },
       rir: { min: 1, max: 2 },
-      restSeconds: { min: 120, max: 180 },
       lastSetToFailure: true,
     },
     tier2: {
       reps: { min: 8, max: 12 },
       sets: { min: 3, max: 4 },
       rir: { min: 1, max: 2 },
-      restSeconds: { min: 90, max: 120 },
       lastSetToFailure: true,
     },
     tier3: {
       reps: { min: 12, max: 20 },
       sets: { min: 2, max: 3 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 45, max: 75 },
       lastSetToFailure: false,
     },
   },
@@ -194,21 +191,18 @@ export const REP_SCHEME: Record<Intent, Record<ExerciseTier, RepPrescription>> =
       reps: { min: 12, max: 20 },
       sets: { min: 2, max: 3 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 60, max: 90 },
       lastSetToFailure: false,
     },
     tier2: {
       reps: { min: 15, max: 20 },
       sets: { min: 2, max: 3 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 45, max: 60 },
       lastSetToFailure: false,
     },
     tier3: {
       reps: { min: 15, max: 25 },
       sets: { min: 2, max: 3 },
       rir: { min: 2, max: 3 },
-      restSeconds: { min: 30, max: 60 },
       lastSetToFailure: false,
     },
   },
@@ -265,18 +259,183 @@ export function effortHint(p: RepPrescription, isFinalSet: boolean): string {
   return `Leave about ${n} rep${max === 1 ? '' : 's'} in the tank`;
 }
 
-/** The rest instruction for this goal and movement, in seconds. */
-export function restSecondsFor(
-  goals: readonly FitnessGoal[] | undefined,
-  category: ExerciseCategory
-): number | null {
-  const p = prescriptionFor(goals, category);
-  if (!p) return null;
-  // Rounded to five seconds because it is read off a clock by a person.
-  // The midpoint of a 45-60 s window is 52.5, and a timer counting down from
-  // 53 seconds looks like an accident rather than a prescription.
-  const midpoint = (p.restSeconds.min + p.restSeconds.max) / 2;
-  return Math.round(midpoint / 5) * 5;
+// ─────────────────────────────────────────────────────────────────────────────
+// REST
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * HOW LONG TO REST: DECIDED BY THE MOVEMENT AND THE KIND OF SET, NOT THE GOAL.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHAT THIS REPLACED, AND WHY
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Rest used to come out of the goal. A main lift rested four minutes for a
+ * strength goal, two and a half for muscle or rehab and seventy-five seconds
+ * for fat loss, and an accessory scaled the same way. The physiotherapist who
+ * owns this app disagreed with the whole shape of it: how long you need between
+ * two sets is a property of what you just did, not of what you are ultimately
+ * training for.
+ *
+ * So there are three numbers now and the goal is not one of the inputs:
+ *
+ *   3 minutes   the working set of a main lift
+ *   2 minutes   a compound - a barbell or dumbbell movement the library itself
+ *               calls a main lift - wherever in the session it turns up
+ *   1 minute    genuine isolation and pump work
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY IT READS THE ROLE AND NOT THE CATEGORY
+ * ─────────────────────────────────────────────────────────────────────────────
+ * "Accessory" is a SLOT, not a kind of movement. Measured over 1,728 generated
+ * full-gym sessions, 68% of the cards filed under `accessory` are records the
+ * library calls main lifts: Barbell Row, Barbell Bulgarian Split Squats,
+ * Barbell Floor Press, Kettlebell Deadlift. One flat minute on the category
+ * would have put sixty seconds between sets of heavy barbell rowing.
+ *
+ * So the rule follows the movement. Exercise.libraryRole carries the record's
+ * own answer onto the card, and this reads that.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THE WARM-UP CLIMB IS NOT THREE MINUTES
+ * ─────────────────────────────────────────────────────────────────────────────
+ * A five-set barbell squat is three or four climbing warm-up rungs and then the
+ * working set, and the card already says which is which. Three minutes between
+ * warm-up rungs is not a heavier session, it is a much longer one. The climb
+ * rests 60 seconds, the approach set 90, and the 3 minutes is spent where it
+ * buys something.
+ *
+ * Not applied to anything but a main lift: an accessory carries the same target
+ * on every set, so every one of its sets is a working set.
+ */
+export type SetKind = 'warmup' | 'approach' | 'working';
+
+/**
+ * What the card calls each kind of set.
+ *
+ * Here rather than in app/session.tsx so the label on screen and the number on
+ * the clock cannot come to different conclusions about the same set. The screen
+ * printed "Warm-up" over a three-minute countdown for as long as these were two
+ * separate pieces of reasoning.
+ */
+export const SET_KIND_LABELS: Record<SetKind, string> = {
+  warmup: 'Warm-up',
+  approach: 'Approach set',
+  working: 'Working set',
+};
+
+/**
+ * Which of the three this set is.
+ *
+ * `setIndex` is zero-based. Only a main lift ramps; everywhere else every set
+ * carries the prescription, so every set is a working set. The approach rung
+ * only exists on a climb long enough to have one - below four sets there is no
+ * room between the warm-up and the work.
+ */
+export function setKindFor(
+  category: ExerciseCategory,
+  setIndex: number,
+  totalSets: number
+): SetKind {
+  if (category !== 'main') return 'working';
+  if (setIndex >= totalSets - 1) return 'working';
+  if (totalSets >= 4 && setIndex === totalSets - 2) return 'approach';
+  return 'warmup';
+}
+
+/**
+ * Every rest period the app prescribes, in one table.
+ *
+ * The three at the top are Archie's numbers. The three below them are the
+ * drill doses that were already written per category and are more specific
+ * than anything a movement rule could say about them: a mechanical drill has
+ * always rested 30-45 seconds and a rehab set 30-45, and neither was ever a
+ * complaint.
+ */
+export const REST_SECONDS = {
+  /** The working set of a main lift. */
+  mainWorking: 180,
+  /** The last rung before the working weight. */
+  mainApproach: 90,
+  /** A climbing warm-up rung. */
+  mainWarmup: 60,
+  /** A barbell or dumbbell compound, in whichever slot it landed. */
+  compound: 120,
+  /** Genuine isolation and pump work. */
+  isolation: 60,
+  /** Power primers: jumps, throws and slams. Full recovery, short doses. */
+  neuro: 60,
+  /** Movement-quality drills. */
+  mechanical: 45,
+  /** Clinical rehab doses. */
+  prehab: 35,
+} as const;
+
+/**
+ * Seconds to rest after the set just logged, or null for no countdown at all.
+ *
+ * Null is the answer for prep, the finisher, the cool-down and cardio, and it
+ * is deliberate: prep flows continuously, a finisher is meant to keep moving,
+ * and a countdown over somebody's closing breathing is the app interrupting the
+ * one part of the session that is supposed to be quiet.
+ */
+export function restSecondsForSet(input: {
+  category: ExerciseCategory;
+  /** The library record's own role, carried on the card. See Exercise.libraryRole. */
+  libraryRole?: RecordRole;
+  /** Which kind of set was just finished. Defaults to a working set. */
+  setKind?: SetKind;
+}): number | null {
+  const { category, libraryRole, setKind = 'working' } = input;
+  /**
+   * Isolation is isolation in whichever slot it turns up, the main one
+   * included.
+   *
+   * Measured, not imagined: a bodyweight or bands-only session filed under one
+   * of the retired lift ids fills its MAIN slot with Wall Hip Hinge, a record
+   * the library calls an accessory. Three minutes between sets of that is the
+   * slot talking and not the movement, which is the whole thing this rule was
+   * written to stop. The main lift's three minutes belongs to a main lift.
+   */
+  const isIsolation = libraryRole === 'accessory';
+  switch (category) {
+    case 'main':
+      if (isIsolation) return REST_SECONDS.isolation;
+      if (setKind === 'warmup') return REST_SECONDS.mainWarmup;
+      if (setKind === 'approach') return REST_SECONDS.mainApproach;
+      return REST_SECONDS.mainWorking;
+    case 'accessory':
+      /**
+       * ABSENCE MEANS COMPOUND, ON PURPOSE.
+       *
+       * A card with no role is one built from something other than a library
+       * record, or one whose role was dropped somewhere along the way. Two
+       * minutes is the safe reading of an unknown: nobody has ever been hurt by
+       * resting too long, and the failure the other default would cause is the
+       * exact one this whole rule exists to stop.
+       *
+       * It is a fallback and not a habit. tests/rest-and-sets.check.mjs runs
+       * both generators over every session type and holds every accessory card
+       * they build to arriving WITH a role, so a broken thread shows up as a
+       * failing test rather than as everybody quietly resting two minutes.
+       *
+       * ONE PLACE REALLY DOES LAND HERE: a custom session. Its exercises are
+       * stored on the user's own saved template (CustomTemplate in lib/store.ts)
+       * and that record has no role field, so every accessory a person builds
+       * for themselves rests two minutes. Carrying the role there means a
+       * persisted schema change, a version bump and a migration, which is a
+       * bigger and riskier edit than the minute it would save; two minutes on a
+       * self-chosen accessory is a long rest, not a wrong one.
+       */
+      return isIsolation ? REST_SECONDS.isolation : REST_SECONDS.compound;
+    case 'neuro':
+      return REST_SECONDS.neuro;
+    case 'mechanical':
+      return REST_SECONDS.mechanical;
+    case 'prehab':
+      return REST_SECONDS.prehab;
+    default:
+      return null;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

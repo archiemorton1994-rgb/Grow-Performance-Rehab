@@ -93,7 +93,9 @@ import {
   effortHint,
   parseReps,
   prescriptionFor,
-  restSecondsFor,
+  restSecondsForSet,
+  setKindFor,
+  SET_KIND_LABELS,
   tierOf,
 } from '@/lib/rep-scheme';
 import { uploadUserData } from '@/lib/sync';
@@ -121,7 +123,6 @@ import {
   getPainRegionLabel,
   getWeightGuideKg,
   expandSetTargets,
-  REST_PERIOD_SECONDS,
 } from '@/lib/workout-engine';
 import { SWAP_KIND_HEADINGS, loggedExerciseFor, swapSlotFor } from '@/lib/exercise-swaps';
 import {
@@ -143,16 +144,26 @@ interface ExerciseSetData {
 }
 
 /**
- * How far the weight drops when somebody takes the lighter option after calling
- * a set challenging.
+ * THE "HARD WORK. WANT TO EASE OFF?" STEP USED TO LIVE HERE, AND IT IS GONE.
  *
- * Twenty per cent, not the ten the auto-regulation already applies to "Too
- * Hard". Ten per cent is a correction to a prescription that was slightly
- * ambitious; this is a back-off set for somebody who has decided the next one
- * is not happening at this weight, and a drop they can feel is the whole point
- * of choosing it over stopping.
+ * Answering the middle button raised a second screen offering "One more set at
+ * X", and taking that row collapsed every remaining set into one: a three-set
+ * exercise became two, which is the disappearing set Archie watched happen.
+ *
+ * The missing set was only the symptom. The fault was offering a way out the
+ * instant somebody had said the weight was right, and once the middle button
+ * reads "Just right" the offer contradicts the answer that raised it outright.
+ * There is no other answer it could sensibly hang off either: "Too Hard" is
+ * given on a warm-up rung more often than anywhere else, so moving it there
+ * would put the same prompt in front of somebody three rungs below their
+ * working weight.
+ *
+ * What is left for somebody who genuinely cannot finish is the thing the
+ * clinical copy already points at: "Skip - couldn't do this exercise", which
+ * keeps every set already logged (see handleSkipExercise). Nothing the feedback
+ * question does can remove a set from the plan any more, and
+ * tests/ease-off.check.mjs holds it to that.
  */
-const EASE_OFF_FRACTION = 0.2;
 
 function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
   const lower = suggestedLoad.toLowerCase();
@@ -232,16 +243,19 @@ function progressionIconFor(exercise: Exercise) {
 }
 
 function RestTimer({
-  category,
   seconds,
   trigger = 0,
   onTimerEnd,
 }: {
-  category: Exercise['category'];
   /**
-   * Goal-aware rest, when the goal has an opinion. A back squat wants three
-   * minutes for someone chasing strength and ninety seconds for someone chasing
-   * size, and the category map alone could not tell them apart.
+   * How long to rest after the set that was just logged, from
+   * restSecondsForSet: decided by what the movement is and whether that set was
+   * a warm-up rung, the approach set or the working set.
+   *
+   * Null means this kind of exercise gets no countdown at all, and the widget
+   * draws nothing. The timer used to fall back to a per-category table when the
+   * number was missing, which meant a dropped answer silently became a
+   * different, older prescription rather than showing up as an absent clock.
    */
   seconds?: number | null;
   trigger?: number;
@@ -249,7 +263,7 @@ function RestTimer({
 }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const duration = seconds ?? REST_PERIOD_SECONDS[category] ?? 0;
+  const duration = seconds ?? 0;
   // Wall-clock model: `endAt` is the absolute timestamp when the countdown
   // should hit zero. `secondsLeft` is derived from (endAt - Date.now()) on
   // every tick, so backgrounding, scroll jank, or device sleep can never
@@ -601,18 +615,6 @@ interface SessionActiveBarProps {
     loggedKg: number,
     exerciseIndex: number
   ) => void;
-  /**
-   * The way out of a set that was harder than the plan expected.
-   *
-   * Raised by answering "Challenging" while sets remain. 'lighter' leaves one
-   * final set at `targetKg`; 'skip' ends the exercise and keeps every set
-   * already logged.
-   *
-   * The weight is decided here rather than by the handler, so the number on the
-   * button is by construction the number written to the set. Working it out in
-   * both places from the same inputs is two chances for those to diverge.
-   */
-  onEaseOff?: (exerciseIndex: number, mode: 'lighter' | 'skip', targetKg: number) => void;
   /** One short line explaining why the prefilled weight is what it is, if it
    *  was changed by the previous set's answer. */
   autoNote?: string | null;
@@ -690,7 +692,6 @@ export function SessionActiveBar({
   onSetCompleted,
   onNewPb,
   onFeedback,
-  onEaseOff,
   autoNote = null,
   onCompleteSession,
   onGoBack,
@@ -747,31 +748,17 @@ export function SessionActiveBar({
     setIndex: number;
     kg: number;
     /**
-     * How many sets of THIS exercise were still to come when the prompt was
-     * raised, and which exercise it was.
+     * Which exercise the answer belongs to.
      *
-     * Both are captured rather than read live for the same reason the set index
-     * is: logging the last set of an exercise advances the session, so by the
-     * time an answer is tapped the bar is already pointing at the next
-     * exercise. Reading the remaining count live would offer to skip the rest
-     * of an exercise that had not started.
+     * Captured rather than read live for the same reason the set index is:
+     * logging the last set of an exercise advances the session, so by the time
+     * an answer is tapped the bar is already pointing at the next exercise.
+     *
+     * A count of the sets still to come used to be captured beside it, to
+     * decide whether to offer the way out that could delete them. Nothing
+     * offers that any more, so nothing needs the count.
      */
-    remaining: number;
     exerciseIndex: number;
-    /** True when the weight had stopped climbing, i.e. this was a working set. */
-    isWorkingSet: boolean;
-  } | null>(null);
-
-  /**
-   * The second step, offered after "Challenging" when there is still a set to
-   * change. Held separately from showFeedback so that answering still records
-   * the answer even if the user backs out of this.
-   */
-  const [easeOff, setEaseOff] = useState<{
-    exerciseIndex: number;
-    kg: number;
-    /** False while the weight is still climbing towards the top of a ramp. */
-    isWorkingSet: boolean;
   } | null>(null);
 
   const prevKeyRef = useRef(`${exerciseIndex}-${activeSetIndex}`);
@@ -780,7 +767,7 @@ export function SessionActiveBar({
    *
    * The prefill has to be able to move without the set moving. Completing a set
    * advances the index first and asks how it felt second, so the answer — and
-   * the lighter weight "Challenging" or "Too Hard" earns — lands while the key
+   * the lighter weight "Too Hard" earns — lands while the key
    * below is unchanged; keying the refresh on the set alone left the guide and
    * the auto-regulation note updating while the box the user actually submits
    * still held the weight they had just called too heavy. Comparing against
@@ -862,13 +849,13 @@ export function SessionActiveBar({
   // penultimate set of a long ramp an "Approach set" at ~87.5% of the working
   // weight. Calling that a warm-up was the third of three accounts the same
   // exercise gave of itself on one screen.
+  //
+  // The rule itself lives in lib/rep-scheme.ts because the rest timer reads it
+  // too. Two copies of "which kind of set is this" is how a card comes to say
+  // Warm-up over a three-minute countdown.
   const setLabel =
     exercise?.category === 'main'
-      ? activeSetIndex >= totalSets - 1
-        ? 'Working set'
-        : totalSets >= 4 && activeSetIndex === totalSets - 2
-          ? 'Approach set'
-          : 'Warm-up'
+      ? SET_KIND_LABELS[setKindFor(exercise.category, activeSetIndex, totalSets)]
       : null;
 
   const handleComplete = () => {
@@ -890,31 +877,24 @@ export function SessionActiveBar({
       // it stays put until one of the three buttons is tapped. The old 3s timer
       // meant a slower reader lost the chance to answer, and every set that
       // goes unrated is a load adjustment the engine never gets to make.
-      /**
-       * Is the ramp over?
-       *
-       * On a main lift the first sets are warm-up rungs, and "that felt
-       * challenging" on rung one of six means the bar is heavy, not that the
-       * session is beyond the lifter - lib/auto-regulation.ts opens with
-       * exactly this trap. Offering to skip the rest of the exercise there
-       * would be offering to skip the work before any of it had been done.
-       *
-       * weightGuidesKg is the planned weight per set, so the top of the ramp is
-       * simply its maximum. An accessory carries the same target on every set,
-       * which makes every set a working set, which is correct.
-       */
-      const topGuide = Math.max(0, ...weightGuidesKg.filter((n) => n > 0));
       setShowFeedback({
         exerciseId: exercise.id,
         setIndex: activeSetIndex,
         kg: effectiveWeightKg,
-        remaining: totalSets - (activeSetIndex + 1),
         exerciseIndex,
-        isWorkingSet: topGuide === 0 || (weightGuidesKg[activeSetIndex] ?? 0) >= topGuide,
       });
     }
   };
 
+  /**
+   * Record the answer, put the logging bar back. That is the whole of it.
+   *
+   * There is deliberately no branch here. An answer used to be able to raise a
+   * second screen offering a way out of the exercise, and the row on it removed
+   * every set but one. Whatever the answer, the plan the user agreed to is
+   * still the plan: the weight offered for the next set moves (see
+   * lib/auto-regulation.ts) and nothing else does.
+   */
   const handleFeedback = (f: SetFeedback) => {
     if (showFeedback) {
       onFeedback(
@@ -924,24 +904,6 @@ export function SessionActiveBar({
         showFeedback.kg,
         showFeedback.exerciseIndex
       );
-      // The answer is recorded either way. What follows is an offer, not a
-      // consequence: there has to be a later set for it to change and a weight
-      // for it to move. Whether the ramp is over decides WHAT is offered, not
-      // whether anything is - see the easeOff branch below.
-      if (
-        f === 'challenging' &&
-        onEaseOff &&
-        showFeedback.remaining > 0 &&
-        showFeedback.kg > 0
-      ) {
-        setEaseOff({
-          exerciseIndex: showFeedback.exerciseIndex,
-          kg: showFeedback.kg,
-          isWorkingSet: showFeedback.isWorkingSet,
-        });
-        setShowFeedback(null);
-        return;
-      }
     }
     setShowFeedback(null);
   };
@@ -984,92 +946,6 @@ export function SessionActiveBar({
   // the exercise now under the cursor — and on the session's last set there is
   // no next set for these guards to find.
   if (!showFeedback && (!exercise || !currentSet || activeSetIndex >= totalSets)) return null;
-
-  /**
-   * One question, three answers, each a full-width row with the consequence
-   * written underneath it. Not a modal: the prompt it follows is already a
-   * takeover of this bar, and a sheet on top of a takeover is how the app ends
-   * up with two things asking at once.
-   */
-  if (easeOff) {
-    /**
-     * What "one more, lighter" means depends on where in the exercise they are.
-     *
-     * ON A RAMP RUNG the weight is still climbing, and the set the plan is
-     * about to ask for is HEAVIER than the one they just called hard. Twenty
-     * per cent down from here would be a weight they warmed up on. So the offer
-     * is to stop climbing and take this weight as the top set: lighter than
-     * what was coming, which is the relief being asked for.
-     *
-     * AT THE TOP OF A RAMP, or on a flat accessory where every set carries the
-     * same target, there is nothing left to climb and the honest relief is a
-     * real reduction.
-     */
-    const lighterKg = easeOff.isWorkingSet
-      ? roundToLoadable(easeOff.kg * (1 - EASE_OFF_FRACTION), weightUnit)
-      : easeOff.kg;
-    const lighter = formatWeight(lighterKg, weightUnit);
-    // Twenty per cent off the lightest dumbbell in the building rounds back
-    // onto it, because a weight has to be one the gym can actually load. The
-    // row would then promise relief and hand back the same weight. Stopping a
-    // ramp early is always a real change, so only the reduction has to prove
-    // it moved. Skipping and carrying on are both still there either way.
-    const canGoLighter = !easeOff.isWorkingSet || lighterKg < easeOff.kg;
-    return (
-      <View style={[styles.barContainer, { paddingBottom: bottomInset + 12 }]}>
-        <Text style={styles.barFeedbackPrompt}>Hard work. Want to ease off?</Text>
-        <View style={styles.easeOffList}>
-          {canGoLighter && (
-            <Pressable
-              onPress={() => {
-                onEaseOff?.(easeOff.exerciseIndex, 'lighter', lighterKg);
-                setEaseOff(null);
-              }}
-              style={styles.easeOffBtn}
-              testID="ease-off-lighter"
-              accessibilityRole="button"
-              accessibilityLabel={`One more set at ${lighter}`}
-            >
-              <Ionicons name="trending-down" size={20} color={C.primaryText} />
-              <View style={styles.easeOffTextCol}>
-                <Text style={styles.easeOffTitle}>One more set at {lighter}</Text>
-                <Text style={styles.easeOffSub}>
-                  {easeOff.isWorkingSet
-                    ? 'Finish the exercise on a weight you control'
-                    : 'Stop climbing and finish on this weight'}
-                </Text>
-              </View>
-            </Pressable>
-          )}
-          <Pressable
-            onPress={() => {
-              onEaseOff?.(easeOff.exerciseIndex, 'skip', 0);
-              setEaseOff(null);
-            }}
-            style={styles.easeOffBtn}
-            testID="ease-off-skip"
-            accessibilityRole="button"
-            accessibilityLabel="Move on to the next exercise"
-          >
-            <Ionicons name="play-skip-forward" size={20} color={C.primaryText} />
-            <View style={styles.easeOffTextCol}>
-              <Text style={styles.easeOffTitle}>Move on to the next exercise</Text>
-              <Text style={styles.easeOffSub}>Every set you have logged is kept</Text>
-            </View>
-          </Pressable>
-          <Pressable
-            onPress={() => setEaseOff(null)}
-            style={styles.easeOffCarryOn}
-            testID="ease-off-carry-on"
-            accessibilityRole="button"
-            accessibilityLabel="Carry on as planned"
-          >
-            <Text style={styles.easeOffCarryOnText}>Carry on as planned</Text>
-          </Pressable>
-        </View>
-      </View>
-    );
-  }
 
   if (showFeedback || demoForceFeedback) {
     const loggedSetNumber = (showFeedback?.setIndex ?? activeSetIndex) + 1;
@@ -1579,7 +1455,7 @@ export function ExerciseCard({
    * The card has always said what to lift and how many times, and never how
    * close to your limit to get. "3 x 10" with no effort target is half a
    * prescription: the same ten reps can be a warm-up or a maximal set, and
-   * without saying which, the Easy / Challenging / Too Hard question underneath
+   * without saying which, the Easy / Just right / Too Hard question underneath
    * is being asked against nothing. With a target on screen it becomes
    * checkable - you were meant to leave two, did you?
    *
@@ -1628,18 +1504,37 @@ export function ExerciseCard({
   ]);
 
   /**
-   * Rest, where the goal actually changes the answer.
+   * Rest, for the set that was just logged.
    *
-   * Only the lifting tiers. Prehab, activation and power-primer work already
-   * carry rest periods written per category - 30-45 s for a mechanical drill,
-   * 45-60 s for a neuro one - and the goal table has a single number covering
-   * all three, so applying it there would trade a specific answer for a vaguer
-   * one. On the lifts it is the other way round: one number covered a
-   * powerlifter and someone chasing size, who want three minutes and ninety
-   * seconds respectively.
+   * THE SET THE CLOCK BELONGS TO IS THE ONE JUST FINISHED, not the one coming.
+   * A three-minute rest is earned by a working set; the warm-up rungs that led
+   * up to it rest a minute. So the number is worked out from the last set on
+   * this card that is marked done, which is exactly the set the timer started
+   * for - the countdown is triggered by logging it.
+   *
+   * Before the first set of the card there is nothing to rest after, and the
+   * widget is not counting anything down anyway, so the first set's own kind is
+   * the harmless answer to show.
+   *
+   * What decides the number is in lib/rep-scheme.ts: what the movement IS
+   * (exercise.libraryRole) and which kind of set that was. The goal is not part
+   * of it any more.
    */
-  const goalRestSeconds =
-    goalTier === 'tier1' || goalTier === 'tier2' ? restSecondsFor(goals, exercise.category) : null;
+  const restSeconds = useMemo(() => {
+    const sets = setData.sets;
+    let justLogged = 0;
+    for (let i = sets.length - 1; i >= 0; i--) {
+      if (sets[i].completed) {
+        justLogged = i;
+        break;
+      }
+    }
+    return restSecondsForSet({
+      category: exercise.category,
+      libraryRole: exercise.libraryRole,
+      setKind: setKindFor(exercise.category, justLogged, sets.length),
+    });
+  }, [setData.sets, exercise.category, exercise.libraryRole]);
 
   const isPast = exerciseState === 'past';
   const isFuture = exerciseState === 'future';
@@ -1935,11 +1830,7 @@ export function ExerciseCard({
                   )}
 
                   {exercise.type !== 'cardio' && !isTimedCardioWarmup(exercise) && (
-                    <RestTimer
-                      category={exercise.category}
-                      seconds={goalRestSeconds}
-                      trigger={effectiveTimerTrigger}
-                    />
+                    <RestTimer seconds={restSeconds} trigger={effectiveTimerTrigger} />
                   )}
 
                   {exercise.type !== 'cardio' &&
@@ -3247,7 +3138,7 @@ export default function SessionScreen() {
         return { ...prev, [exerciseId]: answers };
       });
       // The aggregate that shapes NEXT session is derived from the whole run of
-      // answers, not from the latest tap — see feedbackRatingFor. "Challenging"
+      // answers, not from the latest tap — see feedbackRatingFor. "Just right"
       // maps to nothing, so it must be able to CLEAR a rating an earlier answer
       // set, otherwise one Easy on set 1 would outlive being corrected.
       setInSessionFeedback((prev) => {
@@ -4004,54 +3895,6 @@ export default function SessionScreen() {
   }, []);
 
   /**
-   * The two ways out of a set that turned out to be harder than the plan.
-   *
-   * 'skip' is the existing skip, unchanged, so the guarantee it already carries
-   * holds here too: the sets already logged survive, and only the ones still to
-   * come are marked skipped.
-   *
-   * 'lighter' collapses whatever is left into ONE final set at a reduced
-   * weight. Not "the same three sets, lighter": the person choosing this has
-   * just told the app the next set is the one that will fail, and three more of
-   * them is not what they are asking for. One good set to finish on is.
-   *
-   * The weight is written onto the set rather than held beside it, because the
-   * bar already prefills from a set's stored weight when it has one. Nothing
-   * new has to be taught about where a recommendation comes from.
-   *
-   * targetKg arrives already decided. The bar has to work it out anyway to put
-   * it on the button, and doing the same sum again here is how the number
-   * somebody agreed to and the number they get stop being the same number.
-   */
-  const handleEaseOff = useCallback(
-    (index: number, mode: 'lighter' | 'skip', targetKg: number) => {
-      if (mode === 'skip') {
-        handleSkipExercise(index);
-        return;
-      }
-      setExerciseData((prev) => {
-        const ex = prev[index];
-        if (!ex || ex.sets.length === 0 || targetKg <= 0) return prev;
-        const last = ex.sets.length - 1;
-        const backOffKg = targetKg;
-        const next = [...prev];
-        next[index] = {
-          ...ex,
-          sets: ex.sets.map((s, i) => {
-            if (s.completed) return s;
-            if (i < last) return { ...s, weight: 0, reps: 0, completed: true, skipped: true };
-            return { ...s, weight: backOffKg };
-          }),
-          activeSetIndex: last,
-        };
-        return next;
-      });
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    },
-    [handleSkipExercise]
-  );
-
-  /**
    * One row per exercise for the strip and the list.
    *
    * "Done" means every set is accounted for, logged or skipped - the same test
@@ -4793,7 +4636,6 @@ export default function SessionScreen() {
               onSetCompleted={isDemo ? () => {} : handleBarSetCompleted}
               onNewPb={isDemo ? undefined : handleNewPb}
               onFeedback={isDemo ? () => {} : handleBarFeedback}
-              onEaseOff={isDemo ? undefined : handleEaseOff}
               autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
@@ -5669,40 +5511,6 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       color: C.textTertiary,
       textAlign: 'center',
       marginTop: 12,
-    },
-    // ── The way out of a set that was harder than the plan ──────────────────
-    easeOffList: { gap: 8 },
-    easeOffBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 12,
-      paddingHorizontal: 14,
-      borderRadius: 12,
-      backgroundColor: C.primarySurface,
-      borderWidth: 1,
-      borderColor: C.primaryMuted,
-    },
-    easeOffTextCol: { flex: 1, gap: 2 },
-    easeOffTitle: {
-      fontSize: 15,
-      fontFamily: 'Inter_600SemiBold',
-      color: C.primaryDark,
-    },
-    easeOffSub: {
-      fontSize: 12,
-      fontFamily: 'Inter_400Regular',
-      color: C.textSecondary,
-    },
-    easeOffCarryOn: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 10,
-    },
-    easeOffCarryOnText: {
-      fontSize: 14,
-      fontFamily: 'Inter_500Medium',
-      color: C.textSecondary,
     },
     container: { flex: 1, backgroundColor: C.background },
     topBar: {
@@ -6983,7 +6791,7 @@ function makeStyles(C: ReturnType<typeof useColors>) {
       gap: 8,
     },
     // Icon above label rather than beside it. Three buttons share the width now
-    // where two used to, and "Challenging" alongside a 17px icon does not fit
+    // where two used to, and a two-word answer alongside a 17px icon does not fit
     // in a third of a phone's width without wrapping.
     barFeedbackBtn: {
       flex: 1,

@@ -350,7 +350,7 @@ function StatDeltaTile({
  *
  * "Clean" was never defined anywhere in the UI, which is the other half of the
  * complaint, so it is spelled out rather than used as jargon. Note that
- * "Challenging" appears nowhere: it means the prescription was right, which is
+ * "Just right" appears nowhere: it means the prescription was right, which is
  * not a reason to change it.
  */
 function ProgressionRules({ P }: { P: CardPalette }) {

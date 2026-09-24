@@ -93,7 +93,7 @@ const LOGGING_TIP: SessionTip = {
 
 const FEEL_TIP: SessionTip = {
   title: 'What does the question after each set do?',
-  body: 'Easy, Challenging or Too Hard changes the very next set straight away and sets where you start next time. It is worth answering honestly even when the honest answer is that it was too heavy.',
+  body: 'Easy, Just right or Too Hard changes the very next set straight away and sets where you start next time. It only ever moves the weight. Your sets stay as they are, so it is worth answering honestly even when the honest answer is that it was too heavy.',
 };
 
 const REST_TIP: SessionTip = {

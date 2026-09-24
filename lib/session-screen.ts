@@ -231,7 +231,7 @@ export const SESSION_TUTORIAL: readonly SessionTutorialStep[] = [
     // in-session effect, so the single biggest thing these taps do - set the
     // weight you are given next week - went unexplained, and an answer whose
     // consequence you cannot see is one people stop giving.
-    body: 'After each set, tap Easy, Challenging or Too Hard. It changes your next set straight away, and it sets the weight you start with next time. Say Challenging with sets still to come and it offers a way out as well: one more set lighter, or move on keeping everything you have logged.',
+    body: 'After each set, tap Easy, Just right or Too Hard. It changes the weight offered for your next set straight away, and it sets the weight you start with next time. It never changes how many sets you have left. If an exercise is not happening today, Skip it: every set you have already logged is kept.',
     demoForceFeedback: true,
   },
   {

@@ -59,6 +59,9 @@ import {
 } from './exercise-db';
 import { levelOf } from './exercise-levels';
 import { type ExerciseLevel } from './exercise-levels';
+// Type only, so no runtime edge is added to a module graph that already has a
+// deliberate cycle in it. lib/exercise-library.ts imports nothing from here.
+import type { RecordRole } from './exercise-library';
 import {
   isEquipmentVariant,
   isSameMuscleAlternative,
@@ -204,6 +207,26 @@ export interface Exercise {
   movementPattern?: string;
   /** Which rung of that ladder, 1 to 5. Absent for anything off a ladder. */
   level?: ExerciseLevel;
+  /**
+   * WHAT THE MOVEMENT IS, as opposed to the slot it landed in.
+   *
+   * `category` is the slot: main, accessory, finisher. This is the library
+   * record's own `role`, copied on when the card is built, and the two disagree
+   * far more often than they agree. Measured over 1,728 generated full-gym
+   * sessions, 68% of the cards filed under `accessory` are records
+   * lib/exercise-library.ts calls main lifts - Barbell Row, Barbell Bulgarian
+   * Split Squats, Barbell Floor Press, Kettlebell Deadlift.
+   *
+   * Rest reads this rather than the category, so a heavy barbell compound keeps
+   * its two minutes wherever in the session it turns up and genuine isolation
+   * work gets one. See restSecondsForSet in lib/rep-scheme.ts.
+   *
+   * Absent on anything not built from a library record: the Restore pools, the
+   * cool-down and a custom session's own picks. The rest rule treats absence as
+   * "compound" on purpose, because a longer rest has never hurt anybody and a
+   * silently dropped role would otherwise hand barbell work a minute.
+   */
+  libraryRole?: RecordRole;
 }
 
 interface ReadinessCheck {
@@ -511,7 +534,13 @@ function seededShuffleDiverse<T extends { movementPattern?: MovementPattern }>(
  * is the failure tests/exercise-video.check.mjs was written for.
  */
 export function templateToExercise(
-  t: ExerciseTemplate,
+  /**
+   * A library record arrives here as itself, `role` and all. The widened type
+   * is what lets that field survive the copy instead of being dropped on the
+   * floor, which is exactly what used to happen: every card kept its category
+   * and forgot what the movement was.
+   */
+  t: ExerciseTemplate & { role?: RecordRole },
   badge?: 'comfort' | 'volume',
   isDumbbell?: boolean
 ): Exercise {
@@ -559,6 +588,15 @@ export function templateToExercise(
      */
     movementPattern: t.movementPattern,
     level: levelOf(t.name, t.movementPattern) ?? undefined,
+    /**
+     * What the library says this movement is. See Exercise.libraryRole.
+     *
+     * Threaded here, in the one function every card is built through, for the
+     * same reason videoId and youtubeUrl are: a field that survives one route
+     * and not another fails in silence. The failure this one would cause is a
+     * minute's rest between sets of barbell rowing.
+     */
+    libraryRole: t.role,
   };
 }
 
@@ -1251,20 +1289,30 @@ function personalizeLoad(
  *   60 min → all 8 phases - full session
  */
 /**
- * Returns set-count adjustments based on the user's goal mix.
+ * Returns the set-count adjustment the user's goal mix earns on the MAIN lift.
  *
- * mainSetsDelta: added to the KPI lift base sets (strength → +1, rehab → -1)
- * accSetsDelta:  added to each accessory set count (muscle/fat_loss → +1, strength/rehab → -1)
+ * mainSetsDelta: added to the main lift's base sets (strength → +1, rehab → -1)
  *
  * When two goals are selected the deltas are averaged and rounded.
  *
- * Exported so the library generator applies the SAME deltas this one does. Two
+ * Exported so the library generator applies the SAME delta this one does. Two
  * tables of goal volume is one edit away from the two generators disagreeing
  * about what a strength goal means.
+ *
+ * THERE WAS AN ACCESSORY DELTA HERE TOO, AND IT HAS GONE.
+ *
+ * It moved each accessory's set count by goal - muscle and fat loss +1,
+ * strength and rehab -1 - on top of a base worked out from the level and the
+ * energy, which is how the accessory block came out anywhere from one set to
+ * five. An accessory is three sets now, because that is the dose written on
+ * every accessory record in lib/exercise-library.ts, and the only things still
+ * allowed to take one off are a bad day, an easier week, a severe pain report
+ * and a rehab goal. Leaving a returned field that nothing reads is how a rule
+ * gets quietly wired back up; see setsFor in lib/library-session.ts for where
+ * the number actually comes from.
  */
 export function getGoalVolumeDeltas(goals: FitnessGoal[]): {
   mainSetsDelta: number;
-  accSetsDelta: number;
 } {
   const mainDelta: Record<FitnessGoal, number> = {
     strength: 1,
@@ -1274,18 +1322,9 @@ export function getGoalVolumeDeltas(goals: FitnessGoal[]): {
     rehab: -1,
     power: 1,
   };
-  const accDelta: Record<FitnessGoal, number> = {
-    strength: -1,
-    muscle: 1,
-    fat_loss: 1,
-    fitness: 0,
-    rehab: -1,
-    power: 0,
-  };
   const active = goals?.length ? goals : (['fitness'] as FitnessGoal[]);
   const avgMain = active.reduce((s, g) => s + (mainDelta[g] ?? 0), 0) / active.length;
-  const avgAcc = active.reduce((s, g) => s + (accDelta[g] ?? 0), 0) / active.length;
-  return { mainSetsDelta: Math.round(avgMain), accSetsDelta: Math.round(avgAcc) };
+  return { mainSetsDelta: Math.round(avgMain) };
 }
 
 /**
@@ -3363,47 +3402,6 @@ function generateRestoreWorkout(
   return [];
 }
 
-
-/**
- * Numeric rest-timer defaults per category, in seconds.
- *
- * Single source of truth shared with `getRestPeriod` (the verbal copy below)
- * and consumed by the in-session `RestTimer` countdown widget. Categories
- * that should NOT auto-start a countdown (prep stretches flow continuously,
- * the conditioning finisher is meant to keep moving, cooldown is breathing)
- * are intentionally absent - `RestTimer` renders nothing when the lookup
- * misses.
- */
-export const REST_PERIOD_SECONDS: Partial<Record<ExerciseCategory, number>> = {
-  main: 150, // 2–3 min → midpoint
-  accessory: 75, // 60–90 s → midpoint
-  neuro: 60, // 45–60 s
-  mechanical: 45, // 30–45 s
-  prehab: 35, // 30–45 s
-};
-
-export function getRestPeriod(category: ExerciseCategory): string {
-  switch (category) {
-    case 'prep':
-      return 'Move between exercises without rest - breathe into each stretch';
-    case 'mechanical':
-      return 'Rest 30-45 sec between sets';
-    case 'neuro':
-      return 'Rest 45-60 sec between sets - full recovery before each';
-    case 'main':
-      return 'Rest 2-3 min between sets - full recovery is key';
-    case 'accessory':
-      return 'Rest 60-90 sec between sets';
-    case 'prehab':
-      return 'Rest 30-45 sec between sets';
-    case 'finisher':
-      return 'Rest only if you need to - keep moving';
-    case 'cooldown':
-      return 'Breathe slowly - no rest needed';
-    default:
-      return 'Rest as needed';
-  }
-}
 
 export function getWeightGuide(
   category: ExerciseCategory,

@@ -184,6 +184,19 @@ export type KitRequirement = readonly (readonly KitKey[])[];
 export type LibraryRole = 'main' | 'accessory' | 'power';
 
 /**
+ * The `role` field as it appears on ANY record in this file, conditioning
+ * included.
+ *
+ * It exists because the role now has to travel. Rest is decided by what a
+ * movement IS rather than by the slot it landed in (see restSecondsForSet in
+ * lib/rep-scheme.ts), and two thirds of what lands in an accessory slot is a
+ * record this file calls a main lift - Barbell Row, Barbell Bulgarian Split
+ * Squats, Barbell Floor Press. Reading the slot instead of the record would put
+ * sixty seconds between sets of heavy barbell rowing.
+ */
+export type RecordRole = LibraryRole | 'conditioning';
+
+/**
  * What kind of dose the `reps` field holds. See the header for why it matters.
  *
  * 'reps' is the only one double progression may touch. The other three are

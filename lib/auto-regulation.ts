@@ -3,7 +3,7 @@
  *
  * WHAT THIS IS FOR
  * ────────────────
- * After each set the user answers one question — Easy, Challenging, or Too Hard
+ * After each set the user answers one question — Easy, Just right, or Too Hard
  * — and the weight offered for the NEXT set moves accordingly. Before this, the
  * answer only ever affected the *next session*: every set in the current
  * exercise was prefilled from the same prescription regardless of how the last
@@ -20,7 +20,7 @@
  *
  *   Easy        → move up to the next rung, carrying any extra the user put on
  *                 the bar up with it
- *   Challenging → on the working set, hold the weight just lifted; on a rung
+ *   Just right  → on the working set, hold the weight just lifted; on a rung
  *                 below it, carry on up the ramp and add nothing on top
  *   Too Hard    → drop back to the last set that went well, and stop climbing
  *
@@ -28,12 +28,12 @@
  * the user puts in and the rest move off that:
  *
  *   Easy        → +10%
- *   Challenging → hold
+ *   Just right  → hold
  *   Too Hard    → -10%
  *
  * THE GUARDRAIL, AND THE ONE PLACE IT DOES NOT BELONG
  * ───────────────────────────────────────────────────
- * The app must never answer "Challenging" or "Too Hard" on the WORKING SET with
+ * The app must never answer "Just right" or "Too Hard" on the WORKING SET with
  * more weight. That is the user saying they are at their limit on the load the
  * exercise is actually prescribed at, and answering honestly must never be
  * punished. `ceilingKg` is the second half of it: once "Too Hard" has been said
@@ -87,9 +87,9 @@ export interface LoadPlan {
 export type SuggestionReason =
   | 'planned' // following the prescription; nothing to adjust from yet
   | 'ramp_up' // climbing the ramp after "Easy"
-  | 'ramp_hold' // "Challenging" on a warm-up — next rung, nothing added on top
+  | 'ramp_hold' // "Just right" on a warm-up — next rung, nothing added on top
   | 'increase' // accessory +10% after "Easy"
-  | 'hold' // "Challenging" on the working set — same weight again
+  | 'hold' // "Just right" on the working set — same weight again
   | 'back_off' // "Too Hard" — down to the last set that went well
   | 'decrease' // accessory -10% after "Too Hard"
   | 'capped'; // held down by an earlier "Too Hard" on this exercise
@@ -185,8 +185,8 @@ function workingSetIndex(plan: LoadPlan): number {
  *
  * Someone lifting above or below the prescription should have the rest of their
  * ramp shifted with them rather than snapped back to the plan. `allowAbovePlan`
- * is the only thing separating Easy from Challenging here: Easy may carry a
- * heavier-than-planned warm-up upward, Challenging follows the plan and refuses
+ * is the only thing separating Easy from Just right here: Easy may carry a
+ * heavier-than-planned warm-up upward, Just right follows the plan and refuses
  * to add anything to it.
  */
 function rampRungKg(
@@ -256,7 +256,7 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
       // set that carries the prescription; below it, holding the number would
       // throw the rest of the ramp away — see the header.
       if (!plan.isRamped || setIndex - 1 >= workingSetIndex(plan)) {
-        return withCap(base, 'hold', 'Same weight again. You said that one was challenging');
+        return withCap(base, 'hold', 'Same weight again. You said that one was just right');
       }
       return withCap(
         rampRungKg(plan, setIndex, base, false),
@@ -295,7 +295,7 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
  * The store's FeedbackRating has three levels and this question has three
  * buttons, but they do not line up one-to-one:
  *
- *   - "Challenging" means the prescription was right, which is not feedback
+ *   - "Just right" means the prescription was right, which is not feedback
  *     that anything should change. It maps to nothing.
  *   - "Easy" once is a nudge. "Easy" on two or more sets of the same exercise
  *     is the user telling us twice, and earns the bigger next-session jump that
@@ -309,7 +309,7 @@ export function suggestSetWeight(plan: LoadPlan, setIndex: number): SetSuggestio
  * the screen labels them "Warm-up" and the guide tells the user they will feel
  * easy. An honest answer to those is therefore "Easy" every single time, and
  * counting them handed out the largest next-session jump every session while
- * leaving the ordinary step reachable only by calling a warm-up challenging.
+ * leaving the ordinary step reachable only by calling a warm-up just right.
  * Anything with no ramp carries the same target on every set, so all of its
  * answers count.
  *
@@ -456,9 +456,23 @@ export function anchorsFromLogs(
   return sessionWeights;
 }
 
-/** Button labels, fixed in one place so the UI and the tests cannot drift. */
+/**
+ * Button labels, fixed in one place so the UI and the tests cannot drift.
+ *
+ * THE MIDDLE ONE SAYS "JUST RIGHT" AND THE KEY STILL SAYS `challenging`.
+ *
+ * Archie read "Challenging" as sitting too close to "Too Hard": two of the
+ * three buttons then described something being hard, and the answer that
+ * actually means "the weight was correct" looked like a complaint. What the
+ * middle button has always DONE is hold the weight, which is what you do when
+ * the prescription was right, so the label was the part that was wrong.
+ *
+ * The key is untouched on purpose. `challenging` is written into every stored
+ * per-set answer on every device, and renaming it would turn all of that
+ * history into an answer the app no longer recognises.
+ */
 export const SET_FEEDBACK_LABELS: Record<SetFeedback, string> = {
   easy: 'Easy',
-  challenging: 'Challenging',
+  challenging: 'Just right',
   too_hard: 'Too Hard',
 };

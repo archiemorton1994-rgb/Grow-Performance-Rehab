@@ -766,10 +766,10 @@ export const DEFAULT_DURATION: SessionDuration = '45';
  * asserted. Rest is the dominant term and it differs per block, which is why
  * this is per-block and not a flat cost per exercise:
  *
- *   kpi          a ramp plus four or five working sets at 2-3 min rest
+ *   kpi          a ramp at 60-90s a rung, then working sets at 3 min
  *   power        low reps, near-full recovery, but only a handful of sets
  *   conditioning a finisher circuit runs long by design
- *   accessory    3 sets of 8-12 at 60-90s
+ *   accessory    3 sets of 8-12, resting 2 min on a compound and 1 on isolation
  *   mobility     a couple of rounds, no rest to speak of
  */
 const MINUTES_PER_PICK: Record<BlockId, number> = {

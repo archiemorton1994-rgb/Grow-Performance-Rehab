@@ -806,6 +806,23 @@ console.log('\n[11] The shape: pulse raiser, mobility, power, finisher, cool-dow
 
 // ── [12] Sets, and the first weight ──────────────────────────────────────────
 console.log('\n[12] Sets by level and goal, and the age factor on a first weight');
+/**
+ * THE ACCESSORY HALF OF THIS SECTION TURNED ROUND, AND IT IS STILL HERE.
+ *
+ * It used to pin the old recipe by exact number, including "a strength goal
+ * adds a set to the main exercise and takes one off the accessories". That
+ * recipe computed an accessory's set count from the level, the goal and the
+ * energy and threw away the number the library record itself carries - which is
+ * 3 on every one of the forty accessory-role records - so the accessory block
+ * came out anywhere from one set to five.
+ *
+ * Three is the normal now. The assertions below are re-expressed to say that,
+ * and the ones about the MAIN lift are deliberately untouched, because the main
+ * lift's set count is still meant to move with the level and the goal. The pair
+ * sitting next to each other is the point: a change that froze set counts
+ * everywhere would fail just as surely as one that left the accessory recipe
+ * alone.
+ */
 {
   const setsFor = (level, over = {}) => {
     const s = generateLibrarySession({
@@ -825,40 +842,64 @@ console.log('\n[12] Sets by level and goal, and the age factor on a first weight
   check('a beginner starts at two sets', setsFor('beginner').main === 2, JSON.stringify(setsFor('beginner')));
   check('an intermediate at three', setsFor('intermediate').main === 3, JSON.stringify(setsFor('intermediate')));
   check(
-    'advanced and athlete at three, with four on the main exercise',
-    setsFor('advanced').main === 4 &&
-      setsFor('advanced').acc === 3 &&
-      setsFor('athlete').main === 4 &&
-      setsFor('athlete').acc === 3,
+    'advanced and athlete get four on the main exercise',
+    setsFor('advanced').main === 4 && setsFor('athlete').main === 4,
     `${JSON.stringify(setsFor('advanced'))} / ${JSON.stringify(setsFor('athlete'))}`
   );
   check(
-    'a strength goal adds a set to the main exercise and takes one off the accessories',
+    'and the accessory block is three sets at every one of the four levels',
+    ['beginner', 'intermediate', 'advanced', 'athlete'].every((l) => setsFor(l).acc === 3),
+    ['beginner', 'intermediate', 'advanced', 'athlete']
+      .map((l) => `${l}=${setsFor(l).acc}`)
+      .join(' ')
+  );
+  check(
+    'three is the number the library itself wrote, not one this file typed',
+    (() => {
+      const accessoryRecords = LIBRARY_EXERCISES.filter((e) => e.role === 'accessory');
+      return (
+        accessoryRecords.length > 20 &&
+        accessoryRecords.every((e) => e.sets === setsFor('intermediate').acc)
+      );
+    })(),
+    'the old recipe computed a number and threw the record’s own prescription away'
+  );
+  check(
+    'a strength goal still adds a set to the main exercise',
     (() => {
       const plain = setsFor('intermediate');
       const strength = setsFor('intermediate', { profile: { goals: ['strength'] } });
-      return strength.main === plain.main + 1 && strength.acc === plain.acc - 1;
+      return strength.main === plain.main + 1;
     })()
   );
   check(
-    'a low-energy day takes a set off and a high-energy day adds one, inside 2 to 5',
+    'but no goal moves the accessory block off three, except the one that means "I am hurt"',
     (() => {
-      const low = generateLibrarySession({
-        sessionType: 'lower_body',
-        equipment: ['fullgym'],
-        readiness: readinessFor(SITUATIONS[0], '60', 'low'),
-        profile: profileFor('advanced', SITUATIONS[0], { goals: ['fitness'] }),
-        sessionTypeCount: 0,
-        daysSinceLastSession: null,
-      });
-      const high = generateLibrarySession({
-        sessionType: 'lower_body',
-        equipment: ['fullgym'],
-        readiness: readinessFor(SITUATIONS[0], '60', 'high'),
-        profile: profileFor('advanced', SITUATIONS[0], { goals: ['fitness'] }),
-        sessionTypeCount: 0,
-        daysSinceLastSession: null,
-      });
+      const moved = ['strength', 'muscle', 'fat_loss', 'power', 'fitness'].filter(
+        (g) => setsFor('intermediate', { profile: { goals: [g] } }).acc !== 3
+      );
+      // Rehab is the exception and is asserted, not merely tolerated: rounding
+      // an injured person's accessory volume UP by half to honour a round
+      // number is the wrong direction for the only goal that means "I am hurt".
+      const rehab = setsFor('intermediate', { profile: { goals: ['rehab'] } }).acc;
+      return moved.length === 0 && rehab === 2;
+    })(),
+    'five goals used to push it to 2 or 4; only rehab still takes one off'
+  );
+  const energySession = (energy) =>
+    generateLibrarySession({
+      sessionType: 'lower_body',
+      equipment: ['fullgym'],
+      readiness: readinessFor(SITUATIONS[0], '60', energy),
+      profile: profileFor('advanced', SITUATIONS[0], { goals: ['fitness'] }),
+      sessionTypeCount: 0,
+      daysSinceLastSession: null,
+    });
+  check(
+    'a low-energy day takes a set off the main lift and a high-energy day adds one, inside 2 to 5',
+    (() => {
+      const low = energySession('low');
+      const high = energySession('high');
       const mainOf = (s) => s.exercises.find((e) => e.category === 'main').sets;
       const every = (s) =>
         s.exercises
@@ -866,6 +907,31 @@ console.log('\n[12] Sets by level and goal, and the age factor on a first weight
           .every((e) => e.sets >= 2 && e.sets <= 5);
       return mainOf(low) === 3 && mainOf(high) === 5 && every(low) && every(high);
     })()
+  );
+  /**
+   * The accessory block answers energy in ONE direction, and that asymmetry is
+   * the decision rather than an oversight.
+   *
+   * A bad day may still take a set off, because that reduction exists to
+   * protect somebody who is struggling and removing it to honour a round number
+   * would be a safety regression. A good day does not add one, because three is
+   * the dose the physiotherapist wrote on the record.
+   */
+  check(
+    'a bad day still takes a set off the accessories, and a good day does not add one',
+    (() => {
+      const accsOf = (s) => s.exercises.filter((e) => e.category === 'accessory').map((e) => e.sets);
+      const low = accsOf(energySession('low'));
+      const normal = accsOf(energySession('normal'));
+      const high = accsOf(energySession('high'));
+      return (
+        low.length > 0 &&
+        low.every((n) => n === 2) &&
+        normal.every((n) => n === 3) &&
+        high.every((n) => n === 3)
+      );
+    })(),
+    'low / normal / high accessory set counts'
   );
 
   /**

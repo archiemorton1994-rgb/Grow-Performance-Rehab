@@ -38,7 +38,9 @@ import {
   parseReps,
   nextPrescription,
   effortHint,
-  restSecondsFor,
+  REST_SECONDS,
+  restSecondsForSet,
+  setKindFor,
   measuredRating,
   combineWithMeasuredReps,
   metRepFloor,
@@ -92,16 +94,50 @@ check(
   Object.keys(REP_SCHEME).every((i) => REP_SCHEME[i].tier3.reps.min >= REP_SCHEME[i].tier1.reps.min),
   'isolation and rehab work stays lighter and longer to protect the joint'
 );
+/**
+ * REST LEFT THIS TABLE, AND THESE TWO ASSERTIONS TURNED ROUND WITH IT.
+ *
+ * They used to read "rest gets shorter as the reps get higher" and "the same
+ * movement rests differently for different goals", which is exactly what the
+ * app promised when rest lived in these cells. It does not promise that any
+ * more: a physiotherapist's answer is that how long you need between two sets
+ * is a property of what you just did, not of what you are training for.
+ *
+ * So the pair is re-expressed against the new promise rather than deleted, and
+ * the second one is now the guard that the old behaviour cannot come back. The
+ * rule itself is owned by tests/rest-and-sets.check.mjs.
+ */
 check(
-  'rest gets shorter as the reps get higher',
-  REP_SCHEME.strength.tier1.restSeconds.min > REP_SCHEME.hypertrophy.tier1.restSeconds.min &&
-    REP_SCHEME.hypertrophy.tier1.restSeconds.min > REP_SCHEME.endurance.tier1.restSeconds.min,
-  'the same back squat wants 3 minutes for a powerlifter and 90 seconds for size'
+  'the rep table no longer carries rest at all, for any goal or tier',
+  Object.values(REP_SCHEME).every((byTier) =>
+    Object.values(byTier).every((p) => !('restSeconds' in p))
+  ),
+  'sharing a cell with the rep range is how rest came to answer to the goal'
 );
 check(
-  'the same movement rests differently for different goals',
-  restSecondsFor(['strength'], 'main') !== restSecondsFor(['muscle'], 'main'),
-  'this is the thing the old category-only rest table could not express'
+  'the same movement rests the same whatever the goal, and it is three minutes',
+  [['strength'], ['muscle'], ['fat_loss'], ['power'], ['rehab'], ['fitness'], []].every(
+    () => restSecondsForSet({ category: 'main', libraryRole: 'main' }) === 180
+  ) && restSecondsForSet({ category: 'main', libraryRole: 'main' }) === REST_SECONDS.mainWorking,
+  'four minutes for a powerlifter and seventy-five seconds for fat loss was the thing being corrected'
+);
+check(
+  'what rest does get longer with is the size of the movement',
+  REST_SECONDS.mainWorking > REST_SECONDS.compound &&
+    REST_SECONDS.compound > REST_SECONDS.isolation &&
+    restSecondsForSet({ category: 'accessory', libraryRole: 'main' }) === REST_SECONDS.compound &&
+    restSecondsForSet({ category: 'accessory', libraryRole: 'accessory' }) ===
+      REST_SECONDS.isolation,
+  `${REST_SECONDS.mainWorking} / ${REST_SECONDS.compound} / ${REST_SECONDS.isolation}`
+);
+check(
+  'and a rung of the warm-up climb rests less than the set it is climbing towards',
+  restSecondsForSet({
+    category: 'main',
+    libraryRole: 'main',
+    setKind: setKindFor('main', 0, 5),
+  }) < restSecondsForSet({ category: 'main', libraryRole: 'main', setKind: 'working' }),
+  'three minutes between warm-up rungs is not a heavier session, just a much longer one'
 );
 
 console.log('\n[4] Only hypertrophy lifting is taken close to failure');

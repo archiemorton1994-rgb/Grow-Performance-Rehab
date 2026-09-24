@@ -287,9 +287,9 @@ export interface CustomTemplate {
  *  'very_easy'), 'hard' holds it. There is no 'normal' value: it is the
  *  derived default when nothing is reported.
  *
- *  This is NOT what the user taps. They answer Easy / Challenging / Too Hard
+ *  This is NOT what the user taps. They answer Easy / Just right / Too Hard
  *  once per SET, and lib/auto-regulation.ts (feedbackRatingFor) folds the run
- *  of answers for an exercise down to one of these — "Challenging" maps to
+ *  of answers for an exercise down to one of these — "Just right" maps to
  *  nothing, and two or more "Easy" answers earn 'very_easy'. */
 export type FeedbackRating = 'very_easy' | 'easy' | 'hard';
 

@@ -532,17 +532,60 @@ export function isUpperBodyPattern(pattern?: LibraryPattern): boolean {
   return pattern === 'push' || pattern === 'pull';
 }
 
+/**
+ * THREE SETS IS WHAT AN ACCESSORY IS, AND THE LIBRARY ALREADY SAYS SO.
+ *
+ * Every one of the forty accessory-role records in lib/exercise-library.ts
+ * carries `sets: 3`. The old recipe computed a number from the level, the goal
+ * and the energy and threw the record's own answer away, which is how the
+ * accessory block came out anywhere from one set to five: measured over 15,120
+ * generated sessions it was two sets 41% of the time, three 31%, four 20% and
+ * five 7%.
+ */
+const ACCESSORY_SETS = 3;
+
 /** Sets before anything is spent on them, from the level, the goals and today. */
 function setsFor(
   role: 'main' | 'accessory',
   profile: UserProfile | undefined,
-  energy: EnergyLevel
+  energy: EnergyLevel,
+  /**
+   * The record that filled the slot, so its own prescription can be read.
+   *
+   * Read only for accessory work. A record the library files as a main lift
+   * brings a set count that includes its warm-up climb, and that number belongs
+   * to the slot it was written for - four sets of Barbell Bulgarian Split
+   * Squats is a main lift's ramp, not an accessory's dose.
+   */
+  chosen?: LibraryExercise
 ): number {
+  if (role === 'accessory') {
+    let sets = chosen?.role === 'accessory' ? chosen.sets : ACCESSORY_SETS;
+    /**
+     * THE REDUCTIONS THAT SURVIVE, AND WHY EACH ONE DOES.
+     *
+     * Three is the NORMAL, not an absolute. Everything below protects somebody
+     * having a bad day, and honouring a round number by deleting one of them
+     * would be a safety regression dressed up as tidiness. The other two
+     * reductions are applied later, over the finished list: an easier week
+     * (easeForDeloadWeek) and a severe pain report (screenForPain), both in
+     * lib/workout-engine.ts.
+     *
+     * Rehab is kept here for the same reason it outranks strength in the rep
+     * table: somebody who has told the app they are injured should not have
+     * their accessory volume raised by fifty per cent because a round number
+     * was easier to explain. The level and the other five goals no longer move
+     * it, which is what Archie asked for.
+     */
+    if ((profile?.goals ?? []).includes('rehab')) sets -= 1;
+    if (energy === 'low') sets -= 1;
+    return Math.max(2, Math.min(5, sets));
+  }
   const level = profile?.experienceLevel ?? 'intermediate';
   let sets = level === 'beginner' ? 2 : 3;
-  if (role === 'main' && (level === 'advanced' || level === 'athlete')) sets = 4;
-  const { mainSetsDelta, accSetsDelta } = getGoalVolumeDeltas(profile?.goals ?? []);
-  sets += role === 'main' ? mainSetsDelta : accSetsDelta;
+  if (level === 'advanced' || level === 'athlete') sets = 4;
+  const { mainSetsDelta } = getGoalVolumeDeltas(profile?.goals ?? []);
+  sets += mainSetsDelta;
   if (energy === 'low') sets -= 1;
   if (energy === 'high') sets += 1;
   return Math.max(2, Math.min(5, sets));
@@ -889,7 +932,7 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     const card: Exercise = {
       ...templateToExercise(chosen),
       category: role === 'main' ? 'main' : 'accessory',
-      sets: setsFor(role, profile, energy),
+      sets: setsFor(role, profile, energy, chosen),
     };
     if (swappedFrom) {
       card.badge = 'comfort';

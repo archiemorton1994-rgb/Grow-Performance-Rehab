@@ -79,7 +79,7 @@ export function toLoadableForUnit(kg: number, unit: WeightUnit): number {
 export function snapToLoadable(kg: number, fromKg: number, unit: WeightUnit): number {
   if (unit !== 'lbs' || !Number.isFinite(kg) || kg <= 0) return kg;
   // Holding the previous weight is an answer in its own right ("same weight
-  // again - you said that one was challenging"). It must survive verbatim even
+  // again - you said that one was just right"). It must survive verbatim even
   // when the user typed something off-grid.
   if (kg === fromKg) return kg;
   let out = roundToLoadable(kg, unit);

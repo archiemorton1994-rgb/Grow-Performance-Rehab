@@ -24,7 +24,6 @@ module.exports = {
     };
     return labels[region] ?? region;
   }),
-  getRestPeriod: jest.fn(() => 'Rest 90 sec between sets'),
   getWeightGuide: jest.fn(() => []),
   getWeightGuideKg: jest.fn(() => []),
   getEquipmentLabel: jest.fn((tier) => {
@@ -50,13 +49,4 @@ module.exports = {
     }
     return best;
   }),
-  REST_PERIOD_SECONDS: {
-    main: 120,
-    accessory: 90,
-    mechanical: 60,
-    neuro: 90,
-    prehab: 60,
-    finisher: 30,
-    prep: 30,
-  },
 };
