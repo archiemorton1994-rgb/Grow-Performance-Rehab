@@ -273,6 +273,21 @@ export function mobilityCountFor(timeAvailable: TimeAvailable, ageYears?: number
  * The first slot FILLED is the main exercise. Not the first slot asked for: if
  * a pattern has nothing at this person's level with this person's kit, the slot
  * is dropped and the next pattern in the list takes its place.
+ *
+ * NO LIST REPEATS THE PATTERN IT OPENS WITH, AND NO LEG DAY ASKS FOR CORE.
+ * ──────────────────────────────────────────────────────────────────────
+ * Both are Archie's accessory rules (24 September 2026) written into the tables
+ * rather than left for the loop to correct every time. Upper Body used to ask
+ * for a second push after a push and a second pull after a pull; Lower Body used
+ * to spend its third slot on core. `accessoryPatternsFor` below enforces the
+ * same two rules on whatever the loop actually does, because the main exercise
+ * is the first slot FILLED and a dropped opener moves it down the list.
+ *
+ * WHAT THAT COSTS UPPER BODY, said out loud because it is a visible change.
+ * Pushing and pulling are the only two non-core patterns an Upper Body day has,
+ * so a session that opens on a press cannot ask for a second press, and a full
+ * hour comes back as one press, two rows and two core pieces. Lower Body loses
+ * nothing: it has three leg patterns and only needs two of them.
  */
 const SLOT_PATTERNS: Record<LibrarySessionType, readonly (readonly LibraryPattern[])[]> = {
   full_body: [
@@ -280,12 +295,12 @@ const SLOT_PATTERNS: Record<LibrarySessionType, readonly (readonly LibraryPatter
     ['hinge', 'push', 'squat', 'pull', 'core', 'lunge'],
   ],
   upper_body: [
-    ['push', 'pull', 'core', 'push', 'pull'],
-    ['pull', 'push', 'core', 'pull', 'push'],
+    ['push', 'pull', 'core', 'pull', 'core'],
+    ['pull', 'push', 'core', 'push', 'core'],
   ],
   lower_body: [
-    ['squat', 'hinge', 'core', 'lunge', 'hinge'],
-    ['hinge', 'squat', 'core', 'lunge', 'squat'],
+    ['squat', 'hinge', 'lunge', 'hinge', 'lunge'],
+    ['hinge', 'squat', 'lunge', 'squat', 'lunge'],
   ],
 };
 
@@ -309,6 +324,60 @@ const SESSION_PATTERNS: Record<LibrarySessionType, readonly LibraryPattern[]> = 
   upper_body: ['push', 'pull', 'core'],
   lower_body: ['squat', 'hinge', 'lunge', 'core'],
 };
+
+/**
+ * THE HARDEST RUNG AN ACCESSORY MAY SIT ON, GIVEN THE MAIN LIFT.
+ *
+ * Archie, 24 September 2026: "athlete level squat variation should be followed
+ * by an advanced/intermediate or beginner exercise to avoid the client getting
+ * too fatigued and injured from attempting two athlete level movements." So an
+ * accessory is at least one rung BELOW the main lift of that session, and the
+ * rung it is measured against is the main lift's own level from the library,
+ * not the person's ceiling: somebody at Athlete whose squat slot came back
+ * Advanced is the person this rule is protecting.
+ *
+ * MEASURED BEFORE THE RULE EXISTED, over the 4,608 sessions the check below
+ * sweeps: 90.1% of accessory cards sat at or above the main lift's level and
+ * 16.3% sat strictly above it. Behind an ATHLETE main lift, 560 of 732
+ * accessory cards were themselves athlete level. That is an athlete being given
+ * a second athlete movement to follow the first, which is the exact thing he
+ * described. Afterwards: 0.0% above, and 0 of 792.
+ *
+ * WHAT HAPPENS UNDER A BEGINNER MAIN LIFT, said out loud because there is no
+ * rung below level 1 and the alternative is an accidental empty session: the
+ * floor holds at 1 and the accessories sit ALONGSIDE the main lift rather than
+ * below it. Nothing in the library is easier than level 1, a beginner's main
+ * lift is a bodyweight squat rather than a loaded barbell, and "one rung below"
+ * would mean "no accessories at all". It is deliberate, and
+ * tests/accessory-selection.check.mjs asserts it as its own case.
+ */
+export function accessoryLevelCeiling(mainLevel: LibraryLevel): LibraryLevel {
+  return Math.max(1, mainLevel - 1) as LibraryLevel;
+}
+
+/**
+ * The patterns an accessory may be drawn from, hardest rule first.
+ *
+ * TWO OF ARCHIE'S THREE ACCESSORY RULES LIVE HERE.
+ *
+ * A DIFFERENT MOVEMENT FROM THE MAIN LIFT: "hinge then squat or lunge or squat
+ * then hinge or lunge or Lunge then squat or hinge." So the main lift's own
+ * pattern is out, whichever pattern that turned out to be.
+ *
+ * AND ON A LEG DAY, LEG WORK: "accessory movements should be leg related not
+ * completely core related when doing a lower body workout." Core is out of the
+ * Lower Body list above, and it is left out of this one everywhere, which is
+ * the stronger half of the same rule: core is a slot a session ASKS for, never
+ * a filler a short pool falls back on. Without that, a home Upper Body session
+ * whose one pulling exercise was already used came back as a press and three
+ * planks - every rule obeyed, and not a session anybody would recognise.
+ */
+export function accessoryPatternsFor(
+  sessionType: LibrarySessionType,
+  mainPattern: LibraryPattern
+): LibraryPattern[] {
+  return SESSION_PATTERNS[sessionType].filter((p) => p !== mainPattern && p !== 'core');
+}
 
 /** What a missing pattern is called in a sentence somebody has to read. */
 const PATTERN_WORDS: Record<LibraryPattern, string> = {
@@ -608,6 +677,79 @@ function sameMovementKey(name: string): string {
 }
 
 /**
+ * Words that name the implement or the stance rather than the movement.
+ *
+ * "Dumbbell Bench Press" and "Incline Dumbbell Bench Press" are two records and
+ * one movement, and so are the seated and the standing dumbbell press: Archie's
+ * list holds them apart because the coaching differs, but two cards one under
+ * the other reading almost the same words is the complaint this exists for.
+ */
+const IMPLEMENT_WORDS = new Set([
+  'a',
+  'and',
+  'band',
+  'banded',
+  'bar',
+  'barbell',
+  'bodyweight',
+  'cable',
+  'db',
+  'dumbbell',
+  'kb',
+  'kettlebell',
+  'landmine',
+  'machine',
+  'of',
+  'resistance',
+  'seated',
+  'smith',
+  'standing',
+  'suspension',
+  'the',
+  'trap',
+  'trapbar',
+  'trx',
+  'weighted',
+  'with',
+]);
+
+/** The words in a name that describe the movement itself. */
+function movementWords(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .split(/[\s-]+/)
+      .map((w) => (w.length >= 4 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+      .filter((w) => w.length > 1 && !IMPLEMENT_WORDS.has(w))
+  );
+}
+
+/**
+ * TWO NAMES THAT READ AS THE SAME MOVEMENT IN DIFFERENT KIT.
+ *
+ * A softer test than `sameMovementKey`, and it is used softly: a record that
+ * reads as a repeat is stepped over while anything else fits, and taken when
+ * nothing else does. It exists because the accessory rules made a session ask
+ * for the same PATTERN twice - a leg day is a squat and then hinges and lunges,
+ * with no core slot to break them up - and the first sweep after that change
+ * produced Kettlebell Goblet Squats above Landmine Goblet Squats, and a Cable
+ * Romanian Deadlift above a Single Leg Romanian Deadlift.
+ *
+ * One name's movement words being contained in the other's is what counts, so
+ * "Goblet Squats" does not swallow every squat in the library: a single word in
+ * common is only a repeat when it is the whole of both names.
+ */
+function readsAsSameMovement(a: string, b: string): boolean {
+  const first = movementWords(a);
+  const second = movementWords(b);
+  const [small, large] = first.size <= second.size ? [first, second] : [second, first];
+  if (small.size === 0) return false;
+  if (small.size === 1) return small.size === large.size && [...small].every((w) => large.has(w));
+  return [...small].every((w) => large.has(w));
+}
+
+/**
  * The strength session, built from the library.
  *
  * Returns the cards AND what it could not build, because the second half is the
@@ -801,44 +943,191 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   const asked = new Set<LibraryPattern>(patterns.slice(0, slotCount));
   /** Why a pattern could not be filled, kept for the sweep below. */
   const reasons = new Map<LibraryPattern, string>();
+  /**
+   * WHY A PATTERN THE LIST ASKED FOR DID NOT HAPPEN, IN THE PERSON'S WORDS.
+   *
+   * Two sentences, and which one is right turns on whether the library holds
+   * anything of that pattern at the rung this person has earned with the kit
+   * they own. That is read at their OWN ceiling and not at the accessory cap:
+   * the cap is a rule this app lays on top of the library, so reading the
+   * capped pool would tell somebody at Intermediate that nothing at their level
+   * exists while an intermediate row sat there with only the cap holding it
+   * back. The first sentence to be recorded for a pattern is the one kept, so
+   * the earliest slot that asked for it is the one that explains it.
+   */
+  const noteMissing = (missing: LibraryPattern): void => {
+    if (reasons.has(missing)) return;
+    const atTheirLevel = slotPool(missing, ceiling, equipment);
+    const unlock = kitSentence(kitThatWouldUnlock(missing, ceiling, equipment));
+    reasons.set(
+      missing,
+      atTheirLevel.length === 0
+        ? `No ${PATTERN_WORDS[missing]} exercise in the library matches your level and your kit. ${unlock}`
+        : `No ${PATTERN_WORDS[missing]} exercise was safe to give you today. ${unlock}`
+    );
+  };
   let filled = 0;
+  /**
+   * The main lift, once the first slot is filled. Both accessory rules read it.
+   *
+   * The exercise, not the pattern that was asked for: a Lower Body session
+   * whose squat slot came up empty is a session whose main lift is a hinge, and
+   * the accessories have to be a rung below THAT and a different movement from
+   * THAT. Reading the list instead of the card is how the rule would quietly
+   * stop applying on exactly the sessions that need it most.
+   */
+  let main: LibraryExercise | null = null;
+  /** How many cards each pattern already holds, so a stand-in spreads the work. */
+  const patternUse = new Map<LibraryPattern, number>();
+  /**
+   * The movements already in the work part of the session, by name.
+   *
+   * Only the work: a warm-up drill and an accessory sharing a word is not what
+   * this is for, and `used` already stops the same record appearing twice.
+   */
+  const workNames: string[] = [];
+  const readsAsRepeat = (name: string) => workNames.some((n) => readsAsSameMovement(n, name));
+  /**
+   * Walk a pool for something that fits AND does not read as a repeat, and only
+   * then for something that merely fits.
+   *
+   * Soft, in that order, because a second goblet squat is worse than a repeat
+   * and an empty slot is worse than both.
+   */
+  const pickFresh = (
+    pool: readonly LibraryExercise[],
+    startIndex: number,
+    fits: (item: LibraryExercise) => boolean
+  ): LibraryExercise | null =>
+    pickFrom(pool, startIndex, (item) => fits(item) && !readsAsRepeat(item.name)) ??
+    pickFrom(pool, startIndex, fits);
   for (let i = 0; i < patterns.length && filled < slotCount; i++) {
-    const pattern = patterns[i];
+    const askedPattern = patterns[i];
     const role: 'main' | 'accessory' = filled === 0 ? 'main' : 'accessory';
     const index =
       role === 'main'
         ? Math.floor(n / MAIN_ROTATION_EVERY)
         : Math.floor(n / SLOT_ROTATION_EVERY) + i;
-    const wholePool = slotPool(pattern, ceiling, equipment);
-    /**
-     * THE MAIN SLOT TAKES A MAIN LIFT, AND ARCHIE'S LIST SAYS WHICH THEY ARE.
-     *
-     * Every record carries a `role` - main, accessory or power - and the first
-     * slot is the exercise the session is built around. Walking the whole
-     * pattern pool for it put a Band Pull Apart at the top of a beginner's Upper
-     * Body session and a Wall Sit at the top of their Lower Body one: both are
-     * the right pattern, both are level 1, and neither is a lift. A beginner is
-     * the person most likely to meet this, because the shallow end of every
-     * pattern is where the accessory work lives.
-     *
-     * The whole pool is still there to fall back on. A pattern whose only owned
-     * record at this rung is an accessory gives an accessory rather than a gap:
-     * "no pressing at all today" is a worse answer than "pressing, lightly".
-     */
-    const mainPool = wholePool.filter((e) => e.role === 'main');
-    const pool = role === 'main' && mainPool.length > 0 ? mainPool : wholePool;
 
     /**
-     * SCREEN BEFORE PICKING, and take the same pattern wherever one is clean.
+     * WHAT THIS SLOT MAY TAKE, AND THE ORDER IN WHICH THE RULES GIVE WAY.
      *
-     * `wanted` is what variation asked for; `chosen` is what today allows. When
-     * they differ the walk has carried on through the SAME pattern's pool, so a
-     * sore shoulder moves an overhead press to a floor press rather than
-     * deleting the pressing from an upper body day. The card says what it
-     * replaced and offers it back, exactly as every other swap does.
+     * A main slot has one attempt: the pattern the list asked for, at the
+     * person's own ceiling. Everything below is the accessory rules.
+     *
+     * An accessory slot is capped at `accessoryLevelCeiling` - one rung below
+     * the main lift - for EVERY attempt, and that cap never moves. It is the
+     * rule Archie gave a clinical reason for, and the honest answer when it
+     * cannot be met is a shorter session, not a heavier one. This file already
+     * says so about the level ceiling above, and it is the same sentence.
+     *
+     * The pattern is the rule that bends, and it bends in this order:
+     *
+     *   1. the pattern the list asked for, when the rules allow it;
+     *   2. the other allowed patterns, least used in this session first, so a
+     *      thin pool spreads the work rather than piling it on one movement;
+     *   3. the main lift's OWN pattern, one rung lighter. This is the bend, and
+     *      it is the right one: an easier second squat is what a tired person
+     *      can do safely, whereas a second maximal movement of a different
+     *      pattern is the exact injury Archie described.
+     *   4. on a LEG DAY ONLY, core. See below.
+     *   5. nothing, and the slot is dropped as it always was.
+     *
+     * WHERE IT BENDS, MEASURED over the 4,608 sessions in
+     * tests/accessory-selection.check.mjs. With nothing sore it bends 40 times
+     * in 15,036 accessory cards, and only at home: no kit, bodyweight, and
+     * bodyweight with a bench. The library holds exactly one pulling exercise
+     * that needs no kit, so an Upper Body session that has used Door Frame Rows
+     * has no second pull to give and takes an easier press instead. With an
+     * area sore it bends 524 times and at every kit set, which is right: a sore
+     * knee takes every squat and lunge out of a leg day, and an easier hinge is
+     * a better answer than a fourth exercise for the same knee.
      */
-    const wanted = pickFrom(pool, index, free);
+    const attempts: { pattern: LibraryPattern; ceiling: LibraryLevel }[] = [];
+    if (role === 'main' || !main) {
+      attempts.push({ pattern: askedPattern, ceiling });
+    } else {
+      const cap = accessoryLevelCeiling(main.level);
+      const allowed = accessoryPatternsFor(sessionType, main.pattern);
+      // No leg day asks for core any more, so the second half of this is a
+      // second lock on the same door rather than a live branch: put core back
+      // into SLOT_PATTERNS.lower_body and rule 3 still holds. Both locks are
+      // mutation-tested in tests/accessory-selection.check.mjs.
+      const askedIsAllowed =
+        askedPattern !== main.pattern && !(sessionType === 'lower_body' && askedPattern === 'core');
+      const timesUsed = (p: LibraryPattern) => patternUse.get(p) ?? 0;
+      const rest = allowed
+        .filter((p) => p !== askedPattern)
+        .sort((a, b) => timesUsed(a) - timesUsed(b) || allowed.indexOf(a) - allowed.indexOf(b));
+      for (const p of askedIsAllowed ? [askedPattern, ...rest] : rest) {
+        attempts.push({ pattern: p, ceiling: cap });
+      }
+      attempts.push({ pattern: main.pattern, ceiling: cap });
+      /**
+       * AND ON A LEG DAY, CORE, AFTER EVERYTHING ELSE AND BEFORE NOTHING AT ALL.
+       *
+       * Rule 3 says a leg day's accessories are leg work, and this is the one
+       * case where it gives way: a sore hip or a sore knee can rule out every
+       * squat, hinge and lunge in reach, and then the choice is a core piece or
+       * an empty slot. Measured before this line existed, somebody reporting a
+       * sore hip lost three of the ten cards in their Lower Body session, which
+       * is the app punishing them for telling it the truth -
+       * tests/injury-safety.check.mjs holds that loss to two.
+       *
+       * It is last, and it is Lower Body only. An Upper Body day already asks
+       * for core in a slot of its own, so falling back to it there would not be
+       * "the last thing left", it would be a third plank in a session that was
+       * meant to be pressing and pulling.
+       */
+      if (sessionType === 'lower_body') attempts.push({ pattern: 'core', ceiling: cap });
+    }
+
     /**
+     * One attempt: the pool for a pattern at a rung, walked and screened.
+     *
+     * Everything inside was the body of this loop before the attempts above
+     * existed, and it is unchanged: the same pool, the same main-lift
+     * preference, the same two walks. What is new is that it can be asked the
+     * same question about a second pattern when the first one has nothing left.
+     */
+    const walk = (slotPattern: LibraryPattern, slotCeiling: LibraryLevel) => {
+      const wholePool = slotPool(slotPattern, slotCeiling, equipment);
+      /**
+       * THE MAIN SLOT TAKES A MAIN LIFT, AND ARCHIE'S LIST SAYS WHICH THEY ARE.
+       *
+       * Every record carries a `role` - main, accessory or power - and the first
+       * slot is the exercise the session is built around. Walking the whole
+       * pattern pool for it put a Band Pull Apart at the top of a beginner's Upper
+       * Body session and a Wall Sit at the top of their Lower Body one: both are
+       * the right pattern, both are level 1, and neither is a lift. A beginner is
+       * the person most likely to meet this, because the shallow end of every
+       * pattern is where the accessory work lives.
+       *
+       * The whole pool is still there to fall back on. A pattern whose only owned
+       * record at this rung is an accessory gives an accessory rather than a gap:
+       * "no pressing at all today" is a worse answer than "pressing, lightly".
+       *
+       * An accessory slot takes the whole pool and always did. The library files
+       * forty records as accessories and the rest as main lifts, and a main lift
+       * a rung below today's main lift is exactly what Archie asked for: Barbell
+       * Back Squats followed by Dumbbell Romanian Deadlifts is the session he
+       * described. What the rung rule removes is the SECOND hard movement, not
+       * every compound.
+       */
+      const mainPool = wholePool.filter((e) => e.role === 'main');
+      const pool = role === 'main' && mainPool.length > 0 ? mainPool : wholePool;
+
+      /**
+       * SCREEN BEFORE PICKING, and take the same pattern wherever one is clean.
+       *
+       * `wanted` is what variation asked for; `chosen` is what today allows. When
+       * they differ the walk has carried on through the SAME pattern's pool, so a
+       * sore shoulder moves an overhead press to a floor press rather than
+       * deleting the pressing from an upper body day. The card says what it
+       * replaced and offers it back, exactly as every other swap does.
+       */
+      const wanted = pickFresh(pool, index, free);
+      /**
      * AND A STAND-IN FOR SOMETHING THAT HURTS IS NEVER A HARDER RUNG.
      *
      * This is what replaced the old engine's comfort variants, so it has to do
@@ -882,14 +1171,43 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * before the fall-through to a harder record, and the main-lift preference
      * still decides every slot where nothing is blocked.
      */
-    const atOrBelow = (from: readonly LibraryExercise[]) =>
-      wanted && !choosable(wanted) ? from.filter((record) => record.level <= wanted.level) : [];
-    const easier = atOrBelow(pool);
-    const easierAnyRole = pool === wholePool ? [] : atOrBelow(wholePool);
-    const chosen =
-      (easier.length > 0 ? pickFrom(easier, index, choosable) : null) ??
-      (easierAnyRole.length > 0 ? pickFrom(easierAnyRole, index, choosable) : null) ??
-      pickFrom(pool, index, choosable);
+      const atOrBelow = (from: readonly LibraryExercise[]) =>
+        wanted && !choosable(wanted) ? from.filter((record) => record.level <= wanted.level) : [];
+      const easier = atOrBelow(pool);
+      const easierAnyRole = pool === wholePool ? [] : atOrBelow(wholePool);
+      const chosen =
+        (easier.length > 0 ? pickFresh(easier, index, choosable) : null) ??
+        (easierAnyRole.length > 0 ? pickFresh(easierAnyRole, index, choosable) : null) ??
+        pickFresh(pool, index, choosable);
+      return { pool, wanted, chosen };
+    };
+
+    /**
+     * The attempts, in order, stopping at the first one that fills the slot.
+     *
+     * `pattern` is what the slot ended up being about, which is what the gap
+     * sweep below counts as satisfied.
+     */
+    let pattern = attempts[0].pattern;
+    let attempt = walk(pattern, attempts[0].ceiling);
+    /**
+     * AND THE ASKED PATTERN EXPLAINS ITSELF EVEN WHEN SOMETHING ELSE FILLS IN.
+     *
+     * Recorded here rather than only where the slot is dropped, because the
+     * relaxation below means a slot can be FILLED and the pattern still not
+     * happen: a sore knee takes every lunge out of a leg day, the slot takes a
+     * second hinge instead, and the session contains no lunging. Without this
+     * the sweep at the end fell through to "No lunging exercise made it into
+     * today's session" followed by a sentence about buying a box, which blames
+     * the kit for something the screen did. 788 of the 4,608 sessions in
+     * tests/accessory-selection.check.mjs read that way before this line.
+     */
+    if (pattern === askedPattern && !attempt.chosen) noteMissing(askedPattern);
+    for (let a = 1; a < attempts.length && !attempt.chosen; a++) {
+      pattern = attempts[a].pattern;
+      attempt = walk(pattern, attempts[a].ceiling);
+    }
+    const { wanted, chosen } = attempt;
     /**
      * Only labelled when today's areas are what moved it.
      *
@@ -918,14 +1236,11 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
        * and Restore, and within it a stand-in is always the same pattern: the
        * walk above has already been down the level ladder looking for one.
        */
-      if (!reasons.has(pattern)) {
-        reasons.set(
-          pattern,
-          pool.length === 0
-            ? `No ${PATTERN_WORDS[pattern]} exercise in the library matches your level and your kit. ${kitSentence(kitThatWouldUnlock(pattern, ceiling, equipment))}`
-            : `No ${PATTERN_WORDS[pattern]} exercise was safe to give you today. ${kitSentence(kitThatWouldUnlock(pattern, ceiling, equipment))}`
-        );
-      }
+      // Only about a pattern this slot actually went looking for. The one case
+      // where it did not is a pattern the accessory rules forbid, and that is
+      // always either the main lift's own - which the session plainly contains
+      // - or core on a leg day, which no leg day asks for any more.
+      if (attempts.some((a) => a.pattern === askedPattern)) noteMissing(askedPattern);
       continue;
     }
 
@@ -955,6 +1270,9 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     // differ for the one record the document lists twice, and the slot it
     // filled is the one that counts as satisfied.
     add(card, chosen.pattern, patternsOf(chosen).includes(pattern) ? pattern : chosen.pattern);
+    if (role === 'main') main = chosen;
+    patternUse.set(chosen.pattern, (patternUse.get(chosen.pattern) ?? 0) + 1);
+    workNames.push(chosen.name);
     filled++;
   }
 

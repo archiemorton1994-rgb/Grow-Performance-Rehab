@@ -280,7 +280,6 @@ check(
 {
   const barbell = accessorySlot.filter((e) => /barbell/i.test(e.name));
   const barbellCompounds = barbell.filter((e) => roleByKey.get(key(e.name)) === 'main');
-  const barbellIsolation = barbell.filter((e) => roleByKey.get(key(e.name)) === 'accessory');
   const restOf = (e) => restSecondsForSet({ category: e.category, libraryRole: e.libraryRole });
   check(
     `barbell compounds in an accessory slot keep two minutes (${new Set(barbellCompounds.map((e) => e.name)).size} distinct movements)`,
@@ -289,12 +288,31 @@ check(
       ? 'no barbell compound landed in an accessory slot, so this proves nothing - widen the sweep'
       : [...new Set(barbellCompounds.map((e) => e.name))].slice(0, 4).join(', ')
   );
+  /**
+   * AND THE OTHER HALF, ASKED OF THE LIBRARY RATHER THAN OF THE SWEEP.
+   *
+   * It used to be asked of the sweep, and the record that answered it was
+   * Barbell Suitcase Hold. On 24 September 2026 the accessory rules capped an
+   * accessory at one rung BELOW the main lift, and that record is level 4: no
+   * main lift is level 5, so nothing at level 4 can be an accessory any more
+   * and the sweep can no longer produce the case. The rule it was proving is
+   * untouched - rest reads the ROLE and not the bar - so it is asked of the
+   * records themselves, which is where the role lives.
+   */
+  const barbellAccessoryRecords = LIBRARY_EXERCISES.filter(
+    (e) => /barbell/i.test(e.name) && e.role === 'accessory'
+  );
   check(
-    `but a barbell HOLD in the same slot still gets one, because the rule reads the role and not the bar (${new Set(barbellIsolation.map((e) => e.name)).size} distinct)`,
-    barbellIsolation.length > 0 && barbellIsolation.every((e) => restOf(e) === 60),
-    barbellIsolation.length === 0
-      ? 'no barbell isolation record landed in an accessory slot, so the counterweight proves nothing'
-      : [...new Set(barbellIsolation.map((e) => e.name))].join(', ')
+    `but a barbell HOLD gets one whatever slot it lands in, because the rule reads the role and not the bar (${barbellAccessoryRecords.length} record(s))`,
+    barbellAccessoryRecords.length > 0 &&
+      barbellAccessoryRecords.every(
+        (e) =>
+          restSecondsForSet({ category: 'accessory', libraryRole: e.role }) === 60 &&
+          restSecondsForSet({ category: 'main', libraryRole: e.role, setKind: 'working' }) === 60
+      ),
+    barbellAccessoryRecords.length === 0
+      ? 'the library holds no barbell accessory record, so the counterweight proves nothing'
+      : barbellAccessoryRecords.map((e) => e.name).join(', ')
   );
 }
 

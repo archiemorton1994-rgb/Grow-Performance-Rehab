@@ -465,9 +465,22 @@ console.log('\n[7] A rung earned is a rung prescribed');
           } catch {
             continue;
           }
-          // Main lifts are out of scope for the ceiling - see atEarnedLevel -
-          // so they would be identical either way and only dilute the measure.
-          for (const ex of w) if (ex.category !== 'main') out.add(ex.name);
+          /**
+           * THE MAIN LIFT IS NOW WHERE AN EARNED RUNG SHOWS, so it is counted.
+           *
+           * It used to be excluded, and the reason was the old engine: main
+           * lifts are out of scope for `atEarnedLevel`, so they were identical
+           * either way and only diluted the measure. All three of these session
+           * types are built from Archie's library now, and on 24 September 2026
+           * his accessory rules put every accessory a rung BELOW the main lift.
+           * A beginner who earns a rung gets a harder main lift and accessories
+           * that stay where they were, which is the point of the rules: the
+           * rung still buys something, and what it buys is the lift the session
+           * is built around. Excluding it would have left this section looking
+           * for the change in the one place the change is no longer allowed to
+           * be, and reporting that the button does nothing.
+           */
+          for (const ex of w) out.add(ex.name);
         }
       }
     }

@@ -1387,15 +1387,22 @@ console.log('\n[14] generateWorkout serves the library for every live type');
 /**
  * [15] WHERE A SESSION RUNS SHORT OF WHAT IT ASKED FOR, PINNED BOTH WAYS.
  *
- * An Upper Body session asks for push, pull, core, push, pull, and the two
- * repeats are where Archie's list runs out at home: below Intermediate on no
- * kit there is one beginner push (Kneeling Press Ups) and one beginner pull
- * (Door Frame Rows), so the fourth and fifth slots come up with nothing left to
- * give and are dropped. The session is honest - it contains a push, a pull and
- * a core piece, all at the right level and all with the kit the person owns -
- * but somebody who chose 60 minutes gets three pieces of work rather than five.
- * A bench buys one more, bands buy the rest: once there is a second pull in
- * reach, every kit set fills every slot at every level.
+ * An Upper Body session asks for push, pull, core, pull, core, and the fourth
+ * slot is where Archie's list runs out at home: there is exactly one pulling
+ * exercise that needs no kit (Door Frame Rows), so once it has been used the
+ * second pull slot has nothing left to give. The accessory rules take an easier
+ * press instead where one is free, and where it is not the slot is dropped. The
+ * session is honest - it contains a push, a pull and core work, all at the
+ * right level and all with the kit the person owns - but somebody who chose
+ * 60 minutes gets four pieces of work rather than five. Bands buy the rest:
+ * once there is a second pull in reach, every kit set fills every slot at every
+ * level.
+ *
+ * SHORTER THAN IT WAS, and that is the accessory rules paying for themselves.
+ * This list held fourteen combinations on 23 September 2026 and six of them
+ * gave a beginner three pieces of work out of four or five. Asking for a second
+ * PULL rather than a second push, and letting a thin slot fall back on an
+ * easier movement of the main lift's own pattern, filled those in.
  *
  * That is a fact about the LIST, not a fault in the builder, and the two wrong
  * ways to make it go away are both worse: widening the level window upward
@@ -1413,20 +1420,14 @@ console.log('\n[15] What a session runs short of, and where');
 {
   /** Written down, one line per combination that cannot fill its slots. */
   const EXPECTED_SHORTFALL = [
-    'upper_body / nothing / beginner / 45 min: 3 of 4',
-    'upper_body / nothing / beginner / 60 min: 3 of 5',
+    'upper_body / nothing / beginner / 60 min: 4 of 5',
     'upper_body / nothing / intermediate / 60 min: 4 of 5',
     'upper_body / nothing / advanced / 60 min: 4 of 5',
     'upper_body / nothing / athlete / 60 min: 4 of 5',
-    'upper_body / bodyweight / beginner / 45 min: 3 of 4',
-    'upper_body / bodyweight / beginner / 60 min: 3 of 5',
+    'upper_body / bodyweight / beginner / 60 min: 4 of 5',
     'upper_body / bodyweight / intermediate / 60 min: 4 of 5',
     'upper_body / bodyweight / advanced / 60 min: 4 of 5',
     'upper_body / bodyweight / athlete / 60 min: 4 of 5',
-    'upper_body / bodyweight+bench / beginner / 60 min: 4 of 5',
-    'upper_body / bodyweight+bench / intermediate / 60 min: 4 of 5',
-    'upper_body / bodyweight+bench / advanced / 60 min: 4 of 5',
-    'upper_body / bodyweight+bench / athlete / 60 min: 4 of 5',
   ];
 
   const shortfall = [];

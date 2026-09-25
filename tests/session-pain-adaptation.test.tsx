@@ -1350,32 +1350,60 @@ describe('[6] Real ReadinessScreen — bicep/tricep taps drive pain-adapted sess
     const loadsTricep = (list: ReturnType<typeof generateWorkout>) =>
       list.filter((e) => restrictedTagsOn(e.name, bannedByTricep, undefined, e.cue).length > 0);
 
-    let tiersWhereItBit = 0;
+    /**
+     * EVERY KIT SET AND SEVERAL POINTS IN THE ROTATION, not kit alone.
+     *
+     * The rotation is part of the sweep because on 24 September 2026 Archie's
+     * accessory rules took the second PUSH slot off an Upper Body day: an
+     * accessory has to be a different movement from the main lift, and pushing
+     * and pulling are the only two an upper day has, so a session that opens on
+     * a press asks for rows and core after it. Tricep-loading work is pressing
+     * work, so it now reaches an Upper Body session only as the MAIN lift, and
+     * only where the rotation lands on one - Seated Dumbbell Press at 4, Lat
+     * Pulldowns at 5, at a full gym.
+     *
+     * The clinical rule is untouched and is still asked of every combination:
+     * nothing that loads a sore tricep is served unflagged, and wherever the
+     * pain-free session would have loaded it, the sore one does not and says
+     * why. Only the search for a case where it bites had to widen, because
+     * asking one point in the rotation would now be asking an empty question.
+     */
+    let roundsWhereItBit = 0;
     for (const tier of ['bodyweight', 'bands', 'dumbbells', 'kettlebells', 'fullgym']) {
-      const ask = (hasAches: boolean) =>
-        generateWorkout('bench', tier as Parameters<typeof generateWorkout>[1], {
-          hasAches,
-          painRegion: hasAches ? ('tricep' as PainRegion) : undefined,
-          energy: 'normal',
-          timeAvailable: '60',
-        });
-      const free = ask(false);
-      const sore = ask(true);
-      // The rule itself, at every tier: nothing loading the area passes unflagged.
-      expect(
-        loadsTricep(sore)
-          .filter((e) => e.badge !== 'comfort' && !e.safetyNote)
-          .map((e) => e.name)
-      ).toEqual([]);
-      if (loadsTricep(free).length > 0) {
-        tiersWhereItBit++;
-        // It was there, it is gone, and the person can see that it moved.
-        expect(loadsTricep(sore).map((e) => e.name)).toEqual([]);
-        expect(sore.some((e) => e.badge === 'comfort' || !!e.safetyNote)).toBe(true);
+      for (const strengthSessionCount of [0, 4, 5]) {
+        const ask = (hasAches: boolean) =>
+          generateWorkout(
+            'bench',
+            tier as Parameters<typeof generateWorkout>[1],
+            {
+              hasAches,
+              painRegion: hasAches ? ('tricep' as PainRegion) : undefined,
+              energy: 'normal',
+              timeAvailable: '60',
+            },
+            undefined,
+            undefined,
+            undefined,
+            strengthSessionCount
+          );
+        const free = ask(false);
+        const sore = ask(true);
+        // The rule itself, everywhere: nothing loading the area passes unflagged.
+        expect(
+          loadsTricep(sore)
+            .filter((e) => e.badge !== 'comfort' && !e.safetyNote)
+            .map((e) => e.name)
+        ).toEqual([]);
+        if (loadsTricep(free).length > 0) {
+          roundsWhereItBit++;
+          // It was there, it is gone, and the person can see that it moved.
+          expect(loadsTricep(sore).map((e) => e.name)).toEqual([]);
+          expect(sore.some((e) => e.badge === 'comfort' || !!e.safetyNote)).toBe(true);
+        }
       }
     }
-    // And the rule is not vacuous: there is kit on which it really does bite.
-    expect(tiersWhereItBit).toBeGreaterThanOrEqual(1);
+    // And the rule is not vacuous: there is a session where it really does bite.
+    expect(roundsWhereItBit).toBeGreaterThanOrEqual(1);
   });
 
   // ── f) Negative control: no aches → router.push has hasAches='false' → no comfort

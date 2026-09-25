@@ -630,6 +630,14 @@ console.log('\n[7] The next session is actually heavier for it');
  * Upper Body logs every pulldown against the first of those, and a bench
  * session builds the second. Same person, same history, same session: the only
  * difference below is whether the duplicate was carried forward.
+ *
+ * SIX SESSIONS IN RATHER THAN ON DAY ONE, and the rotation is the only thing
+ * that changed here. Archie's accessory rules (24 September 2026) cap an
+ * accessory one rung below the main lift, so a pulldown at this person's own
+ * level is no longer something an accessory slot can serve them: it reaches
+ * the session as the MAIN lift, on the rotations where an Upper Body day opens
+ * on a pull. The worked example needs a session that contains the exercise,
+ * and this is now one. Everything it then asserts is unchanged.
  */
 const PULLDOWN_DUP = 'wub-fg-pulldown';
 const PULLDOWN_KEPT = 'bn-acc-fg-4';
@@ -645,6 +653,8 @@ const PROFILE = {
   goals: ['strength'],
   bodyweightKg: 80,
 };
+/** Six sessions in, which is where this person's Upper Body day opens on a pull. */
+const PULLDOWN_ROTATION = 5;
 const buildBench = (weights) =>
   generateWorkout(
     'bench',
@@ -653,7 +663,7 @@ const buildBench = (weights) =>
     PROFILE,
     undefined,
     undefined,
-    0,
+    PULLDOWN_ROTATION,
     weights,
     undefined,
     undefined,
@@ -881,11 +891,21 @@ check(
  * The Barbell Row is a level 3 record, so the lifter here is an advanced one
  * with a barbell. A beginner is not given it at all, which is the ceiling doing
  * its job rather than a duplicate going missing.
+ *
+ * AND AN ADVANCED LIFTER NOW MEETS IT AS THE MAIN LIFT, WHICH IS THE POINT.
+ * Archie's accessory rules cap an accessory one rung below the main lift, and
+ * this person's main lift is level 3, so a level 3 row is exactly the second
+ * hard movement he asked us to stop serving. It is still prescribed, under the
+ * id the library kept, on the rotations where an Upper Body day opens on a
+ * pull: the eighteenth session is the first of them. The example is the same
+ * example, asked of a session that contains the row.
  */
 const ROW_DUP = 'bn-acc-fg-1';
 const ROW_KEPT = 'wub-fg-row';
 const ROW_LOGGED = 65;
 const ADVANCED = { ...PROFILE, experienceLevel: 'advanced' };
+/** The first Upper Body day this person gets that opens on the barbell row. */
+const ROW_ROTATION = 17;
 const buildAdvancedBench = (weights) =>
   generateWorkout(
     'bench',
@@ -894,7 +914,7 @@ const buildAdvancedBench = (weights) =>
     ADVANCED,
     undefined,
     undefined,
-    0,
+    ROW_ROTATION,
     weights,
     undefined,
     undefined,

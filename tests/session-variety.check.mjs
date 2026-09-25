@@ -225,20 +225,28 @@ const sameMovement = (x, y) => {
 };
 
 /**
- * THE ONE PAIR THAT READS AS THE SAME MOVEMENT TWICE, PINNED EXACTLY.
+ * THERE IS NO LONGER A PAIR THAT READS AS THE SAME MOVEMENT TWICE.
  *
- * An Upper Body session asks for push, pull, core, push, pull, and at full gym
- * from Intermediate up the two press slots can land on the seated and the
- * standing dumbbell press in the same session. Archie's list holds them as two
- * exercises and they are two exercises, but a card reading "Seated Dumbbell
- * Press" above one reading "Standing Dumbbell Press" is the complaint this rule
- * exists for.
+ * This list held one, and coming back to say so is what it asked for. An Upper
+ * Body session used to ask for push, pull, core, push, pull, and at full gym
+ * from Intermediate up the two press slots landed on the seated and the
+ * standing dumbbell press in the same session, 3 of the 1,440 sessions swept.
  *
- * Pinned in BOTH directions rather than tolerated: a new pair appearing fails
- * here, and this pair disappearing fails here too, so whoever fixes it has to
- * come back and say so. 3 of the 1,440 sessions swept.
+ * Two changes on 24 September 2026 emptied it, both in lib/library-session.ts.
+ * Archie's accessory rules took the second press slot away entirely - an
+ * accessory is a different pattern from the main lift, so an Upper Body session
+ * that opens on a press has no second press slot to fill. And because those
+ * same rules make a leg day ask for the hinge and the lunge twice each, with no
+ * core slot between them, the slot walk now steps over a record that READS as a
+ * movement already in the session while anything else fits: the first sweep
+ * after the rules landed offered Kettlebell Goblet Squats above Landmine Goblet
+ * Squats, and a Cable Romanian Deadlift above a Single Leg Romanian Deadlift.
+ *
+ * Still pinned in BOTH directions. A new pair appearing fails here, and the
+ * section below proves the detector can still see one, so an empty list cannot
+ * quietly mean "the rule stopped looking".
  */
-const KNOWN_REPEAT = ['Seated Dumbbell Press + Standing Dumbbell Press'];
+const KNOWN_REPEAT = [];
 
 const offPattern = [];
 const repeats = new Map();
@@ -302,6 +310,22 @@ check(
   'a session only ever contains work the session is about',
   offPattern.length === 0,
   `${offPattern.length}: ${[...new Set(offPattern)].slice(0, 3).join(' | ')}`
+);
+
+/**
+ * The counterweight, because the list above is empty now.
+ *
+ * "No pair was found" is the same sentence whether nothing repeats or the
+ * detector stopped detecting, so it is asked to recognise the pair it used to
+ * find, and to keep two plainly different movements apart.
+ */
+check(
+  'the repeat detector still recognises a repeat when it sees one',
+  sameMovement('Seated Dumbbell Press', 'Standing Dumbbell Press') &&
+    sameMovement('Dumbbell Bench Press', 'Incline Dumbbell Bench Press') &&
+    !sameMovement('Barbell Back Squat', 'Barbell Romanian Deadlift') &&
+    !sameMovement('Goblet Squat', 'Front Squat'),
+  'the sweep below proves nothing if this is not true'
 );
 
 const newRepeats = [...repeats.keys()].filter((p) => !KNOWN_REPEAT.includes(p));
