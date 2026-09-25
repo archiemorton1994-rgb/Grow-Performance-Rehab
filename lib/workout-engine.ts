@@ -2988,6 +2988,27 @@ export function fillSwapAlternatives(
 
     let equipment: SwapOption | null = null;
     let movement: SwapOption | null = null;
+    /**
+     * AN AUTHORED ALTERNATIVE THE TWO SLOTS COULD NOT HOLD.
+     *
+     * There are two slots and they are labelled: one for the same movement with
+     * other kit, one for different work on the same muscles. A card that arrives
+     * with two alternatives of the SECOND kind used to lose the second one on
+     * the floor, because there was nowhere to put it.
+     *
+     * That is fine when the index can fill the kit slot and the button still
+     * offers two things. It is not fine when it cannot: the library warm-up
+     * arrives knowing exactly what else could have opened the session - a rower
+     * instead of an assault bike - and the card was being shown with one option
+     * and an empty space. Neither of those is an equipment variant of the other,
+     * and a bike has no equipment variant at all.
+     *
+     * So the leftovers are kept here and used below, after the index has had
+     * its turn at the kit slot and before any guess is made, because an
+     * alternative the session itself chose is a considered answer and the index
+     * ranking is not.
+     */
+    const spareAuthored: SwapOption[] = [];
 
     // (1) Classify what the physiotherapist already wrote. An authored option
     //     whose template is missing from the catalogue still counts — it is a
@@ -3010,6 +3031,7 @@ export function fillSwapAlternatives(
       };
       if (kind === 'equipment' && !equipment) equipment = filled;
       else if (!movement) movement = filled;
+      else spareAuthored.push(filled);
     }
     for (const option of [equipment, movement]) {
       if (option) used.add(option.name.toLowerCase());
@@ -3076,6 +3098,13 @@ export function fillSwapAlternatives(
     //     option and an empty space, the slot takes a second same-muscle
     //     alternative and is labelled as one.
     const options = [equipment, movement].filter((o): o is SwapOption => o != null);
+    // (2b) The authored alternative there was no slot for, now that there is
+    //      one. Ahead of the index, behind nothing.
+    for (const option of spareAuthored) {
+      if (options.length >= SWAP_OPTIONS) break;
+      if (options.some((o) => o.name === option.name)) continue;
+      options.push(take(option));
+    }
     if (options.length < SWAP_OPTIONS && inGroup) {
       const match = nextSameMuscle();
       if (match) options.push(take(describe('movement', match)));

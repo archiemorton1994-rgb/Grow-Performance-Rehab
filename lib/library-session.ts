@@ -29,6 +29,7 @@ import {
   CONDITIONING_EXERCISES,
   LIBRARY_EXERCISES,
   hasAuthoredContent,
+  isPulseRaiser,
   patternsOf,
 } from './exercise-library';
 import { canPerformWith } from './kit';
@@ -59,8 +60,10 @@ import {
  *
  * WHAT IT BUILDS, IN ORDER (plan section 1; decisions 7 to 10)
  * ───────────────────────────────────────────────────────────
- *   1. Pulse raiser   one conditioning item at an easy pace, kit permitting.
- *   2. Mobility       Restore drills, 1 / 2 / 2 by session length.
+ *   1. Pulse raiser   one conditioning item at an easy pace, kit permitting,
+ *                     and never sled work - see `isPulseRaiser`.
+ *   2. Mobility       Restore drills, 1 / 2 / 2 by session length, chosen for
+ *                     the day they stand in front of - see WARMUP_ORDER.
  *   3. Power          Athlete ceiling only, and only at 45 or 60 minutes.
  *   4. Pattern slots  the movements the session is actually about.
  *   5. Finisher       at 60 minutes, or at 45 for a fat loss or fitness goal.
@@ -260,6 +263,123 @@ export function mobilityCountFor(timeAvailable: TimeAvailable, ageYears?: number
   if (timeAvailable === '30') return 1;
   if (timeAvailable === '45') return (ageYears ?? 0) >= LONGER_WARMUP_AGE ? 3 : 2;
   return 2;
+}
+
+/**
+ * WHAT A WARM-UP DRILL IS FOR, READ OFF THE DRILL'S OWN RECORD.
+ *
+ * Four families, because four is what the thirteen Restore drills a Train
+ * warm-up can reach honestly divide into: hip and glute work, trunk work, shin
+ * and calf work, and shoulder and upper back work.
+ *
+ * NOT A LIST OF NAMES, AND THAT IS THE POINT. The family is decided by the
+ * regions the record itself says it targets, so a drill written later is placed
+ * by what it is written to do rather than by somebody remembering to add it
+ * here. The fault this replaces was a warm-up that could not tell a lower body
+ * day from an upper body day at all, and a hand-written list per session type
+ * would have gone stale the first time a drill was added to Restore.
+ */
+export type WarmupFamily = 'glute_hip' | 'core' | 'lower_limb' | 'upper';
+
+/** All four, so a preference order that forgot one still cannot leave a hole. */
+export const WARMUP_FAMILIES: readonly WarmupFamily[] = [
+  'glute_hip',
+  'core',
+  'lower_limb',
+  'upper',
+];
+
+/**
+ * Which regions put a drill in which family, FIRST MATCH WINS.
+ *
+ * The order of these three lines is doing real work. Glute and hip is read
+ * first because a Glute Bridge names the lower back as well as the glutes and
+ * is plainly a glute drill; reading trunk first would file it as core and a
+ * lower body day would lose its best drill. Trunk is read before the lower limb
+ * because a Dead Bug names nothing below the hip anyway. Anything left over is
+ * the fourth family, which is shoulder, arm, upper back and neck work.
+ */
+const WARMUP_FAMILY_REGIONS: readonly (readonly [WarmupFamily, readonly PainRegion[]])[] = [
+  ['glute_hip', ['glutes', 'hip_groin']],
+  ['core', ['core_ribs', 'lower_back']],
+  ['lower_limb', ['knee', 'quads', 'hamstrings', 'calf_shin', 'ankle_achilles']],
+];
+
+/** What this drill is for. Exported so a check can ask the same question. */
+export function warmupFamilyOf(drill: ExerciseTemplate): WarmupFamily {
+  for (const [family, regions] of WARMUP_FAMILY_REGIONS) {
+    if (drill.targetRegions.some((region) => regions.includes(region))) return family;
+  }
+  return 'upper';
+}
+
+/**
+ * WHICH DRILLS EACH DAY WANTS, IN ORDER, ONE ENTRY PER WARM-UP SLOT.
+ *
+ * Archie, 25 September 2026: "During lower body sessions glute exercises should
+ * be a priority in the warm up instead of Deadbug or other core exercises."
+ *
+ * What he was looking at was worse than a bad order. A lower body day and an
+ * upper body day were getting the IDENTICAL warm-up, in all 13,104 combinations
+ * of kit, level, length, age, sore area and rotation that the sweep behind this
+ * change generated, because nothing about the warm-up knew which session it was
+ * standing in front of. So this is not a reordering. It is the warm-up learning
+ * what day it is.
+ *
+ * HOW TO READ A ROW. Slot 0 takes the first entry, slot 1 the second and so on,
+ * and where a family has nothing left to give - the kit rules it out, the sore
+ * area withholds it, or the session is already doing it - the slot falls
+ * through to the next entry in the row, and then to any family at all. A lower
+ * body warm-up therefore opens on hip work at every kit and every level, spends
+ * its second slot on hip work too, and only reaches core at a fourth slot,
+ * which no session length ever asks for. Core is not deleted from the pool: it
+ * takes the second drill on an upper body day and the third on a full body
+ * day, which is where Archie says it belongs. Measured over the sweep, every
+ * warm-up it can build is one of nine shapes, three per day, and they are
+ * printed by tests/warmup-shape.check.mjs section [4].
+ *
+ * WHY A FAMILY IS NAMED TWICE. Repeating 'glute_hip' is how a row says "this
+ * matters more here", without spelling out which drill. Every glute drill
+ * written from now on inherits both slots by having glutes or the hip in its
+ * own targetRegions, which a hand-written list could not do.
+ *
+ * FULL BODY NAMES EACH FAMILY ONCE, deliberately: that session squats, hinges,
+ * pushes and pulls, so its warm-up covers the hip and then the shoulder rather
+ * than doubling up on either. At thirty minutes there is only one slot and a
+ * full body day opens on the same hip drill a lower body day does, which is the
+ * right answer for both - they both squat - rather than a rule bent to make the
+ * two look different.
+ */
+export const WARMUP_ORDER: Record<LibrarySessionType, readonly WarmupFamily[]> = {
+  lower_body: ['glute_hip', 'glute_hip', 'lower_limb', 'core', 'upper'],
+  upper_body: ['upper', 'core', 'upper', 'glute_hip', 'lower_limb'],
+  full_body: ['glute_hip', 'upper', 'core', 'lower_limb'],
+};
+
+/**
+ * WHICH FAMILIES ONE SLOT MAY TRY, BEST FIRST, AND WHY THERE ARE FOUR OF THEM.
+ *
+ * The slot's own entry comes first, then the rest of the row from that point,
+ * then every family there is. So the preference decides the ORDER and never the
+ * eligibility: a family with nothing left to give - the kit rules it out, the
+ * sore area withholds it, or the session is already doing all of it - hands the
+ * slot on rather than leaving it empty.
+ *
+ * A separate function rather than a loop inside the builder because the tail is
+ * the part that cannot be reached with today's thirteen drills. Every family
+ * still has something in it in every combination the sweep generates, so the
+ * fall-through never fires and a check watching generated sessions could not
+ * tell whether it was there. Here it can be asked directly, which is the
+ * difference between defensive code and untested code.
+ */
+export function warmupFamilyOrder(sessionType: LibrarySessionType, slot: number): WarmupFamily[] {
+  const order = WARMUP_ORDER[sessionType];
+  const from = slot % order.length;
+  const tried: WarmupFamily[] = [];
+  for (const family of [...order.slice(from), ...order, ...WARMUP_FAMILIES]) {
+    if (!tried.includes(family)) tried.push(family);
+  }
+  return tried;
 }
 
 /**
@@ -861,6 +981,50 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     (t) => t.category === 'prehab'
   );
 
+  /**
+   * The same drills again, filed by what each one is for.
+   *
+   * Built from the pool rather than written down, so a drill added to Restore
+   * joins a family on its own targetRegions, and a family the kit empties out
+   * simply has nothing in it here.
+   */
+  const mobilityByFamily = new Map<WarmupFamily, ExerciseTemplate[]>();
+  for (const drill of mobilityPool) {
+    const family = warmupFamilyOf(drill);
+    const drills = mobilityByFamily.get(family);
+    if (drills) drills.push(drill);
+    else mobilityByFamily.set(family, [drill]);
+  }
+  /**
+   * THE DRILL FOR ONE WARM-UP SLOT, CHOSEN FOR THE DAY IT STANDS IN FRONT OF.
+   *
+   * The slot's own entry in this session type's row is tried first, then the
+   * rest of the row from that point, then every family there is. So this cannot
+   * come back empty while the pool still holds anything the person can safely
+   * do: the preference decides the ORDER and never the eligibility.
+   *
+   * THE ORDER IS NOT ALLOWED TO OVERRULE THE SCREEN. Every candidate goes
+   * through `choosable`, which is the pain screen and the beginner rule, so a
+   * glute drill withheld from a sore glute stays withheld even though glute
+   * work now leads a lower body day. The slot falls through to the next family
+   * rather than the drill being forced in at the top.
+   *
+   * The rotation offset is the one every other slot uses, moved along by the
+   * slot index, so a day that asks one family for two drills gets two different
+   * drills and the pair turns over with the block.
+   */
+  const pickDrill = (slot: number): ExerciseTemplate | null => {
+    for (const family of warmupFamilyOrder(sessionType, slot)) {
+      const drill = pickFrom(
+        mobilityByFamily.get(family) ?? [],
+        Math.floor(n / SLOT_ROTATION_EVERY) + slot,
+        choosable
+      );
+      if (drill) return drill;
+    }
+    return null;
+  };
+
   // ── 1. Pulse raiser ───────────────────────────────────────────────────────
   // One conditioning item, at a pace that raises the pulse and nothing more.
   // Skipping is not offered to a beginner here or in the finisher (decision 7),
@@ -868,10 +1032,19 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   const conditioningPool = CONDITIONING_EXERCISES.filter(
     (e) => hasAuthoredContent(e) && canPerformWith(e, equipment)
   );
+  /**
+   * THE SLED IS CONDITIONING, NOT A WARM-UP (Archie, 25 September 2026).
+   *
+   * `isPulseRaiser` in lib/exercise-library.ts holds the rule and says why. It
+   * applies to this slot and to the swap button behind it, and to nothing else:
+   * the finisher below still draws on the whole list, so the sled keeps its
+   * place in the session, just not at the top of it.
+   */
+  const pulsePool = conditioningPool.filter(isPulseRaiser);
   /** The same pool by id, so the swap pass below can tell one of the nine from a
    *  Restore drill that stood in for it. */
   const conditioningById = new Map(conditioningPool.map((e) => [e.id, e]));
-  const pulse = pickFrom(conditioningPool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
+  const pulse = pickFrom(pulsePool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
   if (pulse) {
     add({ ...templateToExercise(pulse), category: 'prep', sets: 1, suggestedLoad: 'Easy pace' });
   } else {
@@ -894,7 +1067,7 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * the person simply gets one more drill than they otherwise would. Nothing
      * is hidden by that: every card still says what it is.
      */
-    const stand = pickFrom(mobilityPool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
+    const stand = pickDrill(0);
     if (stand) {
       add({ ...templateToExercise(stand), category: 'prep' });
     }
@@ -903,7 +1076,7 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   // ── 2. Mobility ───────────────────────────────────────────────────────────
   const mobilityCount = mobilityCountFor(timeAvailable, profile?.ageYears);
   for (let i = 0; i < mobilityCount; i++) {
-    const drill = pickFrom(mobilityPool, Math.floor(n / SLOT_ROTATION_EVERY) + i, choosable);
+    const drill = pickDrill(i);
     if (!drill) break;
     add({ ...templateToExercise(drill), category: 'prep' });
   }
@@ -1409,6 +1582,15 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     (record) => !usedIds.has(record.id) && !usedNames.has(sameMovementKey(record.name))
   );
   /**
+   * AND THE WARM-UP'S OWN SHORTER LIST, which is the same rule one layer down.
+   *
+   * Taking the sled off the top of the session and then offering it behind the
+   * button would be the same card back, one tap away. So a warm-up card is
+   * offered what could have opened the session instead, and the finisher, which
+   * is conditioning and is meant to be hard, keeps the whole nine.
+   */
+  const sparePulse = spareConditioning.filter(isPulseRaiser);
+  /**
    * AND THE MOBILITY DRILLS, WHICH HAVE THE SAME PROBLEM FOR THE SAME REASON.
    *
    * A mobility card is a Restore drill filed as 'prep' because that is its job
@@ -1416,18 +1598,44 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
    * finds nothing for it either. A Copenhagen Adductor Hold was left with
    * nothing behind its button on every session that opened with one.
    */
-  const spareMobility = mobilityPool.filter(
-    (t) => !usedIds.has(t.id) && !usedNames.has(sameMovementKey(t.name))
-  );
+  /**
+   * AND IN THE SAME ORDER THE WARM-UP ITSELF USES, which is the rest of
+   * Archie's second rule rather than a separate idea.
+   *
+   * A lower body day that leads on glute work and then offers a Dead Bug behind
+   * the button has answered him on the card and taken it back one tap later.
+   * Measured before this sort existed, over the same sweep: 20,823 of the
+   * 24,024 warm-up drill cards on a leg day offered core work in the first
+   * slot, 87 per cent of them. Afterwards none do, and core reaches the second
+   * slot on 948 of them, every one a three-drill warm-up that has already spent
+   * the hip and lower limb drills its kit allows. So the spare drills are
+   * ordered by the same preference row the slots were filled from, which puts
+   * another hip drill behind a hip drill on a leg day and leaves core where it
+   * is welcome.
+   *
+   * SORTED RATHER THAN FILTERED, deliberately, because an empty button is
+   * worse than a drill lower down the order. Nothing here is a safety rule -
+   * the screen a few lines below still decides what a person may be offered at
+   * all, and this only decides what order the survivors come in. With today's
+   * thirteen drills a leg day never runs far enough down the row to reach core
+   * work, because two hip drills and two lower limb drills are always spare;
+   * retire enough of those and core comes back rather than the button going
+   * blank.
+   */
+  const swapFamilyRank = warmupFamilyOrder(sessionType, 0);
+  const swapRankOf = (drill: ExerciseTemplate) => swapFamilyRank.indexOf(warmupFamilyOf(drill));
+  const spareMobility = mobilityPool
+    .filter((t) => !usedIds.has(t.id) && !usedNames.has(sameMovementKey(t.name)))
+    .sort((a, b) => swapRankOf(a) - swapRankOf(b));
   const mobilityByName = new Map(mobilityPool.map((t) => [sameMovementKey(t.name), t]));
   const withOwnSwaps = capped.map((card) => {
     if (!conditioningRoles.has(card.category) || card.safetyNote) return card;
     const fromNine = conditioningById.has(card.id);
     const fromRestore = mobilityByName.has(sameMovementKey(card.name));
     if (!fromNine && !fromRestore) return card;
-    const options = (fromNine ? spareConditioning : spareMobility).filter((record) =>
-      choosable(record)
-    );
+    const options = (
+      fromNine ? (card.category === 'prep' ? sparePulse : spareConditioning) : spareMobility
+    ).filter((record) => choosable(record));
     if (options.length === 0) return card;
     const [first, second] = options;
     return {

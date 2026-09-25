@@ -4071,3 +4071,41 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     stress: ['horizontal_press', 'wrist_load'],
   },
 ];
+
+/**
+ * WHETHER ONE OF THE NINE MAY OPEN A SESSION AS THE PULSE RAISER.
+ *
+ * Archie, 25 September 2026: "Sled push and pull is a conditioning exercise not
+ * a warm up exercise." He was reading his own sessions, where a sled card sat
+ * at the top of the warm-up about half the time: over the 11,232 full-gym
+ * sessions swept by tests/warmup-shape.check.mjs, 47.8 per cent opened on a
+ * sled, and the three sled records were three of the five commonest openers
+ * there, with Sled Rows the commonest of the lot. Afterwards none of them opens
+ * anything.
+ *
+ * A pulse raiser is meant to be easy-pace work that warms somebody up and
+ * nothing else. Dragging a loaded sled twenty metres is the hardest single
+ * thing on the conditioning list, so it belongs in the blocks and in the
+ * finisher, which is where this leaves it. Nothing is removed from the nine and
+ * nothing loses its place in a Conditioning session: this is a rule about one
+ * ROLE, read at the moment a warm-up is being filled.
+ *
+ * WHY SLED ROWS GOES TOO, WHICH IS MORE THAN ARCHIE ASKED FOR IN WORDS.
+ * He named the push and the pull, because those are the two he saw. Sled Rows
+ * is the record directly behind them in the list and is prescribed at 30-50 kg
+ * for four sets, so leaving it in would have handed him the same complaint one
+ * line down. Measured with only the two drags removed: Sled Rows then opens
+ * 17.3 per cent of full-gym sessions, 1,944 of 11,232, second only to the Bear
+ * Crawl and ahead of the bike, the rower and the treadmill. It is one line to
+ * put back if he disagrees.
+ *
+ * READ OFF THE KIT RATHER THAN OFF THE NAME. A record is sled work when one of
+ * the things it needs is a sled and nothing else will do. A name test would
+ * have to be kept in step with any renaming, and "prowler" is the same movement
+ * under another word.
+ */
+export function isPulseRaiser(exercise: ConditioningExercise): boolean {
+  return !exercise.kit.some(
+    (requirement) => requirement.length > 0 && requirement.every((key) => key === 'sled')
+  );
+}

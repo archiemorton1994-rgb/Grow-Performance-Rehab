@@ -16,7 +16,7 @@ import {
   restrictedTagsOnRecord,
 } from './exercise-safety';
 import type { KitKey, LibraryLevel } from './exercise-library';
-import { CONDITIONING_EXERCISES, hasAuthoredContent } from './exercise-library';
+import { CONDITIONING_EXERCISES, hasAuthoredContent, isPulseRaiser } from './exercise-library';
 import { canPerformWith } from './kit';
 import type { LibraryReadiness } from './library-session';
 import { kitSentence, levelCeilingFor } from './library-session';
@@ -452,10 +452,30 @@ export function generateLibraryConditioningSession(
    * exercises, and spending one of them on an easy-pace warm-up would leave a
    * single block of work.
    */
-  const pulseFromNine = available.length > asked;
-  const start = n % available.length;
-  const blockStart = pulseFromNine ? start + 1 : start;
-  const blockCount = Math.min(asked, pulseFromNine ? available.length - 1 : available.length);
+  /**
+   * AND ONLY WHEN WHAT IT CAN SPARE IS SOMETHING A WARM-UP SHOULD BE.
+   *
+   * Archie, 25 September 2026: "Sled push and pull is a conditioning exercise
+   * not a warm up exercise." `isPulseRaiser` in lib/exercise-library.ts holds
+   * that rule. Here it costs the session nothing at all: the sled is taken out
+   * of the ONE easy-pace card at the top and stays in every block below it,
+   * which is the session, and in the swap options behind those blocks.
+   *
+   * Today no full-gym list can run out of pulse raisers, because the sled only
+   * ever arrives with the bike, the treadmill and the rower, and none of those
+   * three carries a stress tag anything can withhold. The guard is written
+   * anyway: if that ever stops being true the session opens on a mobility drill
+   * and says so, rather than opening on a sled.
+   */
+  const pulseCandidates = available.filter(isPulseRaiser);
+  const pulse =
+    available.length > asked && pulseCandidates.length > 0
+      ? pulseCandidates[n % pulseCandidates.length]
+      : null;
+  /** The blocks, which are the session. Everything but the one card above it. */
+  const blockSource = pulse ? available.filter((e) => e.id !== pulse.id) : available;
+  const blockStart = blockSource.length > 0 ? n % blockSource.length : 0;
+  const blockCount = Math.min(asked, blockSource.length);
 
   const built: Exercise[] = [];
   const blocks: ConditioningBlock[] = [];
@@ -463,9 +483,9 @@ export function generateLibraryConditioningSession(
   let warmUpNote: string | null = null;
 
   // ── 1. Pulse raiser ───────────────────────────────────────────────────────
-  if (pulseFromNine) {
+  if (pulse) {
     built.push({
-      ...templateToExercise(available[start]),
+      ...templateToExercise(pulse),
       category: 'prep',
       sets: 1,
       suggestedLoad: 'Easy pace',
@@ -518,7 +538,7 @@ export function generateLibraryConditioningSession(
     flagged.length > 0 && readiness.painSeverity === 'severe'
   );
   for (let i = 0; i < blockCount; i++) {
-    const record = available[(blockStart + i) % available.length];
+    const record = blockSource[(blockStart + i) % blockSource.length];
     blocks.push({ id: record.id, name: record.name, ...interval });
     built.push({
       ...templateToExercise(record),
@@ -565,6 +585,39 @@ export function generateLibraryConditioningSession(
    */
   const usedIds = new Set(built.map((e) => e.id));
   const spare = available.filter((record) => !usedIds.has(record.id));
+  /**
+   * AND THE WARM-UP CARD, WHICH NOTHING HERE WAS ANSWERING AT ALL.
+   *
+   * The fill below only visits the blocks - `card.category !== 'cardio'` skips
+   * everything else - so the warm-up card left this file with an empty button
+   * and the engine's swap pass answered it instead, from the catalogue's
+   * nearest-muscle ranking. Measured at 9121f24: a full-gym conditioning
+   * session opened on a sled and offered Walking Lunges and a Wall Sit behind
+   * it. Both are strength movements off Archie's library, neither is
+   * conditioning, and neither is a warm-up. The ranking reaches by muscle, and
+   * the muscle it read was the sled's quadriceps.
+   *
+   * So the warm-up is answered here, from the same short list it was chosen
+   * from: what else on the nine could have opened this session instead. The
+   * engine honours what it finds already written on a card, so this survives.
+   */
+  if (pulse) {
+    const pulseOptions = spare.filter(isPulseRaiser);
+    const card = built.find((e) => e.category === 'prep');
+    if (card && pulseOptions.length > 0) {
+      card.hasSwap = true;
+      card.swapId = pulseOptions[0].id;
+      card.swapName = pulseOptions[0].name;
+      card.swapCue = pulseOptions[0].cue;
+      card.swapLoad = pulseOptions[0].suggestedLoad;
+      if (pulseOptions.length > 1) {
+        card.swap2Id = pulseOptions[1].id;
+        card.swap2Name = pulseOptions[1].name;
+        card.swap2Cue = pulseOptions[1].cue;
+        card.swap2Load = pulseOptions[1].suggestedLoad;
+      }
+    }
+  }
   if (spare.length > 0) {
     let offset = 0;
     for (const card of built) {

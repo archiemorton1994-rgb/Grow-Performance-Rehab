@@ -48,7 +48,7 @@ import { readFileSync } from 'fs';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { loggedExerciseFor, swapSlotFor, swapProgressId } from '../lib/exercise-swaps.ts';
 import { anchorsFromLogs } from '../lib/auto-regulation.ts';
-import { getAllPickableExercises } from '../lib/exercise-db.ts';
+import { getAllPickableExercises, getRestoreExercises } from '../lib/exercise-db.ts';
 import { LIBRARY_EXERCISES, CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
 
 let failures = 0;
@@ -68,6 +68,22 @@ function check(label, condition, detail) {
  * An id can carry more than one name - the same movement is written up in
  * Archie's library and in the old catalogue under different ids, and the
  * library records answer to more than one name - so the value is a set.
+ *
+ * RESTORE'S OWN RECORDS ARE LISTED SEPARATELY, and they have to be.
+ * `getAllPickableExercises` is keyed by NAME and the first record to claim a
+ * name keeps it (lib/exercise-db.ts says so at the top of getRestoreExercises),
+ * so a handful of Restore drills are shadowed by a Train template of the same
+ * name and never appear in that index under their own id. The Glute Bridge is
+ * one: the pool's ph-s-11 loses the name to the Train accessory sq-acc-bw-2.
+ * It is a real record, Restore prescribes it, and the Train warm-up draws its
+ * drills from the same pool - so an alternative carrying ph-s-11 is carrying a
+ * real record's id, which is the whole of what this file asks. Leaving Restore
+ * out would fail that alternative for the name race rather than for anything
+ * about the id.
+ *
+ * This does not soften the question. The id must still belong to a record that
+ * exists, in one of the four collections the app prescribes from, and the
+ * assertion below about the name-derived fallback key is untouched.
  */
 const namesById = new Map();
 const remember = (id, name) => {
@@ -77,6 +93,7 @@ const remember = (id, name) => {
   else namesById.set(id, new Set([name.toLowerCase()]));
 };
 for (const p of getAllPickableExercises()) remember(p.template.id, p.template.name);
+for (const t of getRestoreExercises()) remember(t.id, t.name);
 for (const r of LIBRARY_EXERCISES) remember(r.id, r.name);
 for (const r of CONDITIONING_EXERCISES) remember(r.id, r.name);
 
