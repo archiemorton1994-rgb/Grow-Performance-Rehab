@@ -132,6 +132,21 @@ import {
   type SetInputShape,
 } from '@/lib/set-logging';
 import {
+  alertForCrossing,
+  clockFace,
+  holdButtonLabel,
+  holdClockFor,
+  holdInitialState,
+  holdPressLabel,
+  holdRunLabel,
+  holdStep,
+  remainingAt,
+  type HoldAlert,
+  type HoldClock,
+  type HoldEvent,
+  type HoldState,
+} from '@/lib/hold-timer';
+import {
   anchorsFromLogs,
   feedbackRatingFor,
   suggestSetWeight,
@@ -181,35 +196,47 @@ interface ExerciseSetData {
  * can drive it over every card the generator can build.
  */
 
-function parseRepsToSeconds(repsStr: string): number {
-  // "X min" or "Xmin" - explicit minutes token
-  const minMatch = repsStr.match(/(\d+(?:\.\d+)?)\s*min/);
-  if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60);
-  // "Xm" or "X m" - bare m as minutes (only called when we KNOW the context is time, e.g. cardio warmup)
-  const bareMinMatch = repsStr.match(/^(\d+(?:\.\d+)?)\s*m\b/);
-  if (bareMinMatch) return Math.round(parseFloat(bareMinMatch[1]) * 60);
-  // "Xs" or "X s" - seconds
-  const secMatch = repsStr.match(/(\d+)\s*s\b/);
-  if (secMatch) return parseInt(secMatch[1], 10);
-  return 5 * 60; // fallback 5 minutes
-}
+/**
+ * THE DURATION PARSER AND THE WARM-UP PREDICATE THAT USED TO LIVE HERE ARE GONE.
+ *
+ * `parseRepsToSeconds` fell back to five minutes when it could not read a
+ * prescription, and `isTimedCardioWarmup` decided that exactly one exercise per
+ * session - a preparation card asking for minutes - was the only thing in the
+ * app allowed a clock. Between them they put a five-minute countdown on a
+ * six-rep Cossack squat and left a Plank prescribed "30s" with no counter at all.
+ *
+ * Both questions are answered by lib/hold-timer.ts now, for every card rather
+ * than for one, off the prescription rather than off the category, and with no
+ * fallback: a sentence it cannot read gets no clock instead of a made-up one.
+ * The machine-swap button that used to hang off the predicate hangs off
+ * `onSwapMachine`, which the screen only passes for a card built from a cardio
+ * machine, so it is a narrower gate than the one it replaces rather than a wider
+ * one.
+ */
 
 /**
- * Does this exercise get the continuous countdown rather than a rest timer?
+ * The alert at the end of a count, and the short warning before it.
  *
- * The question is what the movement is, not where it sits. Keying on "the first
- * warm-up in the list" held only because the generator always opens with cardio;
- * a custom build that skipped the cardio step handed the clock to a stretch, and
- * `parseRepsToSeconds` fell back to five minutes — a Cossack squat held for five
- * minutes. The custom builder had to force a cardio block in to avoid it.
+ * ONE function for both timers on this screen, because the alert is the same
+ * promise in both places and two copies of it drift. A vibration and not a
+ * sound: there is no audio library in this project and no sound file either, so
+ * Grow cannot make a noise of its own without a new dependency and a native
+ * build. The haptic is already installed, is what both timers already did at
+ * zero, and is the one alert that is right on a phone somebody has deliberately
+ * switched to silent.
  *
- * The prescription is the honest signal. Every cardio warm-up in the catalogue
- * asks for a run of minutes, whichever generator picked it, and so does the one
- * the custom builder writes; every mobility drill in the same block is counted
- * in seconds or in reps.
+ * The web guard is not optional. Every haptic call in this app carries it
+ * because the web harness has no haptics engine and throws without it.
  */
-function isTimedCardioWarmup(exercise: Exercise): boolean {
-  return exercise.category === 'prep' && /\d+\s*min/.test(exercise.reps);
+function buzzForAlert(alert: HoldAlert) {
+  if (Platform.OS === 'web') return;
+  if (alert === 'nearly') {
+    // Short and light, so it reads as "nearly" rather than as "stop".
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    return;
+  }
+  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 
 /**
@@ -267,6 +294,19 @@ function RestTimer({
   const pulseScale = useSharedValue(1);
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulseScale.value }] }));
 
+  /**
+   * The previous reading of the clock, so the buzz can be decided by the
+   * CROSSING between two readings rather than by a value.
+   *
+   * This is what gives the rest between sets the same alert treatment as a hold:
+   * a short warning three seconds out and a distinct one at zero, each fired
+   * exactly once. Null means "no previous reading", which is the state a stopped
+   * or freshly started clock is in, and means the first reading cannot be a
+   * crossing - so resuming a timer that is already inside the last three seconds
+   * does not buzz again.
+   */
+  const lastReadingRef = useRef<number | null>(null);
+
   const notifIdRef = useRef<string | null>(null);
 
   const cancelNotif = useCallback(async () => {
@@ -298,7 +338,20 @@ function RestTimer({
     [cancelNotif]
   );
 
-  // Auto-start when trigger increments (i.e. a set was just completed).
+  /**
+   * THIS ONE STILL STARTS ON ITS OWN, AND THAT IS THE JUDGEMENT, NOT AN OVERSIGHT.
+   *
+   * Archie asked for a press on "exercises that require timing". The rest
+   * between sets is not one of them: somebody who has just finished a set of
+   * squats has put the bar down and is not looking at their phone, and a rest
+   * that waits to be told to start is a rest that gets forgotten and then
+   * guessed at. The set being logged IS the press - it is the moment the rest
+   * begins, and it is a deliberate action the person just took.
+   *
+   * What it did NOT have, and now does, is the alert treatment: the same short
+   * warning three seconds out and the same distinct buzz at zero as a hold. That
+   * is the half of this decision that was missing.
+   */
   useEffect(() => {
     if (trigger > 0 && duration > 0) {
       const end = Date.now() + duration * 1000;
@@ -306,6 +359,7 @@ function RestTimer({
       setSecondsLeft(duration);
       setIsDone(false);
       setIsRunning(true);
+      lastReadingRef.current = null;
       scheduleNotif(duration);
       if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -316,16 +370,18 @@ function RestTimer({
   useEffect(() => {
     if (!duration || !isRunning || endAt == null) return;
     const recompute = () => {
-      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      const remaining = remainingAt(endAt, Date.now());
+      // Decided by the step between two readings, in the same function the hold
+      // timer uses, so the two clocks cannot drift apart on when they buzz.
+      const crossing = alertForCrossing(lastReadingRef.current, remaining);
+      lastReadingRef.current = remaining;
       setSecondsLeft(remaining);
+      if (crossing === 'nearly') buzzForAlert('nearly');
       if (remaining <= 0) {
         setIsRunning(false);
         setIsCompleting(true);
         cancelNotif();
-        if (Platform.OS !== 'web') {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+        buzzForAlert('finished');
         pulseScale.value = withTiming(1.1, { duration: 200 }, () => {
           pulseScale.value = withTiming(1, { duration: 200 });
         });
@@ -370,6 +426,7 @@ function RestTimer({
     setIsRunning(false);
     setIsDone(false);
     setIsCompleting(false);
+    lastReadingRef.current = null;
   };
   const skip = () => {
     cancelNotif();
@@ -410,8 +467,8 @@ function RestTimer({
       }
     }
   };
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-  const ss = String(secondsLeft % 60).padStart(2, '0');
+  // The same digits the hold timer draws, out of the same function.
+  const face = clockFace(secondsLeft);
 
   if (isDone) {
     return (
@@ -436,9 +493,7 @@ function RestTimer({
         ) : (
           <>
             <View style={styles.restTimerPillLeft}>
-              <Text style={styles.restTimerPillDigits}>
-                {mm}:{ss}
-              </Text>
+              <Text style={styles.restTimerPillDigits}>{face}</Text>
               <Text style={styles.restTimerPillState}>{isRunning ? 'resting' : 'paused'}</Text>
             </View>
             <View style={styles.restTimerPillActions}>
@@ -480,9 +535,7 @@ function RestTimer({
     <View style={styles.restTimerRow}>
       <View style={[styles.restTimerBtn, { flex: 1 }]}>
         <Ionicons name="timer" size={18} color={C.primaryText} />
-        <Text style={styles.restTimerText}>
-          Rest timer · {mm}:{ss}
-        </Text>
+        <Text style={styles.restTimerText}>Rest timer · {face}</Text>
       </View>
       <Pressable
         onPress={reset}
@@ -496,69 +549,157 @@ function RestTimer({
   );
 }
 
-function CardioWarmupTimer({ repsStr = '5 min' }: { repsStr?: string }) {
+/**
+ * THE COUNTER ON AN EXERCISE THAT IS PRESCRIBED IN TIME.
+ *
+ * Replaces CardioWarmupTimer, which counted one exercise per session and started
+ * itself. Three things about that one were wrong and all three are fixed here.
+ *
+ *   IT STARTS ON A PRESS. `holdInitialState` is a stopped clock, and the only
+ *   thing in this component that sends a `start` is the person's finger. The old
+ *   one initialised `isRunning` to true, so on the very first card of a session
+ *   it began while the plan screen was still on top and could finish, and buzz,
+ *   before the person had pressed Start.
+ *
+ *   IT CANNOT FREEZE. Every reading comes from an absolute end time, and the app
+ *   coming back to the foreground takes a reading immediately. The old one
+ *   subtracted one per second, and a phone in a pocket stops ticking intervals,
+ *   so a warm-up came back frozen where it was left.
+ *
+ *   IT HANDLES "EACH SIDE". One side runs, it buzzes, the button asks them to
+ *   swap, and it waits. `swap` is a phase a tick cannot leave, so Grow can never
+ *   be timing a side the person has not swapped to.
+ *
+ * Every decision above is in lib/hold-timer.ts and driven by
+ * tests/hold-timer.check.mjs. What is left here is the pressable, the vibration
+ * and the interval.
+ */
+// Exported for tests/hold-timer.test.tsx, which renders this component for real
+// and drives a whole thirty seconds of it on a fake clock. That is the only way
+// anything in this repo can watch the vibration actually fire, so the export
+// earns its keep: the decisions are checked in lib, and the wiring here is
+// checked by running it.
+export function HoldTimer({ clock, setsLogged = 0 }: { clock: HoldClock; setsLogged?: number }) {
   const C = useColors();
   const styles = useMemo(() => makeStyles(C), [C]);
-  const DURATION = parseRepsToSeconds(repsStr);
-  const [secondsLeft, setSecondsLeft] = useState(DURATION);
-  const [isRunning, setIsRunning] = useState(true);
-  const [isDone, setIsDone] = useState(false);
+  const [state, setState] = useState<HoldState>(() => holdInitialState(clock));
+
+  /**
+   * The state machine is fed from a ref rather than from the render's closure.
+   *
+   * ONE step per event, computed once, so the buzz that comes back with it
+   * happens once. Deciding it inside a setState updater would let React call the
+   * updater twice and vibrate twice for one second of clock.
+   *
+   * `send` writes the ref itself as well as the state, so two presses inside one
+   * frame are two steps rather than the same step twice. The effect below is only
+   * there to keep the ref honest if anything else ever sets the state.
+   */
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const send = useCallback(
+    (event: HoldEvent) => {
+      const step = holdStep(clock, stateRef.current, event);
+      stateRef.current = step.state;
+      setState(step.state);
+      if (step.alert) buzzForAlert(step.alert);
+    },
+    [clock]
+  );
+
+  /**
+   * A logged set arms the clock again - stopped, showing the full length.
+   *
+   * Arming is not starting: it still counts nothing until it is pressed. This is
+   * only here so the second set of a three-set Plank does not begin with a tap
+   * on "tap to run it again" before the tap that starts it.
+   */
+  const loggedRef = useRef(setsLogged);
+  useEffect(() => {
+    if (setsLogged === loggedRef.current) return;
+    loggedRef.current = setsLogged;
+    const fresh = holdInitialState(clock);
+    stateRef.current = fresh;
+    setState(fresh);
+  }, [setsLogged, clock]);
 
   useEffect(() => {
-    if (!isRunning || secondsLeft <= 0) return;
-    const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
-    return () => clearInterval(id);
-  }, [isRunning, secondsLeft]);
+    if (state.phase !== 'running') return;
+    const advance = () => send({ kind: 'tick', now: Date.now() });
+    advance();
+    const id = setInterval(advance, 1000);
+    // Re-read the real clock the moment the app is back on screen, so time spent
+    // in another app is time served rather than time lost.
+    const sub =
+      Platform.OS !== 'web'
+        ? AppState.addEventListener('change', (s: AppStateStatus) => {
+            if (s === 'active') advance();
+          })
+        : null;
+    return () => {
+      clearInterval(id);
+      sub?.remove();
+    };
+  }, [state.phase, send]);
 
-  useEffect(() => {
-    if (secondsLeft <= 0 && isRunning) {
-      setIsRunning(false);
-      setIsDone(true);
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    }
-  }, [secondsLeft, isRunning]);
-
-  const reset = () => {
-    setSecondsLeft(DURATION);
-    setIsRunning(true);
-    setIsDone(false);
+  const label = holdButtonLabel(clock, state);
+  const runLabel = holdRunLabel(clock, state);
+  const pressLabel = holdPressLabel(clock, state);
+  const press = () => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    const now = Date.now();
+    if (state.phase === 'running') send({ kind: 'pause', now });
+    else send({ kind: 'start', now });
   };
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
-  const ss = String(secondsLeft % 60).padStart(2, '0');
 
-  if (isDone) {
+  if (state.phase === 'done') {
     return (
-      <Animated.View>
-        <Pressable onPress={reset} style={styles.restTimerDone}>
-          <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
-          <Text style={styles.restTimerDoneText}>Warm-up complete - tap to reset</Text>
-        </Pressable>
-      </Animated.View>
+      <Pressable
+        onPress={press}
+        style={styles.restTimerDone}
+        accessibilityRole="button"
+        accessibilityLabel={pressLabel}
+        testID="hold-timer"
+      >
+        <Ionicons name="checkmark-circle" size={16} color={C.primaryText} />
+        <Text style={styles.restTimerDoneText}>{label}</Text>
+        {!!runLabel && <Text style={styles.holdTimerRun}>{runLabel}</Text>}
+      </Pressable>
     );
   }
+
+  // Lit while the clock is on, and lit again while it is waiting to be swapped,
+  // because a prompt nobody notices is a prompt that leaves one side undone.
+  const lit = state.phase === 'running' || state.phase === 'swap';
+  const iconName =
+    state.phase === 'running'
+      ? ('pause' as const)
+      : state.phase === 'swap'
+        ? ('swap-horizontal' as const)
+        : ('play' as const);
 
   return (
     <View style={styles.restTimerRow}>
       <Pressable
-        onPress={() => setIsRunning((r) => !r)}
-        style={[styles.restTimerBtn, isRunning && styles.restTimerBtnActive, { flex: 1 }]}
+        onPress={press}
+        style={[styles.restTimerBtn, lit && styles.restTimerBtnActive, { flex: 1 }]}
+        accessibilityRole="button"
+        accessibilityLabel={pressLabel}
+        testID="hold-timer"
       >
-        <Ionicons
-          name={isRunning ? 'pause-circle' : 'flame'}
-          size={18}
-          color={isRunning ? C.textInverse : C.primaryText}
-        />
-        <Text style={[styles.restTimerText, isRunning && styles.restTimerTextActive]}>
-          {isRunning ? `Warm-up - ${mm}:${ss}` : `Cardio timer - ${mm}:${ss}`}
-        </Text>
+        <Ionicons name={iconName} size={18} color={lit ? C.textInverse : C.primaryText} />
+        <Text style={[styles.restTimerText, lit && styles.restTimerTextActive]}>{label}</Text>
+        {!!runLabel && (
+          <Text style={[styles.holdTimerRun, lit && styles.holdTimerRunActive]}>{runLabel}</Text>
+        )}
       </Pressable>
       <Pressable
-        onPress={reset}
+        onPress={() => send({ kind: 'reset' })}
         style={styles.restTimerResetBtn}
-        accessibilityLabel="Reset timer"
+        accessibilityLabel="Start the timer over"
         accessibilityRole="button"
       >
         <Ionicons name="refresh-outline" size={16} color={C.textSecondary} />
@@ -1380,6 +1521,14 @@ export function ExerciseCard({
   const allDone = setData.sets.every((s) => s.completed);
   /** The same question the logging bar asks, asked once for the whole card. */
   const shape = setInputShapeFor(exercise);
+  /**
+   * The clock this card is prescribed on, or null if it is not prescribed on one.
+   *
+   * Memoised on the prescription alone because that is all it reads, and because
+   * a fresh object every render would re-arm the timer's state machine on every
+   * keystroke in the weight box.
+   */
+  const holdClock = useMemo(() => holdClockFor(exercise.reps), [exercise.reps]);
 
   // Scale-up animation when card becomes active (future → active transition)
   const isActive = exerciseState === 'active';
@@ -1825,32 +1974,44 @@ export function ExerciseCard({
                     />
                   )}
 
-                  {exercise.type !== 'cardio' && isTimedCardioWarmup(exercise) && (
-                    <>
-                      {/* Full width and above the timer, because the moment
-                          this is needed is the moment somebody is standing in
-                          front of an occupied machine, not halfway through a
-                          warm-up. The icon row's 18px swap button is for
-                          choosing between two authored alternatives at leisure;
-                          this is for a decision made on the gym floor. */}
-                      {!!onSwapMachine && (
-                        <Pressable
-                          onPress={onSwapMachine}
-                          style={styles.machineSwapBtn}
-                          testID={`swap-machine-${index}`}
-                          accessibilityRole="button"
-                          accessibilityLabel="Swap the warm-up machine"
-                        >
-                          <Ionicons name="swap-horizontal" size={20} color={C.primaryText} />
-                          <Text style={styles.machineSwapText}>Machine taken? Swap it</Text>
-                          <Ionicons name="chevron-forward" size={16} color={C.primaryText} />
-                        </Pressable>
-                      )}
-                      <CardioWarmupTimer repsStr={exercise.reps} />
-                    </>
+                  {/* Full width and above the timer, because the moment this is
+                      needed is the moment somebody is standing in front of an
+                      occupied machine, not halfway through a warm-up. The icon
+                      row's 18px swap button is for choosing between two authored
+                      alternatives at leisure; this is for a decision made on the
+                      gym floor.
+
+                      Gated on the handler alone. The screen only passes one for a
+                      card built from a cardio machine, so asking a second
+                      question about the prescription here only risked the two
+                      answers disagreeing. */}
+                  {exercise.type !== 'cardio' && !!onSwapMachine && (
+                    <Pressable
+                      onPress={onSwapMachine}
+                      style={styles.machineSwapBtn}
+                      testID={`swap-machine-${index}`}
+                      accessibilityRole="button"
+                      accessibilityLabel="Swap the warm-up machine"
+                    >
+                      <Ionicons name="swap-horizontal" size={20} color={C.primaryText} />
+                      <Text style={styles.machineSwapText}>Machine taken? Swap it</Text>
+                      <Ionicons name="chevron-forward" size={16} color={C.primaryText} />
+                    </Pressable>
                   )}
 
-                  {exercise.type !== 'cardio' && !isTimedCardioWarmup(exercise) && (
+                  {/* The clock the exercise itself is prescribed on, wherever it
+                      is prescribed on one: the holds, the cool-down stretches,
+                      the conditioning bouts and the cardio warm-up alike. */}
+                  {exercise.type !== 'cardio' && !!holdClock && (
+                    <HoldTimer clock={holdClock} setsLogged={effectiveTimerTrigger} />
+                  )}
+
+                  {/* And under it, the gap between sets, which is a different
+                      thing. No longer excluded from the warm-up card by hand:
+                      rest is not prescribed for prep, cardio, cooldown or
+                      finisher work, so restSecondsForSet returns null there and
+                      this draws nothing. One rule about rest, in one place. */}
+                  {exercise.type !== 'cardio' && (
                     <RestTimer seconds={restSeconds} trigger={effectiveTimerTrigger} />
                   )}
 
@@ -6300,6 +6461,14 @@ function makeStyles(C: ReturnType<typeof useColors>) {
     restTimerAddText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.textSecondary },
     restTimerText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primaryText },
     restTimerTextActive: { color: '#fff' },
+    /** "2 of 2" on an each-side hold, pushed to the far end of the button. */
+    holdTimerRun: {
+      fontSize: 12,
+      fontFamily: 'Inter_500Medium',
+      color: C.textSecondary,
+      marginLeft: 'auto',
+    },
+    holdTimerRunActive: { color: '#fff', opacity: 0.85 },
     restTimerDone: {
       flexDirection: 'row',
       alignItems: 'center',

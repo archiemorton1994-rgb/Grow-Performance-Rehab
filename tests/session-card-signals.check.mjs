@@ -2,13 +2,13 @@
  * Contract test: what an exercise card signals about the exercise on it.
  *
  * Four small signals, all on the session card, all of which were saying
- * something that was not true: which timer an exercise gets, which way the
+ * something that was not true: which clock an exercise gets, which way the
  * progression arrow points, and the glyphs the two screens are written with.
  *
- * ─── 1-3. THE WARM-UP COUNTDOWN ─────────────────────────────────────────────
+ * ─── 1-3. WHICH EXERCISE GETS A CLOCK ───────────────────────────────────────
  *
- * WHAT WAS WRONG
- * A session opens with a continuous cardio warm-up, and its card shows a
+ * WHAT WAS WRONG FIRST
+ * A session opens with a continuous cardio warm-up, and its card showed a
  * running clock instead of a rest timer. The screen decided which exercise got
  * that clock by asking "is this the FIRST preparation exercise?" — which is true
  * of the cardio warm-up in every session the generator builds, and so held by
@@ -18,25 +18,37 @@
  * step, and the first preparation exercise is a mobility drill: the clock landed
  * on a stretch, and because a stretch prescribes reps rather than minutes the
  * duration parser fell back to its default. The app told someone to hold a
- * six-rep Cossack squat for five minutes. It was patched by making the cardio
- * step compulsory, which is a fence around the hole rather than the fix.
+ * six-rep Cossack squat for five minutes.
  *
- * WHAT THIS PROTECTS
- * ──────────────────
- * The rule is now about the movement, not its position: a preparation exercise
- * gets the countdown when it prescribes a run of minutes. Three things have to
- * stay true for that to keep working.
+ * That was fixed by asking what the exercise prescribed rather than where it
+ * sat: `isTimedCardioWarmup`, a preparation card asking for minutes.
  *
- *  1. POSITION IS NOT THE TEST. The screen must not go back to keying either
- *     timer on the exercise's index.
- *  2. EVERY REAL SESSION STILL AGREES. Across the sessions the app actually
- *     builds — every session type at every equipment tier — the exercise that
- *     gets the clock is the cardio warm-up, and nothing else does.
- *  3. A CUSTOM BUILD WITHOUT CARDIO GIVES IT TO NOBODY. This is the original
- *     bug, and it is the one case position and meaning disagree about.
+ * WHAT WAS STILL WRONG, AND WHAT THESE SECTIONS NOW SAY
+ * ────────────────────────────────────────────────────
+ * That predicate was still a rule about ONE card. Measured over the same
+ * sessions: 119 cards are prescribed on a clock and exactly 3 of them — the
+ * cardio warm-up — had a counter. A Plank prescribed "30s" had none.
  *
- * The predicate is read out of app/session.tsx and run for real, so this cannot
- * pass against a copy of the rule that the screen no longer uses.
+ * Archie's decision was that anything prescribed on a clock gets a counter: the
+ * holds, the cool-down stretches and the conditioning bouts alike. So "at most
+ * one countdown per session" and "the card that gets it is a continuous warm-up"
+ * are no longer true of the app, and re-asserting them would hold the screen to
+ * a promise it has stopped making.
+ *
+ * THE CLINICAL RULE UNDERNEATH THEM IS UNCHANGED AND IS WHAT THESE SECTIONS
+ * ASSERT: a clock may only ever land on a card that asked for a length of time,
+ * and its length may only ever be the length that was written down. Both
+ * directions are checked over every session the app builds and over a custom
+ * build with and without the cardio step, which is the case where position and
+ * meaning disagree. The Cossack squat is still the fault being guarded; it is
+ * guarded by the absence of a fallback rather than by the absence of a clock.
+ *
+ * The rule itself lives in lib/hold-timer.ts now, with the countdown, the
+ * each-side sequencing and the alert thresholds, and
+ * tests/hold-timer.check.mjs drives all of it second by second. What THIS file
+ * still owns is the session-level question: over real generated sessions, does
+ * the clock land where the prescription says and nowhere else, and is the screen
+ * still asking that one question rather than a second copy of it.
  *
  * ─── 4. THE PROGRESSION ARROW ───────────────────────────────────────────────
  *
@@ -62,6 +74,8 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { assembleSession, exercisesInCategory } from '../lib/session-builder.ts';
+import { holdClockFor } from '../lib/hold-timer.ts';
+import { doseOfPrescription } from '../lib/set-logging.ts';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 const SESSION_SRC = readFileSync(join(__dir, '../app/session.tsx'), 'utf8');
@@ -77,67 +91,54 @@ function check(label, condition, detail) {
   }
 }
 
-// ─── The screen's own predicate, lifted out and made callable ────────────────
-//
-// Anchored to the signature rather than to the body, so rewording the rule is
-// free and moving away from it is not.
+/**
+ * Does this card get a clock, and how long for?
+ *
+ * The screen's own answer, because it is the same function call. The predicate
+ * used to be lifted out of app/session.tsx with a regular expression and
+ * evaluated, which was the only way to run a rule that lived inside a React
+ * Native screen. Section 1 below checks the screen still asks THIS, so the rule
+ * being driven here and the rule on the card cannot be two different things.
+ */
+const getsClock = (exercise) => holdClockFor(exercise.reps) !== null;
 
-const bodyMatch = SESSION_SRC.match(
-  /function isTimedCardioWarmup\(exercise: Exercise\): boolean \{\r?\n([\s\S]*?)\r?\n\}/
+// ─── 1. The screen asks one question, about the prescription ─────────────────
+console.log('\n[1] Neither clock is keyed on where the exercise sits');
+
+const memo = SESSION_SRC.match(
+  /const holdClock = useMemo\(\(\) => holdClockFor\(([^)]*)\), \[([^\]]*)\]\);/
 );
-
-let getsCountdown = null;
-if (bodyMatch) {
-  try {
-    getsCountdown = new Function('exercise', bodyMatch[1]);
-  } catch (e) {
-    console.error(`  (could not evaluate the predicate: ${e.message})`);
-  }
-}
-
 check(
-  'app/session.tsx exposes isTimedCardioWarmup(exercise)',
-  typeof getsCountdown === 'function',
-  'the rest of this file tests that function; without it there is nothing to test'
+  'the card asks lib/hold-timer.ts for the clock',
+  memo !== null,
+  'if the screen has its own copy of the rule, everything below is testing the wrong one'
 );
-
-if (typeof getsCountdown !== 'function') {
-  console.error('\nsession-card-signals: FAILED (predicate not found)\n');
-  process.exit(1);
-}
-
-// ─── 1. Position is not the test ─────────────────────────────────────────────
-console.log('\n[1] Neither timer is keyed on where the exercise sits');
-
-const timerBlock = SESSION_SRC.slice(
-  SESSION_SRC.indexOf('{exercise.type !== \'cardio\' && isTimedCardioWarmup'),
-  // Anchored on the tag alone, not on its first prop. Adding a second prop to
-  // <RestTimer> wrapped it across lines, indexOf missed, and the slice silently
-  // became the whole rest of the file - which of course contains `index`, so
-  // this reported the bug it exists to catch on a change that had nothing to do
-  // with it. A source anchor that moves when the formatter runs is not an anchor.
-  SESSION_SRC.indexOf('<RestTimer')
-);
-
 check(
-  'the countdown and the rest timer are chosen by the same predicate',
-  timerBlock.length > 0 &&
-    (SESSION_SRC.match(/isTimedCardioWarmup\(exercise\)/g) ?? []).length === 2,
-  'one branch renders CardioWarmupTimer and the other RestTimer; they must not drift apart'
+  'and asks it about the prescription, nothing else',
+  memo !== null && memo[1].trim() === 'exercise.reps' && memo[2].trim() === 'exercise.reps',
+  memo ? `it passes ${memo[1]}` : 'not found'
+);
+
+const clockStart = SESSION_SRC.indexOf("{exercise.type !== 'cardio' && !!holdClock &&");
+const clockEnd = SESSION_SRC.indexOf('<RestTimer', clockStart);
+const timerBlock = clockStart >= 0 && clockEnd > clockStart ? SESSION_SRC.slice(clockStart, clockEnd) : '';
+check(
+  'both timer branches were found on the card',
+  // Anchored on the condition, and length-bounded. An anchor that misses makes
+  // indexOf return -1, and a slice from -1 silently became the whole rest of the
+  // file once before — which of course contains `index`, so this reported the bug
+  // it exists to catch on a change that had nothing to do with it.
+  timerBlock.length > 100 && timerBlock.length < 1200,
+  `slice is ${timerBlock.length} characters; the anchors have moved`
 );
 check(
   'no `index` in either condition',
-  !/index\s*===?\s*0/.test(timerBlock),
+  timerBlock.length > 100 && !/index\s*===?\s*0/.test(timerBlock),
   '"whatever warm-up comes first" is the bug this file exists for'
-);
-check(
-  'the predicate asks what the exercise prescribes, not what it is called',
-  /category/.test(bodyMatch[1]) && /min/.test(bodyMatch[1]),
-  'an id list would go stale the moment a warm-up is added to the catalogue'
 );
 
 // ─── 2. Every session the app builds still agrees ────────────────────────────
-console.log('\n[2] Across every generated session, the clock lands on the cardio warm-up');
+console.log('\n[2] Across every generated session, the clock lands on what was prescribed');
 
 const PROFILE = {
   name: 'Test',
@@ -160,60 +161,78 @@ const SESSION_TYPES = [
 ];
 const TIERS = ['bodyweight', 'dumbbells', 'fullgym'];
 
-/** Reads like a warm-up you keep moving through, by name or by prescription. */
-const CONTINUOUS = /cardio|warm-?up|jog|skip|rope|bike|row|march|leg swing|walk/i;
-
-const tooMany = [];
-const notAWarmup = [];
-const misplaced = [];
+const wrongWay = [];
 const missed = [];
+const invented = [];
+/** Every answer the rule gave, keyed by the sentence that produced it. */
+const answerFor = new Map();
+let cardsSeen = 0;
+let clocksSeen = 0;
 
 for (const type of SESSION_TYPES) {
   for (const tier of TIERS) {
     const session = generateWorkout(type, tier, READINESS, PROFILE, {}, undefined, 0, {}, {}, {}, 0);
-    const timed = session.filter((e) => e.type !== 'cardio' && getsCountdown(e));
     const where = `${type}/${tier}`;
-
-    if (timed.length > 1) tooMany.push(`${where}: ${timed.map((e) => e.name).join(', ')}`);
-    for (const e of timed) {
-      if (!CONTINUOUS.test(e.name)) notAWarmup.push(`${where}: "${e.name}" (${e.reps})`);
-      // The cardio warm-up is the thing you do before anything else, so a clock
-      // anywhere but the front means it landed on something that is not one.
-      if (session.indexOf(e) !== 0) {
-        misplaced.push(`${where}: clock on #${session.indexOf(e) + 1} "${e.name}"`);
+    for (const e of session) {
+      if (e.type === 'cardio') continue; // its own input block, not a card clock
+      cardsSeen++;
+      const clock = holdClockFor(e.reps);
+      const asksForTime = doseOfPrescription(e.reps) === 'time';
+      if (clock && !asksForTime) wrongWay.push(`${where}: "${e.name}" (${e.reps})`);
+      if (!clock && asksForTime) missed.push(`${where}: "${e.name}" (${e.reps}) got no clock`);
+      if (!clock) continue;
+      clocksSeen++;
+      // The length on the clock is the length in the sentence, in the unit
+      // written beside it. This is the Cossack squat guard: the parser it
+      // replaced answered five minutes when it could not read the sentence.
+      const written = e.reps.match(/(\d+(?:\.\d+)?)\s*(s|secs?|seconds?|mins?|minutes?)\b/i);
+      const expected = written
+        ? Math.round(parseFloat(written[1]) * (/^m/i.test(written[2]) ? 60 : 1))
+        : null;
+      if (clock.seconds !== expected) {
+        invented.push(`${where}: "${e.name}" (${e.reps}) -> ${clock.seconds}s, sentence says ${expected}s`);
       }
-    }
-    // The other direction: a session that DOES open with continuous cardio must
-    // still get its clock, or every warm-up in the app is now a rest timer.
-    const opener = session[0];
-    if (opener && CONTINUOUS.test(opener.name) && /\d+\s*min/.test(opener.reps) && !timed.includes(opener)) {
-      missed.push(`${where}: "${opener.name}" (${opener.reps}) got no clock`);
+      const seen = answerFor.get(e.reps);
+      const asJson = JSON.stringify(clock);
+      if (seen && seen !== asJson) {
+        wrongWay.push(`${where}: "${e.reps}" answered ${asJson} here and ${seen} elsewhere`);
+      }
+      answerFor.set(e.reps, asJson);
     }
   }
 }
 
 check(
-  `at most one exercise per session gets the countdown (${SESSION_TYPES.length * TIERS.length} sessions)`,
-  tooMany.length === 0,
-  tooMany.join(' | ')
+  `the sweep reached real cards (${cardsSeen} cards, ${clocksSeen} of them clocked)`,
+  cardsSeen > 60 && clocksSeen > 10,
+  `${cardsSeen} cards, ${clocksSeen} clocked - too few for the rest of this section to mean anything`
 );
 check(
-  'the exercise that gets it is a continuous warm-up',
-  notAWarmup.length === 0,
-  notAWarmup.join(' | ')
+  'nothing gets a clock unless it asked for a length of time',
+  wrongWay.length === 0,
+  wrongWay.join(' | ')
 );
-check('and it is the exercise the session opens with', misplaced.length === 0, misplaced.join(' | '));
 check(
-  'a session that opens with continuous cardio always gets it',
+  'and everything that asked for one gets it',
   missed.length === 0,
   missed.join(' | ')
 );
+check(
+  'no clock runs for a length nobody wrote down',
+  invented.length === 0,
+  invented.join(' | ')
+);
+check(
+  `the same prescription always gets the same clock, wherever it appears (${answerFor.size} distinct)`,
+  answerFor.size > 5,
+  'position and session type cannot change the answer, because neither is asked'
+);
 
-// The shipped instance of the same bug, kept by name because it is the one a
+// The shipped instance of the original bug, kept by name because it is the one a
 // user could hit without ever opening the custom builder: the Flexibility
 // session opens with Diaphragmatic Breathing — a prep exercise counted in
-// breaths — and under the old rule that earned a five-minute countdown, because
-// the duration parser has nothing to read in "10 deep breaths" and defaults.
+// breaths — and under the oldest rule that earned a five-minute countdown,
+// because the duration parser has nothing to read in "10 deep breaths".
 const flexibility = generateWorkout(
   'flexibility',
   'fullgym',
@@ -227,14 +246,31 @@ const flexibility = generateWorkout(
   {},
   0
 );
+const breathing = flexibility.find((e) => /Breathing/i.test(e.name));
 check(
-  'the Flexibility session does not put a countdown on its breathing drill',
-  flexibility.filter((e) => getsCountdown(e)).length === 0,
+  'the Flexibility session still opens with the breathing drill counted in breaths',
+  breathing !== undefined &&
+    flexibility[0] === breathing &&
+    /breaths/i.test(breathing.reps) &&
+    !/\d+\s*(s|min)\b/i.test(breathing.reps),
   `opener is "${flexibility[0]?.name}" (${flexibility[0]?.reps})`
+);
+check(
+  'and it gets no countdown',
+  breathing !== undefined && !getsClock(breathing),
+  `"${breathing?.name}" (${breathing?.reps}) got ${JSON.stringify(holdClockFor(breathing?.reps ?? ''))}`
+);
+check(
+  'while the stretches in the same session, which ARE on a clock, all get one',
+  flexibility.filter((e) => /Stretch|Pose/i.test(e.name) && /\ds\b/.test(e.reps)).length > 2 &&
+    flexibility
+      .filter((e) => /Stretch|Pose/i.test(e.name) && /\ds\b/.test(e.reps))
+      .every((e) => getsClock(e)),
+  'the whole point of the change: a 45 second stretch is prescribed on a clock'
 );
 
 // ─── 3. The custom builder, with and without the cardio step ─────────────────
-console.log('\n[3] A custom build gets the clock only when it contains cardio');
+console.log('\n[3] A custom build gives a clock to exactly the cards asking for time');
 
 const cardioPool = exercisesInCategory('cardio');
 const stretchPool = exercisesInCategory('active_stretch');
@@ -260,28 +296,50 @@ const withoutCardio = assembleSession(
   3
 );
 
-const timedWith = withCardio.filter((e) => getsCountdown(e));
-const timedWithout = withoutCardio.filter((e) => getsCountdown(e));
+// Asserted flat, with no escape clause for the case where the cardio pick stops
+// being prescribed in minutes. An "or the premise no longer holds" arm is how an
+// assertion goes quietly vacuous: the premise is the thing worth failing on, so
+// it is its own line.
+check(
+  'the cardio pick is still prescribed as a run of minutes',
+  doseOfPrescription(cardioPool[0].reps) === 'time' && /\d+\s*min/.test(cardioPool[0].reps),
+  `"${cardioPool[0].name}" asks for "${cardioPool[0].reps}"`
+);
+const cardioMinutes = Math.round(parseFloat(cardioPool[0].reps.match(/(\d+(?:\.\d+)?)\s*min/)[1]) * 60);
+check(
+  `and a build that includes the cardio step gives it a clock of exactly that length (${cardioMinutes}s)`,
+  withCardio.some(
+    (e) => e.name === cardioPool[0].name && holdClockFor(e.reps)?.seconds === cardioMinutes
+  ),
+  `"${cardioPool[0].name}" (${cardioPool[0].reps}) got ${JSON.stringify(holdClockFor(cardioPool[0].reps))}`
+);
 
+for (const [name, build] of [
+  ['with cardio', withCardio],
+  ['without cardio', withoutCardio],
+]) {
+  const disagreed = build.filter((e) => getsClock(e) !== (doseOfPrescription(e.reps) === 'time'));
+  check(
+    `a build ${name} (${build.length} cards) agrees card for card with what was prescribed`,
+    build.length > 0 && disagreed.length === 0,
+    disagreed.map((e) => `"${e.name}" (${e.reps})`).join(' | ')
+  );
+  const overRun = build.filter((e) => {
+    const clock = holdClockFor(e.reps);
+    return clock !== null && clock.seconds > 5 * 60;
+  });
+  check(
+    `and nothing in it is held longer than the app ever prescribes`,
+    overRun.length === 0,
+    `the original bug was a five-minute clock on a six-rep movement: ${overRun
+      .map((e) => `"${e.name}" (${e.reps}) -> ${holdClockFor(e.reps).seconds}s`)
+      .join(' | ')}`
+  );
+}
 check(
-  'a build that includes the cardio step gets exactly one countdown',
-  timedWith.length === 1,
-  `got ${timedWith.length}: ${timedWith.map((e) => e.name).join(', ')}`
-);
-check(
-  'and it is the cardio pick, not merely the first exercise',
-  timedWith.length === 1 && timedWith[0].name === cardioPool[0].name,
-  `got "${timedWith[0]?.name}", expected "${cardioPool[0].name}"`
-);
-check(
-  'a build that skips the cardio step gets NO countdown',
-  timedWithout.length === 0,
-  `the original bug: a five-minute clock on "${timedWithout[0]?.name}" (${timedWithout[0]?.reps})`
-);
-check(
-  'that build still starts with a preparation exercise',
+  'a build that skips the cardio step still starts with a preparation exercise',
   withoutCardio.length > 0 && withoutCardio[0].category === 'prep',
-  'otherwise the case above passes for the wrong reason'
+  'otherwise the cases above pass for the wrong reason'
 );
 
 // ─── 4. The eased-back note points down ──────────────────────────────────────
