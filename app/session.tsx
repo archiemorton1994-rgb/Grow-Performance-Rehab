@@ -126,6 +126,12 @@ import {
 } from '@/lib/workout-engine';
 import { SWAP_KIND_HEADINGS, loggedExerciseFor, swapSlotFor } from '@/lib/exercise-swaps';
 import {
+  asksHowItFelt,
+  setInputShapeFor,
+  targetCountForPrefill,
+  type SetInputShape,
+} from '@/lib/set-logging';
+import {
   anchorsFromLogs,
   feedbackRatingFor,
   suggestSetWeight,
@@ -165,30 +171,15 @@ interface ExerciseSetData {
  * tests/ease-off.check.mjs holds it to that.
  */
 
-function isLoadBandOrBodyweight(suggestedLoad: string): boolean {
-  const lower = suggestedLoad.toLowerCase();
-  return lower.startsWith('bodyweight') || lower.includes('band') || lower === 'low intensity';
-}
-
-function isRepsTimeBased(repsStr: string, sessionType?: SessionType): boolean {
-  if (sessionType === 'conditioning') return true;
-  // Only recognise "min" (e.g. "2 min", "5min") or seconds "30s" / "30 s".
-  // Do NOT match bare "m" - that collides with meters (e.g. "40m" Farmers Carry).
-  return /\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr);
-}
-
 /**
- * Parse the lower bound of a reps string for pre-filling the reps input.
- * Returns the first numeric token as a string, or '' for time-based reps
- * (min/s) or when nothing is parseable.
- * e.g. "10" → "10", "8-12" → "8", "30s" → '', "2 min" → ''.
+ * WHAT THE BAR ASKS FOR IS DECIDED IN ONE PLACE, AND IT IS NOT THIS FILE.
+ *
+ * Two regular expressions used to live here - one over the load sentence, one
+ * over the reps sentence - and between them they took the weight box off four
+ * loaded barbell lifts and the rep counter off thirty-two rehab drills. The
+ * rule, what Archie decided and why, is in lib/set-logging.ts, where a check
+ * can drive it over every card the generator can build.
  */
-function parseTargetRepsForPrefill(repsStr: string): string {
-  if (!repsStr) return '';
-  if (/\d+\s*min\b/.test(repsStr) || /\d+\s*s\b/.test(repsStr)) return '';
-  const match = repsStr.match(/\d+/);
-  return match ? match[0] : '';
-}
 
 function parseRepsToSeconds(repsStr: string): number {
   // "X min" or "Xmin" - explicit minutes token
@@ -587,8 +578,15 @@ interface SessionActiveBarProps {
   setData: ExerciseSetData | null;
   activeSetIndex: number;
   weightGuidesKg: number[];
-  isBandExercise: boolean;
-  isTimeExercise: boolean;
+  /**
+   * Which boxes this card draws, and which of them have to be filled in.
+   *
+   * One object rather than the two booleans that used to sit here, because
+   * there are six shapes and not four: a loaded hold and a loaded carry ask for
+   * the weight and nothing else, and Sled Rows asks for the weight and the
+   * metres. See lib/set-logging.ts.
+   */
+  shape: SetInputShape;
   previousBest: number | undefined;
   previousSessionWeight: number | undefined;
   weightUnit: WeightUnit;
@@ -654,6 +652,9 @@ interface SessionActiveBarProps {
 // raw deadlift ever recorded is ~500kg.
 const MAX_PLAUSIBLE_KG = 500;
 const MAX_PLAUSIBLE_REPS = 200;
+/** The same guard for the box when it is counting metres rather than reps. The
+ *  longest walk the app prescribes is a 500 m row. */
+const MAX_PLAUSIBLE_METRES = 2000;
 
 /**
  * How long a gap between saving and resuming still counts as time under the bar.
@@ -679,8 +680,7 @@ export function SessionActiveBar({
   setData,
   activeSetIndex,
   weightGuidesKg,
-  isBandExercise,
-  isTimeExercise,
+  shape,
   previousBest,
   previousSessionWeight,
   weightUnit = 'kg',
@@ -721,7 +721,7 @@ export function SessionActiveBar({
   const [weightText, setWeightText] = useState<string>(computeInitialWeight);
   const [repsText, setRepsText] = useState<string>(() => {
     const r = setData?.sets[activeSetIndex]?.reps ?? 0;
-    return r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? '');
+    return r > 0 ? String(r) : targetCountForPrefill(exercise?.reps ?? '');
   });
   /**
    * The set the feedback buttons are asking about.
@@ -787,7 +787,7 @@ export function SessionActiveBar({
       prevRecommendedRef.current = recommendedKg;
       prefill(computeInitialWeight());
       const r = setData?.sets[activeSetIndex]?.reps ?? 0;
-      setRepsText(r > 0 ? String(r) : parseTargetRepsForPrefill(exercise?.reps ?? ''));
+      setRepsText(r > 0 ? String(r) : targetCountForPrefill(exercise?.reps ?? ''));
       return;
     }
     if (prevRecommendedRef.current !== recommendedKg) {
@@ -812,34 +812,52 @@ export function SessionActiveBar({
   const effectiveWeightKg = displayUnitToKg(parsedWeight, weightUnit);
 
   /**
-   * Rehab loads are a starting point, not a floor.
+   * The counter's ceiling depends on what it is counting.
    *
-   * "Light dumbbell 1-2 kg" on a wrist extension assumes an elbow that can hold
-   * 1 kg, and the movement is worth doing unweighted by someone whose elbow
-   * cannot — but the bar demanded a weight, so the only way through was to
-   * enter one they had not lifted. Zero is the honest answer here and the log
-   * should be able to say so. Deliberately not opened up to the loaded lifts:
-   * on those, 0 kg is a typo far more often than it is a set, and nothing on
-   * this bar can tell the two apart.
+   * Two hundred is a fat-fingered rep count. It is also a perfectly ordinary
+   * row: the warm-up on the rower is prescribed at 500 metres, and the box now
+   * arrives holding that number, so judging metres against the rep ceiling
+   * would have blocked the set the app itself prefilled.
    */
-  const allowsZeroWeight = exercise?.category === 'prehab';
+  const countCeiling = shape.count === 'metres' ? MAX_PLAUSIBLE_METRES : MAX_PLAUSIBLE_REPS;
+  const needsCount = shape.count !== null;
 
+  /**
+   * What has to be filled in before the set can be logged.
+   *
+   * Both halves come from the shape, and so does the rehab exception inside
+   * it: "Light dumbbell 1-2 kg" on a wrist extension assumes an elbow that can
+   * hold 1 kg, and the movement is worth doing unweighted by somebody whose
+   * elbow cannot, so `weightRequired` is never true on a prehab card. The
+   * loaded lifts are deliberately not opened up that way: on those, 0 kg is a
+   * typo far more often than it is a set, and nothing on this bar can tell the
+   * two apart.
+   */
   const isZeroBlocked =
-    !isTimeExercise &&
-    (isBandExercise || allowsZeroWeight
-      ? parsedReps === 0
-      : effectiveWeightKg === 0 || parsedReps === 0);
+    (shape.weightRequired && effectiveWeightKg === 0) || (needsCount && parsedReps === 0);
   const isImplausible =
-    !isTimeExercise && (effectiveWeightKg > MAX_PLAUSIBLE_KG || parsedReps > MAX_PLAUSIBLE_REPS);
+    effectiveWeightKg > MAX_PLAUSIBLE_KG || (needsCount && parsedReps > countCeiling);
   const isCompleteBlocked = isZeroBlocked || isImplausible;
+
+  /**
+   * A card with no weight to record and no number to count has nothing to type
+   * into, so it keeps the single green button it has always had: a plank, a
+   * stretch, a breathing drill.
+   */
+  const marksDoneOnly = !shape.weight && !needsCount;
+  const countLabel = shape.count === 'metres' ? 'metres' : 'reps';
+  const missingHint = shape.weightRequired
+    ? needsCount
+      ? `Enter weight and ${countLabel} to complete`
+      : 'Enter weight to complete'
+    : `Enter ${countLabel} to complete`;
 
   // Judged in the unit on screen, not in the kilograms behind it. Converting
   // 100 kg out to 220.5 lbs and back lands on 100.02 kg, so a straight kg
   // comparison fired "New Record!" for submitting the number the app itself
   // prefilled — i.e. every single time it held a weight. See isHeavierThan.
   const isNewRecord =
-    !isBandExercise &&
-    !isTimeExercise &&
+    shape.weight &&
     previousBest !== undefined &&
     previousBest > 0 &&
     parsedWeight > 0 &&
@@ -1039,7 +1057,7 @@ export function SessionActiveBar({
         </View>
       )}
 
-      {isTimeExercise ? (
+      {marksDoneOnly ? (
         <Pressable
           onPress={handleComplete}
           style={[styles.barMarkDoneBtn, { backgroundColor: go.fill }]}
@@ -1050,13 +1068,18 @@ export function SessionActiveBar({
         </Pressable>
       ) : (
         <View style={styles.barInputArea}>
-          {!isBandExercise && (
+          {shape.weight && (
             <View style={styles.barInputBlock}>
-              {recommendedKg > 0 && (
-                <Text style={styles.barInputHint}>
-                  suggested {kgToDisplayUnit(recommendedKg, weightUnit)} {weightUnit}
-                </Text>
-              )}
+              {/* THE UNIT IS ALWAYS THERE, whether or not a weight was worked
+                  out for this set. Measured over the whole generator, 43% of
+                  the cards that showed a weight box showed it with no
+                  suggestion above it, and on those the word kg appeared nowhere
+                  on the screen - which is exactly what Archie reported. */}
+              <Text style={styles.barInputHint}>
+                {recommendedKg > 0
+                  ? `suggested ${kgToDisplayUnit(recommendedKg, weightUnit)} ${weightUnit}`
+                  : weightUnit}
+              </Text>
               <TextInput
                 style={styles.barInput}
                 placeholder="0"
@@ -1076,37 +1099,39 @@ export function SessionActiveBar({
             </View>
           )}
 
-          {isBandExercise && (
+          {!shape.weight && (
             <View style={styles.barInputBlock}>
-              <Text style={styles.barInputHint}>Bodyweight</Text>
+              <Text style={styles.barInputHint}>{shape.unloadedLabel}</Text>
             </View>
           )}
 
-          <Text style={styles.barTimesSign}>×</Text>
+          {needsCount && <Text style={styles.barTimesSign}>×</Text>}
 
-          <View style={styles.barInputBlock}>
-            <Text style={styles.barInputHint}>reps</Text>
-            <TextInput
-              style={styles.barInput}
-              placeholder="0"
-              placeholderTextColor={C.textTertiary}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              selectTextOnFocus
-              value={repsText}
-              onChangeText={setRepsText}
-              onSubmitEditing={Keyboard.dismiss}
-              accessibilityLabel="Reps"
-              testID={`set-${activeSetIndex + 1}-reps`}
-            />
-          </View>
+          {needsCount && (
+            <View style={styles.barInputBlock}>
+              <Text style={styles.barInputHint}>{countLabel}</Text>
+              <TextInput
+                style={styles.barInput}
+                placeholder="0"
+                placeholderTextColor={C.textTertiary}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                selectTextOnFocus
+                value={repsText}
+                onChangeText={setRepsText}
+                onSubmitEditing={Keyboard.dismiss}
+                accessibilityLabel={shape.count === 'metres' ? 'Distance in metres' : 'Reps'}
+                testID={`set-${activeSetIndex + 1}-reps`}
+              />
+            </View>
+          )}
 
         </View>
       )}
 
       {/* Why this number changed. Shown only when the previous set's answer
           moved it, so it never becomes wallpaper the user stops reading. */}
-      {!isTimeExercise && !isBandExercise && autoNote && (
+      {shape.weight && autoNote && (
         <Text style={styles.barAutoNote} testID="auto-regulation-note">
           {autoNote}
         </Text>
@@ -1115,7 +1140,7 @@ export function SessionActiveBar({
       {/* The weight is theirs. Two states rather than one, so the line reads
           as confirmation once they have changed it instead of repeating an
           instruction they have already followed. */}
-      {!isTimeExercise && !isBandExercise && recommendedKg > 0 && !isCompleteBlocked && (
+      {shape.weight && recommendedKg > 0 && !isCompleteBlocked && (
         <Text style={styles.barYoursNote} testID="weight-is-yours">
           {Math.abs(effectiveWeightKg - recommendedKg) < 0.01
             ? 'A suggestion, not an instruction. Change it to whatever you actually lift.'
@@ -1123,17 +1148,15 @@ export function SessionActiveBar({
         </Text>
       )}
 
-      {!isTimeExercise && (isZeroBlocked || isImplausible) && (
+      {!marksDoneOnly && (isZeroBlocked || isImplausible) && (
         <Text style={styles.barZeroHint}>
           {isImplausible
-            ? `Double check that ${effectiveWeightKg > MAX_PLAUSIBLE_KG ? 'weight' : 'rep count'} - looks like a typo`
-            : isBandExercise || allowsZeroWeight
-              ? 'Enter reps to complete'
-              : 'Enter weight and reps to complete'}
+            ? `Double check that ${effectiveWeightKg > MAX_PLAUSIBLE_KG ? 'weight' : shape.count === 'metres' ? 'distance' : 'rep count'} - looks like a typo`
+            : missingHint}
         </Text>
       )}
 
-      {!isTimeExercise && (
+      {!marksDoneOnly && (
         <Pressable
           onPress={handleComplete}
           disabled={isCompleteBlocked}
@@ -1268,7 +1291,6 @@ export function ExerciseCard({
   onSkipExercise,
   isDumbbellSession,
   exerciseState,
-  sessionType,
   onCardLayout,
   previousBest,
   previousSessionWeight,
@@ -1306,7 +1328,6 @@ export function ExerciseCard({
   onSkipExercise?: () => void;
   isDumbbellSession: boolean;
   exerciseState: ExerciseState;
-  sessionType: SessionType;
   onCardLayout?: (y: number) => void;
   previousBest?: number;
   previousSessionWeight?: number;
@@ -1357,8 +1378,8 @@ export function ExerciseCard({
   const [expanded, setExpanded] = useState(false);
   const effectiveTimerTrigger = restTimerTrigger ?? 0;
   const allDone = setData.sets.every((s) => s.completed);
-  const isBandExercise = isLoadBandOrBodyweight(exercise.suggestedLoad);
-  const isTimeExercise = isRepsTimeBased(exercise.reps, sessionType);
+  /** The same question the logging bar asks, asked once for the whole card. */
+  const shape = setInputShapeFor(exercise);
 
   // Scale-up animation when card becomes active (future → active transition)
   const isActive = exerciseState === 'active';
@@ -1447,7 +1468,7 @@ export function ExerciseCard({
   // and let 226 others through, so the question is asked the other way round:
   // append only to a string that is nothing but a number or a range.
   const repsIsBareCount = /^[\d\s.,\-–—+x×/]+$/.test(repsLabel.trim());
-  const repDisplay = isTimeExercise || !repsIsBareCount ? repsLabel : `${repsLabel} reps`;
+  const repDisplay = shape.count !== 'reps' || !repsIsBareCount ? repsLabel : `${repsLabel} reps`;
 
   /**
    * HOW HARD, not just how heavy.
@@ -1482,7 +1503,7 @@ export function ExerciseCard({
    */
   const goalTier = tierOf(exercise.category);
   const effortTargets = useMemo(() => {
-    if (exercise.type === 'cardio' || isTimeExercise) return null;
+    if (exercise.type === 'cardio' || shape.count !== 'reps') return null;
     if (goalTier !== 'tier1' && goalTier !== 'tier2') return null;
     if (!parseReps(exercise.reps)) return null;
     const scheme = prescriptionFor(goals, exercise.category);
@@ -1499,7 +1520,7 @@ export function ExerciseCard({
     exercise.sets,
     exercise.reps,
     goalTier,
-    isTimeExercise,
+    shape.count,
     goals,
   ]);
 
@@ -1834,7 +1855,7 @@ export function ExerciseCard({
                   )}
 
                   {exercise.type !== 'cardio' &&
-                    !isBandExercise &&
+                    shape.weight &&
                     (exercise.category === 'main' || exercise.category === 'neuro') && (
                       <View style={styles.spotterAdvisory}>
                         <Ionicons
@@ -1880,15 +1901,23 @@ export function ExerciseCard({
                               contentContainerStyle={styles.doneChipsContent}
                             >
                               {completedSets.map(({ set: s, realIndex }, i) => {
-                                let chipLabel = '';
-                                if (isTimeExercise) {
-                                  chipLabel = 'done';
-                                } else if (isBandExercise) {
-                                  chipLabel = `${s.reps} reps`;
-                                } else {
-                                  const w = kgToDisplayUnit(s.weight, weightUnit);
-                                  chipLabel = `${w}${weightUnit} × ${s.reps}`;
-                                }
+                                // What the chip says is what the bar asked for:
+                                // a weight, a count, or both. A card with
+                                // neither still just says it is done.
+                                const loggedWeight = shape.weight
+                                  ? `${kgToDisplayUnit(s.weight, weightUnit)}${weightUnit}`
+                                  : '';
+                                const loggedCount =
+                                  shape.count === 'metres'
+                                    ? `${s.reps} m`
+                                    : shape.count === 'reps'
+                                      ? shape.weight
+                                        ? `${s.reps}`
+                                        : `${s.reps} reps`
+                                      : '';
+                                const chipLabel =
+                                  [loggedWeight, loggedCount].filter(Boolean).join(' × ') ||
+                                  'done';
                                 // Tap to reopen for correction. A mistyped weight used to be
                                 // permanent — it set a false PB and drove every later load
                                 // suggestion, with no way back once the set was logged.
@@ -2060,10 +2089,10 @@ export function ExerciseCard({
                     <Text style={styles.kpiHint}>Your main strength move for today</Text>
                   )}
                   <View style={styles.detailWeightRow}>
-                    {!isBandExercise && (
+                    {shape.weight && (
                       <Text style={styles.targetWeightLabel}>Target weight: </Text>
                     )}
-                    <Text style={[styles.loadText, !isBandExercise && styles.loadTextMain]}>
+                    <Text style={[styles.loadText, shape.weight && styles.loadTextMain]}>
                       {convertLoadString(exercise.suggestedLoad, weightUnit)}
                     </Text>
                   </View>
@@ -3948,7 +3977,7 @@ export default function SessionScreen() {
       suggestedKg: 0,
       typedKg: data.sets[setIdx]?.weight ?? 0,
       weightUnit,
-      isBandOrBodyweight: isLoadBandOrBodyweight(ex.suggestedLoad),
+      isBandOrBodyweight: !setInputShapeFor(ex).weight,
       painRegionLabel: hasAches && painRegion ? getPainRegionLabel(painRegion) : undefined,
       loggedAnySet: exerciseData.some((d) => d.sets.some((s) => s.completed && !s.skipped)),
       exercisesLeft: Math.max(0, exercises.length - activeIndex - 1),
@@ -4498,7 +4527,6 @@ export default function SessionScreen() {
               assistantHasNews={assistantHasNews}
               isDumbbellSession={isDumbbellSession}
               exerciseState={exState}
-              sessionType={sessionType}
               onCardLayout={(y) => {
                 cardYPositions.current[index] = y;
                 // On session restore, scroll to the active card once it reports its position.
@@ -4614,8 +4642,9 @@ export default function SessionScreen() {
             );
             autoNoteForBar = regulated[clampedSetIdx]?.note ?? null;
           }
-          const isBandEx = displayEx ? isLoadBandOrBodyweight(displayEx.suggestedLoad) : false;
-          const isTimeEx = displayEx ? isRepsTimeBased(displayEx.reps, sessionType) : false;
+          const barShape: SetInputShape = displayEx
+            ? setInputShapeFor(displayEx)
+            : { weight: false, count: null, weightRequired: false, unloadedLabel: 'Bodyweight' };
           return (
             <SessionActiveBar
               exercise={displayEx ?? null}
@@ -4623,8 +4652,7 @@ export default function SessionScreen() {
               setData={activeData ?? null}
               activeSetIndex={clampedSetIdx}
               weightGuidesKg={weightGuidesForBar}
-              isBandExercise={isBandEx}
-              isTimeExercise={isTimeEx}
+              shape={barShape}
               previousBest={previousBest[displayEx?.id ?? '']}
               previousSessionWeight={previousSessionWeights[displayEx?.id ?? '']}
               weightUnit={weightUnit}
@@ -4639,7 +4667,7 @@ export default function SessionScreen() {
               autoNote={autoNoteForBar}
               onCompleteSession={handleComplete}
               onGoBack={isDemo ? undefined : handleGoBackExercise}
-              suppressFeedback={isTimeEx || isBandEx}
+              suppressFeedback={!displayEx || !asksHowItFelt(displayEx)}
               bottomInset={insets.bottom + (Platform.OS === 'web' ? 34 : 0)}
               isDemo={isDemo}
               demoForceFeedback={

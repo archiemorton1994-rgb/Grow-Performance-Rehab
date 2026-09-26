@@ -664,7 +664,9 @@ check(
 );
 check(
   'the log step matches boxes that really do arrive filled in',
-  (/parseTargetRepsForPrefill/.test(sessionSrc) && /computeInitialWeight/.test(sessionSrc)) ===
+  // The counter's prefill is `targetCountForPrefill` in lib/set-logging.ts now,
+  // and it fills metres as readily as reps. The weight's is unchanged.
+  (/targetCountForPrefill/.test(sessionSrc) && /computeInitialWeight/.test(sessionSrc)) ===
     /filled in/i.test(logCopy),
   'both boxes are prefilled from the prescription, so asking the user to "type the weight and reps" describes work the app has already done'
 );

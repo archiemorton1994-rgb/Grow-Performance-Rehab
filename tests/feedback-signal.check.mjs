@@ -213,9 +213,9 @@ check(
   ''
 );
 check(
-  'it is absent from timed work and cardio, where reps in reserve is not a thing',
-  /if \(exercise\.type === 'cardio' \|\| isTimeExercise\) return null;/.test(sessionCode),
-  ''
+  'it is absent from anything not counted in reps, where reps in reserve is not a thing',
+  /if \(exercise\.type === 'cardio' \|\| shape\.count !== 'reps'\) return null;/.test(sessionCode),
+  'a hold, a carry and a sled are not effort-limited in reps, and the shape is what says so'
 );
 check(
   'a one-set exercise is not told to both save reps and go to failure',

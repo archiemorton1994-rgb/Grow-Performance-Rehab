@@ -124,9 +124,9 @@ check(
 );
 
 check(
-  'the reps box says what it is',
-  /accessibilityLabel="Reps"/.test(session),
-  ''
+  'the counter box says what it is counting, in both of its states',
+  /accessibilityLabel=\{shape\.count === 'metres' \? 'Distance in metres' : 'Reps'\}/.test(session),
+  'the box counts metres on a sled and reps on a squat; announcing a 15 m sled row as "Reps" is the screen reader repeating the bug'
 );
 
 // Scoped to barInput. A blanket "no height: 56 anywhere" also condemns

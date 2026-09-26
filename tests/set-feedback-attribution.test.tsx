@@ -65,8 +65,9 @@ function baseProps(overrides: Partial<BarProps> = {}): BarProps {
     setData: makeSetData(1),
     activeSetIndex: 1,
     weightGuidesKg: [40, 60],
-    isBandExercise: false,
-    isTimeExercise: false,
+    // A barbell back squat: a weight box and a rep counter, which is the
+    // only shape the feedback question is asked on. See lib/set-logging.ts.
+    shape: { weight: true, count: 'reps', weightRequired: true, unloadedLabel: 'Bodyweight' },
     previousBest: undefined,
     previousSessionWeight: undefined,
     weightUnit: 'kg',

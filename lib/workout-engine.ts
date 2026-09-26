@@ -3510,8 +3510,8 @@ export function getWeightGuide(
  * ramps used by `getWeightGuide`. Used to pre-fill weight inputs in the
  * session screen so users don't have to type in the recommended value.
  *
- * Returns 0 for sets with no numeric recommendation (band/bodyweight exercises
- * or categories where no specific weight is prescribed).
+ * Returns 0 for sets with no numeric recommendation, which means a load line
+ * that names no weight: bodyweight, a band, "Easy pace".
  */
 export function getWeightGuideKg(
   category: ExerciseCategory,
@@ -3560,8 +3560,8 @@ function statesLadder(text: string): boolean {
  * Turn the prescribed weight(s) for an exercise into one target per set.
  *
  * `numbers` is either an explicit per-set ladder (a ramp-up naming each set) or
- * a working weight the ramp is derived from. Categories that carry no barbell
- * load get zeros, which the UI reads as "no guide".
+ * a working weight the ramp is derived from. A load that names no weight gets
+ * zeros, which the UI reads as "no guide".
  */
 export function expandSetTargets(
   category: ExerciseCategory,
@@ -3605,10 +3605,24 @@ export function expandSetTargets(
     result.push(targetKg);
     return result;
   }
-  if (category === 'accessory') {
-    return Array(sets).fill(targetKg);
-  }
-  return Array(sets).fill(0);
+  /**
+   * EVERYTHING ELSE GETS THE WEIGHT IT WAS PRESCRIBED, FLAT.
+   *
+   * This used to return zeros for every category except main and accessory,
+   * which the screen reads as "no guide". So a Medball Slam printed "4-6 kg
+   * ball" on the card, a Kettlebell Swing printed "16-24 kg", a sled finisher
+   * printed "30-50 kg sled" - and the box underneath sat empty with no unit
+   * against it, which is exactly what Archie reported. The app knew the weight
+   * and simply did not put it where the weight goes.
+   *
+   * Flat rather than ramped, because none of these is a lift you build up to:
+   * a throw, a swing and a carry are done at their weight from the first set.
+   * Nothing is invented - a category whose load names no weight still gets
+   * zeros, because `numbers` comes back empty and the guard above returns
+   * first. That is what keeps "Bodyweight", "Easy pace" and "Light band"
+   * exactly as they were.
+   */
+  return Array(sets).fill(targetKg);
 }
 
 /**

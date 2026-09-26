@@ -23,6 +23,8 @@
  * [4] Band exercises: reps-only input (no weight TextInput)
  * [5] Time-based exercises: Mark-Set-Done button, no TextInputs
  * [6] Completed-session state: Complete-Session button visible
+ * [7] Loaded holds and carries: a weight box and no counter
+ * [8] Sled Rows: a weight box and a counter that says metres
  */
 
 import React from 'react';
@@ -32,6 +34,41 @@ import { act } from 'react';
 import { SessionActiveBar } from '../app/session';
 
 type BarProps = Parameters<typeof SessionActiveBar>[0];
+type Shape = BarProps['shape'];
+
+// The six shapes the bar can take, written out so each test says which one
+// it is asking about. lib/set-logging.ts is what decides between them; these
+// are the answers it can give.
+const WEIGHT_AND_REPS: Shape = {
+  weight: true,
+  count: 'reps',
+  weightRequired: true,
+  unloadedLabel: 'Bodyweight',
+};
+const REPS_ONLY: Shape = {
+  weight: false,
+  count: 'reps',
+  weightRequired: false,
+  unloadedLabel: 'Bodyweight',
+};
+const NOTHING_TO_TYPE: Shape = {
+  weight: false,
+  count: null,
+  weightRequired: false,
+  unloadedLabel: 'Bodyweight',
+};
+const WEIGHT_ONLY: Shape = {
+  weight: true,
+  count: null,
+  weightRequired: false,
+  unloadedLabel: 'Bodyweight',
+};
+const WEIGHT_AND_METRES: Shape = {
+  weight: true,
+  count: 'metres',
+  weightRequired: false,
+  unloadedLabel: 'Bodyweight',
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -68,8 +105,7 @@ function baseProps(overrides: Partial<BarProps> = {}): BarProps {
     setData: makeSetData(),
     activeSetIndex: 0,
     weightGuidesKg: [10, 15, 20],
-    isBandExercise: false,
-    isTimeExercise: false,
+    shape: WEIGHT_AND_REPS,
     previousBest: undefined,
     previousSessionWeight: undefined,
     weightUnit: 'kg',
@@ -92,6 +128,26 @@ function render(props: BarProps): renderer.ReactTestRenderer {
     root = renderer.create(<SessionActiveBar {...props} />);
   });
   return root;
+}
+
+/** Every string the bar actually renders, read off the rendered tree rather
+ *  than off the component type - the react-native mock does not hand back a
+ *  Text identity that findAllByType can match. */
+function textOf(root: renderer.ReactTestRenderer): string[] {
+  const found: string[] = [];
+  const walk = (node: unknown): void => {
+    if (typeof node === 'string') {
+      found.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (node && typeof node === 'object') walk((node as { children?: unknown }).children);
+  };
+  walk(root.toJSON());
+  return found;
 }
 
 function hasTestId(root: renderer.ReactTestRenderer, id: string): boolean {
@@ -144,7 +200,7 @@ describe('[2] Complete button — correct testID', () => {
   });
 
   test('but a timed exercise still does', () => {
-    const root = render(baseProps({ isTimeExercise: true }));
+    const root = render(baseProps({ shape: NOTHING_TO_TYPE }));
     expect(hasTestId(root, 'set-1-check')).toBe(true);
   });
 });
@@ -167,12 +223,12 @@ describe('[3] Bar container must be in normal layout flow (not absolutely positi
 
 describe('[4] Band exercises — reps-only input', () => {
   test('reps TextInput renders for band exercise', () => {
-    const root = render(baseProps({ isBandExercise: true }));
+    const root = render(baseProps({ shape: REPS_ONLY }));
     expect(hasTestId(root, 'set-1-reps')).toBe(true);
   });
 
   test('weight TextInput is NOT rendered for band exercise', () => {
-    const root = render(baseProps({ isBandExercise: true }));
+    const root = render(baseProps({ shape: REPS_ONLY }));
     expect(hasTestId(root, 'set-1-weight')).toBe(false);
   });
 });
@@ -181,17 +237,17 @@ describe('[4] Band exercises — reps-only input', () => {
 
 describe('[5] Time-based exercises — no weight/reps inputs', () => {
   test('set-N-check button renders for time exercise', () => {
-    const root = render(baseProps({ isTimeExercise: true }));
+    const root = render(baseProps({ shape: NOTHING_TO_TYPE }));
     expect(hasTestId(root, 'set-1-check')).toBe(true);
   });
 
   test('weight TextInput is NOT rendered for time exercise', () => {
-    const root = render(baseProps({ isTimeExercise: true }));
+    const root = render(baseProps({ shape: NOTHING_TO_TYPE }));
     expect(hasTestId(root, 'set-1-weight')).toBe(false);
   });
 
   test('reps TextInput is NOT rendered for time exercise', () => {
-    const root = render(baseProps({ isTimeExercise: true }));
+    const root = render(baseProps({ shape: NOTHING_TO_TYPE }));
     expect(hasTestId(root, 'set-1-reps')).toBe(false);
   });
 });
@@ -202,5 +258,85 @@ describe('[6] Session-all-done — complete-session button visible', () => {
   test('complete-session testID is in the tree when sessionAllDone=true', () => {
     const root = render(baseProps({ sessionAllDone: true, isLastExercise: true }));
     expect(hasTestId(root, 'complete-session')).toBe(true);
+  });
+});
+
+// ─── [7] Loaded holds and carries — the weight box, and no counter ───────────
+
+// Archie hit this on a Dumbbell Suitcase Hold: prescribed "30s each side" at
+// 20-32 kg, and the bar collapsed to one green button because the app read the
+// 30s and decided the whole thing was a hold. He asked for the weight only -
+// the seconds and the metres stay fixed, because the library says on purpose
+// that these get harder by adding weight rather than by holding longer.
+describe('[7] Loaded holds and carries — weight box, no counter', () => {
+  test('weight TextInput renders', () => {
+    const root = render(baseProps({ shape: WEIGHT_ONLY }));
+    expect(hasTestId(root, 'set-1-weight')).toBe(true);
+  });
+
+  test('the counter is NOT rendered', () => {
+    const root = render(baseProps({ shape: WEIGHT_ONLY }));
+    expect(hasTestId(root, 'set-1-reps')).toBe(false);
+  });
+
+  test('and it is Did It underneath, not Mark Set Done', () => {
+    const root = render(baseProps({ shape: WEIGHT_ONLY }));
+    expect(hasTestId(root, 'did-it-1')).toBe(true);
+    expect(hasTestId(root, 'set-1-check')).toBe(false);
+  });
+});
+
+// ─── [8] Sled Rows — weight and metres ───────────────────────────────────────
+
+// "Sled rows - it shouldn't say reps it should just say weight and distance in
+// m (metres)." Both boxes, and the second one says metres over it.
+describe('[8] Sled Rows — both boxes, and the counter says metres', () => {
+  test('both boxes render', () => {
+    const root = render(baseProps({ shape: WEIGHT_AND_METRES }));
+    expect(hasTestId(root, 'set-1-weight')).toBe(true);
+    expect(hasTestId(root, 'set-1-reps')).toBe(true);
+  });
+
+  test('the counter is labelled metres and never reps', () => {
+    const root = render(baseProps({ shape: WEIGHT_AND_METRES }));
+    const labels = textOf(root);
+    expect(labels).toContain('metres');
+    expect(labels).not.toContain('reps');
+  });
+
+  test('a rep-counted exercise still says reps', () => {
+    const root = render(baseProps({ shape: WEIGHT_AND_REPS }));
+    const labels = textOf(root);
+    expect(labels).toContain('reps');
+    expect(labels).not.toContain('metres');
+  });
+});
+
+// ─── [9] The unit is beside the weight box, whatever the user chose ──────────
+
+// "When putting in weights during session it should say either kg or lbs,
+// currently doesn't show the metric." Measured over the whole generator, 43%
+// of the cards that showed a weight box showed it with no suggestion above it,
+// and on those the unit appeared nowhere on the bar at all.
+describe('[9] The weight box carries the unit', () => {
+  const unitLabels = textOf;
+
+  test('with a suggestion, the suggestion names the unit', () => {
+    const root = render(baseProps({ weightGuidesKg: [20, 20, 20] }));
+    expect(unitLabels(root).some((t) => t.includes('20') && t.includes('kg'))).toBe(true);
+  });
+
+  test('with no suggestion at all, the unit is still there on its own', () => {
+    const root = render(baseProps({ weightGuidesKg: [0, 0, 0], previousSessionWeight: 0 }));
+    expect(unitLabels(root)).toContain('kg');
+  });
+
+  test('and it is the user unit, not a hardcoded kg', () => {
+    const root = render(
+      baseProps({ weightUnit: 'lbs', weightGuidesKg: [0, 0, 0], previousSessionWeight: 0 })
+    );
+    const labels = unitLabels(root);
+    expect(labels).toContain('lbs');
+    expect(labels).not.toContain('kg');
   });
 });
