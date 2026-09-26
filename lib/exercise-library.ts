@@ -2067,9 +2067,24 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     stress: ['ankle_load', 'high_impact'],
   },
   {
+    // THE ONE RECORD THAT CHANGED SIDES IN ARCHIE'S SPLIT OF 25 SEPTEMBER 2026.
+    //
+    // "Looks like confused with banded vs band resisted, they should be
+    // different exercises." Banded work is a light band AS the resistance. Band
+    // resisted work is a band ADDING resistance to something else, and that is
+    // what this is: a bodyweight broad jump with a band pulling you backwards.
+    // It was named as banded work while its own cue described band resisted
+    // work, and the document row has said "Bodyweight, Resistance Band" all
+    // along, so the name was the part that was wrong.
+    //
+    // THE ID STAYS `lib-hinge-banded-broad-jumps`, which now reads oddly and is
+    // still right: ids are what somebody's logged sets, rep targets and streaks
+    // are filed under, and this is the same jump it always was. Changing it
+    // would restart the progress of everybody who has done one. The old name is
+    // carried onto the new one in lib/exercise-aliases.ts for the same reason.
     id: 'lib-hinge-banded-broad-jumps',
-    name: 'Banded Broad Jumps',
-    libraryName: 'Banded Broad Jumps',
+    name: 'Band Resisted Broad Jumps',
+    libraryName: 'Band Resisted Broad Jumps',
     pattern: 'hinge',
     level: 4,
     kit: [['band']],
@@ -2080,8 +2095,11 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
     dose: 'quality',
     sets: 3,
     reps: '3 explosive',
-    cue: 'Band around the waist and anchored behind you, then broad jump against it - the band pulls you back, so drive harder and still land soft',
-    suggestedLoad: 'Light band',
+    cue: 'Light band round the waist and anchored behind you, then broad jump against it - the band adds resistance to your own bodyweight, so drive harder and still land soft',
+    // Names what the band is added to, which is the whole difference between
+    // this and a banded drill: there is no weight to log, and the resistance is
+    // your own bodyweight against the band rather than the band on its own.
+    suggestedLoad: 'Bodyweight against a light band',
     primaryMuscle: 'Glutes',
     secondaryMuscles: ['Hamstrings', 'Quadriceps', 'Calves'],
     targetRegions: ['glutes', 'quads', 'hamstrings', 'hip_groin', 'knee'],
@@ -3909,8 +3927,14 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
   },
   {
     id: 'lib-cond-sled-pull',
-    name: 'Sled Pull',
-    libraryName: 'Sled Pull',
+    // ARCHIE, 25 SEPTEMBER 2026: "Sled pull should be sled push and pull (they
+    // pull it then push it back to starting point)." So this was never a
+    // one-way drag in his gym, and the name now says both halves. The id is
+    // kept on purpose: everybody who has dragged a sled logged it against this
+    // one, and lib/exercise-aliases.ts carries the old name onto the new so
+    // their chart and their sled weight come with it.
+    name: 'Sled Pull and Push',
+    libraryName: 'Sled Pull and Push',
     kit: [['sled']],
     role: 'conditioning',
     movementPattern: 'conditioning',
@@ -3918,8 +3942,12 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     category: 'cardio',
     dose: 'distance',
     sets: 4,
-    reps: '20 m',
-    cue: 'Straps at arm height, walk backwards and stay low - there is no landing and nothing to lower, so every step is steady work with no jolt through the leg',
+    // The round trip written out, because a bare "20 m" now hides half the
+    // work. Twenty metres is still the distance a set covers, which is what it
+    // always was and what the sled weight was chosen for; it is ten out and ten
+    // back rather than twenty in one direction.
+    reps: '20 m (10 m out, 10 m back)',
+    cue: 'Straps at arm height, walk backwards and stay low for ten metres, then get behind the sled, low arms and long strides, and push it back to where you started',
     suggestedLoad: 'Light to moderate sled',
     primaryMuscle: 'Quadriceps',
     secondaryMuscles: ['Glutes', 'Calves'],
@@ -3927,7 +3955,17 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     videoId: '',
     // The cue used to end "which is why a sore knee can usually still do this".
     // Archie ruled that out on 21 September 2026, so the sentence went with it.
-    stress: ['loaded_ground_drive'],
+    //
+    // `ankle_load` IS THE PUSH BACK, AND ARCHIE SETTLED IT HIMSELF ON
+    // 26 SEPTEMBER 2026. A sore ankle, Achilles, calf or shin used to keep this
+    // exercise while losing Sled Push, and the reason was written down: walking
+    // backwards has no toe drive. Pushing the sled home is toe drive, so the
+    // reason is gone and all four lose it. He was asked whether the push half
+    // could be kept light enough to spare them and said no, and that no
+    // pull-only version is kept. The tag is what withholds it - the two regions
+    // that restrict `ankle_load` are ankle_achilles and calf_shin - so nothing
+    // anywhere reads this exercise's name to decide who may do it.
+    stress: ['ankle_load', 'loaded_ground_drive'],
   },
   {
     id: 'lib-cond-sled-rows',

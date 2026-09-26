@@ -148,10 +148,18 @@ const TAG_RULES: { tag: StressTag; test: RegExp }[] = [
   { tag: 'high_impact', test: /\bjump|jumping|plyo|burpee|\bhop\b|bound\b|skater|tuck jump|depth drop|depth jump|power skip|\bskips?\b|\bskipping\b|jump rope|high knees|mountain climber|sprint|stepping jack|jumping jack|box jump|broad jump|vertical jump|drop squat|shuttle|\bruns?\b|running|\bjogs?\b|jogging|(?:med ?ball|medicine ball|slam ?ball)[a-z ()]{0,14}slams?\b/i },
   // Sled pushes and forward drags are driven off the toes, which is a large
   // calf and Achilles demand; a duck walk is a squat walked in full
-  // dorsiflexion. Sled Pull is Archie's backwards drag and is deliberately
-  // absent HERE - walking backwards is the option a sore ANKLE keeps. The knee
-  // no longer keeps it; that is `loaded_ground_drive` on the rule below.
-  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskips?\b|\bskipping\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging|duck walks?\b|(?:sled|prowler)\s+(?:push|drag)/i },
+  // dorsiflexion.
+  //
+  // A SLED THAT IS PUSHED ANYWHERE IN ITS NAME MATCHES, AND THAT IS NEW.
+  // This rule used to read `(?:sled|prowler)\s+(?:push|drag)` and the note here
+  // explained that Archie's backwards drag was deliberately absent, because
+  // walking backwards has no toe drive and was the sled work a sore ANKLE kept.
+  // On 25 September 2026 he said the drag was always a drag out and a push back
+  // ("Sled Pull and Push"), and on 26 September that the four soft-tissue
+  // regions below therefore lose it. The record carries `ankle_load` itself,
+  // which is what actually withholds it; the wording here is widened so that a
+  // sled somebody pushes cannot lose the tag by being renamed again.
+  { tag: 'ankle_load', test: /\bjump|plyo|burpee|\bhop\b|bound\b|skater|sprint|jump rope|\bskips?\b|\bskipping\b|calf raise|calf press|heel raise|toe raise|pogo|shuttle|\bruns?\b|running|\bjogs?\b|jogging|duck walks?\b|(?:sled|prowler)\b[a-z ]{0,14}\b(?:push|drag)/i },
   // Both sled drags, and only the drags. "Sled Rows" cannot match this, which
   // is the whole point of spelling the direction out. See the tag's own note.
   { tag: 'loaded_ground_drive', test: /(?:sled|prowler)\s+(?:push|pull|drag)/i },

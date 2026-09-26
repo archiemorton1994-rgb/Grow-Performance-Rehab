@@ -59,6 +59,19 @@ const KIT_FROM_NAME: [RegExp, string][] = [
   [/\bdumbbells?\b|\bdb\b/, 'dumbbells'],
   [/\bkettlebells?\b|\bkb\b/, 'kettlebell'],
   [/\bcables?\b/, 'cable machine'],
+  // BAND RESISTED WORK IS A BARBELL, and this rule has to come before the band
+  // rule below or the band wins. Archie's split of 25 September 2026: banded
+  // work uses a light band AS the resistance, band resisted work is a loaded
+  // bar with a band pulling on it. Three of those names never say the word
+  // barbell - Band Resisted Back Squats, Front Squats and Deadlifts - so all
+  // three read as band exercises, and the measured cost was on the swap sheet:
+  // somebody doing Bodyweight Squats was offered a 50-70 kg Band Resisted Back
+  // Squat under the line "Same movement, resistance band instead."
+  //
+  // A JUMP IS THE EXCEPTION, because you cannot hold a bar and jump. Band
+  // Resisted Broad Jumps is a bodyweight jump against a band, so the band is
+  // still the only thing picked up and it keeps the answer below.
+  [/\bband resisted\b(?![a-z ]*\bjumps?\b)/, 'barbell'],
   [/\bbanded\b|\bresistance bands?\b|\bband\b/, 'resistance band'],
   [/\bmachine\b/, 'machine'],
   [/\btrx\b|\bsuspension\b|\brings?\b/, 'suspension trainer'],

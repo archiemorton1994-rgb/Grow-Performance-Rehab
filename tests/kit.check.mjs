@@ -172,7 +172,7 @@ check(
 );
 check(
   'the sled, the bike, the treadmill and the rower still need the machine',
-  ['Sled Push', 'Sled Pull', 'Sled Rows', 'Assault Bike', 'Incline Treadmill Walk', 'Rowing Machine']
+  ['Sled Push', 'Sled Pull and Push', 'Sled Rows', 'Assault Bike', 'Incline Treadmill Walk', 'Rowing Machine']
     .map((n) => conditioning.get(n))
     .every((e) => !canPerformWith(e, HOME_WITH_BENCH) && canPerformWith(e, ['fullgym'])),
   'a home user cannot be handed a sled push'

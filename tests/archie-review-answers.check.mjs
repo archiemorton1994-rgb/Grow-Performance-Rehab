@@ -148,8 +148,8 @@ const namesIn = (cards) => new Set(cards.map((c) => c.name));
 
 // ═════════════════════════════════════════════════════════════════════════════
 console.log('\n[1] "Rule sled work out for a sore knee and keep the rest."');
-console.log('    Archie, 21 September 2026. Sled Push and Sled Pull, his backwards');
-console.log('    drag, are both driven through a loaded knee over the ground.');
+console.log('    Archie, 21 September 2026. Sled Push and Sled Pull and Push, the drag');
+console.log('    out and back, are both driven through a loaded knee over the ground.');
 
 const kneeCards = everythingOffered(['knee']);
 const kneeNames = namesIn(kneeCards);
@@ -160,7 +160,7 @@ const kneeNames = namesIn(kneeCards);
  * the tag testing itself. What the naming needs instead is a guard against a
  * rename quietly emptying it, which is the line below.
  */
-const sledDrags = ['Sled Push', 'Sled Pull'];
+const sledDrags = ['Sled Push', 'Sled Pull and Push'];
 const conditioningNames = new Set(CONDITIONING_EXERCISES.map((e) => e.name));
 check(
   'both sled drags are still on the conditioning list under these names',
@@ -170,7 +170,7 @@ check(
 
 const dragsServed = kneeCards.filter((c) => sledDrags.includes(c.name));
 check(
-  'a sore knee is never offered Sled Push or Sled Pull, in any block',
+  'a sore knee is never offered Sled Push or Sled Pull and Push, in any block',
   dragsServed.length === 0,
   `${dragsServed.length} cards, e.g. ${dragsServed
     .slice(0, 3)
@@ -218,7 +218,7 @@ check(
  * knee rule written too widely is exactly how they would have been lost.
  */
 const backNames = namesIn(everythingOffered(['lower_back']));
-for (const name of ['Sled Rows', 'Sled Push', 'Sled Pull']) {
+for (const name of ['Sled Rows', 'Sled Push', 'Sled Pull and Push']) {
   check(`a sore lower back still keeps ${name}`, backNames.has(name), 'nothing changed there');
 }
 check(
@@ -236,7 +236,7 @@ check(
 const healthyNames = namesIn(everythingOffered([]));
 check(
   'somebody with nothing sore is still offered both sled drags',
-  healthyNames.has('Sled Push') && healthyNames.has('Sled Pull'),
+  healthyNames.has('Sled Push') && healthyNames.has('Sled Pull and Push'),
   'otherwise "withheld from a sore knee" would be true of everybody'
 );
 

@@ -66,7 +66,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 import { getCooldown, getRestoreExercises } from '../lib/exercise-db.ts';
-import { canonicalExerciseName } from '../lib/exercise-aliases.ts';
+import { EXERCISE_ALIASES, canonicalExerciseName } from '../lib/exercise-aliases.ts';
 import {
   LIBRARY_EXERCISES,
   CONDITIONING_EXERCISES,
@@ -140,7 +140,7 @@ const KIT_PHRASES = {
   // required. It is declared as optionalKit on the record instead.
   'Skipping Rope (or on the spot)': [],
   Sled: ['sled'],
-  'Sled (walked backwards, dragging the sled)': ['sled'],
+  'Sled (dragged backwards, then pushed back to the start)': ['sled'],
   'Trap Bar': ['trapbar'],
   Treadmill: ['treadmill'],
   'TRX (or Suspension Trainer)': ['trx'],
@@ -504,16 +504,36 @@ check(
   `${reused.length} reused, ${fresh.length} fresh — if either is near zero the split above proves nothing`
 );
 
-const badSlug = fresh.filter((e) => {
-  const slug = e.libraryName
+/**
+ * OR THE NAME IT USED TO HAVE, WHICH IS THE POINT OF AN ID.
+ *
+ * A renamed exercise keeps its id, because an id is what somebody's logged
+ * weights, rep targets and streaks are filed under and a new one restarts all
+ * three at zero. So the slug may spell either the name the record is served
+ * under now or a name EXERCISE_ALIASES says it used to be served under - and
+ * only that, so an id still cannot be an arbitrary string. Two records are in
+ * this position, both from Archie's Expo corrections of 25 September 2026:
+ * `lib-cond-sled-pull` is now "Sled Pull and Push", and
+ * `lib-hinge-banded-broad-jumps` is now "Band Resisted Broad Jumps".
+ */
+const slugOf = (name) =>
+  name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+const formerNames = new Map();
+for (const [from, kept] of Object.entries(EXERCISE_ALIASES)) {
+  formerNames.set(kept, [...(formerNames.get(kept) ?? []), from]);
+}
+const badSlug = fresh.filter((e) => {
   const prefix = CONDITIONING_EXERCISES.includes(e) ? 'cond' : e.pattern;
-  return e.id !== `lib-${prefix}-${slug}`;
+  const allowed = [e.libraryName, e.name, ...(formerNames.get(e.libraryName) ?? [])].map(
+    (n) => `lib-${prefix}-${slugOf(n)}`
+  );
+  return !allowed.includes(e.id);
 });
 check(
-  'every new id is lib- its pattern - its name',
+  'every new id is lib- its pattern - its name, or the name it was renamed from',
   badSlug.length === 0,
   badSlug.map((e) => `${e.id} for "${e.libraryName}"`).join(', ')
 );
@@ -584,11 +604,19 @@ check(
   skipping ? `optionalKit ${(skipping.optionalKit ?? []).join(', ') || '(none)'}` : ''
 );
 
-const sledPull = doc.conditioning.find((r) => r.name === 'Sled Pull');
+/**
+ * Archie, 25 September 2026: "Sled pull should be sled push and pull (they pull
+ * it then push it back to starting point)." So the row has to describe both
+ * halves, and a document that drops either half is a document that disagrees
+ * with the exercise the app now serves.
+ */
+const sledPull = doc.conditioning.find((r) => r.name === 'Sled Pull and Push');
 check(
-  'the document still describes Sled Pull as a backwards drag',
-  Boolean(sledPull) && /backwards/i.test(sledPull.equipment),
-  sledPull ? sledPull.equipment : 'there is no Sled Pull row'
+  'the document describes Sled Pull and Push as a backwards drag AND a push back',
+  Boolean(sledPull) &&
+    /backwards|backward/i.test(sledPull.equipment) &&
+    /push/i.test(sledPull.equipment),
+  sledPull ? sledPull.equipment : 'there is no Sled Pull and Push row'
 );
 
 const condRoleWrong = CONDITIONING_EXERCISES.filter((e) => e.role !== 'conditioning');

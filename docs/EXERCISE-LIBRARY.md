@@ -124,7 +124,7 @@ Four levels, one per onboarding answer.
 - Kettlebell Swings - Kettlebell
 - Deficit Romanian Deadlift - Barbell, Weight Plates, Weight Plate (or Block)
 - Broad Jumps - Bodyweight
-- Banded Broad Jumps - Bodyweight, Resistance Band
+- Band Resisted Broad Jumps - Bodyweight, Resistance Band
 - High Pulls - Barbell, Weight Plates
 
 ## Squat
@@ -245,7 +245,7 @@ pulse raiser at the start of a session, for finishers and for the Conditioning
 session.
 
 - Sled Push - Sled
-- Sled Pull - Sled (walked backwards, dragging the sled)
+- Sled Pull and Push - Sled (dragged backwards, then pushed back to the start)
 - Sled Rows - Sled
 - Assault Bike - Assault Bike
 - Incline Treadmill Walk - Treadmill
@@ -270,7 +270,8 @@ Every recommended answer in the rebuild plan was accepted.
 6. At home, one "Bench, box or sturdy step" choice covers bench, box and
    blocks. TRX, pull-up bar, medicine ball and ab wheel count as gym kit.
 7. Sled Pull is a backwards drag. Skipping is with a rope or on the spot.
-   Beginners are not given skipping in warm-ups or finishers.
+   Beginners are not given skipping in warm-ups or finishers. (The drag half of
+   this is superseded by decision 21: it is a drag out and a push back.)
 8. Jumps and throws stay at Athlete level only, as listed, whatever the goal.
 9. Planks, wall sits and carries use a fixed time or distance per level.
 10. An area reported as sore at sign-up keeps getting the gentlest rehab drill.
@@ -311,6 +312,27 @@ reference to "decision 11" means one thing only.
 20. An experience level the app does not recognise is treated as Beginner,
     never guessed. Beginner is the only answer that cannot hand somebody work
     above their level by accident.
+
+## Decisions (Archie, 2026-09-25 and 2026-09-26, after testing on Expo)
+
+Three of these are his own words from the Expo feedback and one is the answer he
+gave when the clinical consequence was put to him. The numbering carries on.
+
+21. Sled Pull is a pull AND a push: "they pull it then push it back to starting
+    point". It is listed above as Sled Pull and Push, and a set is twenty metres
+    of work, ten out and ten back. This supersedes the drag half of decision 7.
+22. Sled Pull and Push is withheld from a sore ankle, Achilles, calf and shin.
+    They used to keep the backwards drag because walking backwards has no toe
+    drive; pushing the sled home is toe drive, so the reason has gone and all
+    four lose it. No pull-only version is kept. A sore knee already loses it
+    under decision 16, and a sore lower back still keeps all three sled drills.
+23. Banded and band resisted are two different things: "they should be different
+    exercises". Banded work uses a light band AS the resistance. Band resisted
+    work adds a band to something else, which in this library means a loaded
+    barbell. Banded Broad Jumps is band resisted work by that split, because the
+    band pulls a bodyweight jump backwards, so it is listed above as Band
+    Resisted Broad Jumps.
+24. The breathing drill a session closes on is ten breaths, not three minutes.
 
 ## Notes taken while transcribing
 

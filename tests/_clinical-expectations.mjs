@@ -51,7 +51,7 @@ export const CLINICAL = {
       // sore knee, the backwards drag included: both are minutes of continuous
       // loaded knee extension over ground with nowhere to unload.
       'Sled Push',
-      'Sled Pull',
+      'Sled Pull and Push',
     ],
     still: [
       // The other half of his answer, in his words: keep the rest. Sled Rows is
@@ -86,14 +86,32 @@ export const CLINICAL = {
       'Broad Jumps',
       'Duck Walks',
       'Sled Push',
+      // ARCHIE, 26 SEPTEMBER 2026, AND IT REVERSES WHAT THIS LINE USED TO SAY.
+      // The backwards drag sat in `still` below, and the reason was written out:
+      // walking backwards has no toe drive, so it was the sled work a sore ankle
+      // or Achilles kept while Sled Push was withheld. He then told us the drag
+      // was always a drag out and a push back. Pushing the sled home is toe
+      // drive, he was asked whether the push half could be kept light enough to
+      // spare these regions, and he said no and that no pull-only version is
+      // kept. So it is withheld here and in calf_shin below.
+      'Sled Pull and Push',
       'Squat Jumps',
       'Split Squat Jumps',
     ],
-    still: ['Sled Pull', 'Assault Bike', 'Rowing Machine', 'Barbell Back Squat', 'Plank'],
+    still: ['Sled Rows', 'Assault Bike', 'Rowing Machine', 'Barbell Back Squat', 'Plank'],
   },
   calf_shin: {
-    never: ['Skipping', 'Box Jumps', 'Skater Jumps', 'Duck Walks', 'Sled Push', 'Depth Jumps'],
-    still: ['Sled Pull', 'Assault Bike', 'Rowing Machine', 'Bodyweight Squats'],
+    never: [
+      'Skipping',
+      'Box Jumps',
+      'Skater Jumps',
+      'Duck Walks',
+      'Sled Push',
+      // The same answer. See the note in ankle_achilles above.
+      'Sled Pull and Push',
+      'Depth Jumps',
+    ],
+    still: ['Sled Rows', 'Assault Bike', 'Rowing Machine', 'Bodyweight Squats'],
   },
   lower_back: {
     never: [
@@ -123,7 +141,7 @@ export const CLINICAL = {
       // says where to change it if he does.
       'Sled Rows',
       'Sled Push',
-      'Sled Pull',
+      'Sled Pull and Push',
       'Assault Bike',
       'Rowing Machine',
       'Glute Bridge',
@@ -185,7 +203,7 @@ export const CLINICAL = {
       'Glute Bridge',
       'Bodyweight Squats',
       'Box Squats',
-      'Sled Pull',
+      'Sled Pull and Push',
     ],
   },
   hamstrings: {
@@ -221,7 +239,7 @@ export const CLINICAL = {
       'Duck Walks',
       'Skipping',
     ],
-    still: ['Glute Bridge', 'Bodyweight Squats', 'Box Squats', 'Plank', 'Sled Pull', 'Assault Bike'],
+    still: ['Glute Bridge', 'Bodyweight Squats', 'Box Squats', 'Plank', 'Sled Pull and Push', 'Assault Bike'],
   },
   chest: {
     // Decision 11 in full. Section 4 below spells out the press-up half of it.
@@ -581,9 +599,10 @@ export const UNCLASSIFIED_BY_DESIGN = [
   'Cable Reverse Woodchops',
   'Landmine Rotations',
   'Kettlebell Marches',
-  // Machine conditioning. Nothing lands and nothing is lifted. Sled Pull used
-  // to be here and has left: Archie's answer of 21 September 2026 gave it a
-  // tag, so the screen does recognise it now.
+  // Machine conditioning. Nothing lands and nothing is lifted. The sled drag
+  // used to be here and has left: Archie's answer of 21 September 2026 gave it
+  // a tag, and it now carries a second one for the push back, so the screen
+  // recognises it twice over.
   'Assault Bike',
   'Incline Treadmill Walk',
   'Rowing Machine',

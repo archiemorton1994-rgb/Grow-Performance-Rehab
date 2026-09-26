@@ -248,8 +248,13 @@ const EXPECTED = {
   '2 min': [120, 1, null],
   '3 min': [180, 1, null],
   '5 min': [300, 1, null],
-  // A parenthetical after the duration is a cue, not a second prescription.
-  '3 min (slow deep breaths)': [180, 1, null],
+  // "3 min (slow deep breaths)" used to be here, and it was the app's only
+  // prescription with a parenthetical after the duration. It was the closing
+  // Diaphragmatic Breathing card, which Archie changed to "10 reps (10
+  // breaths)" on 25 September 2026, so nothing prints it any more and the row
+  // below would go stale. The claim it carried - a parenthetical after a
+  // duration is a cue and not a second prescription - is now asked of the parser
+  // directly, further down, where it does not depend on a live prescription.
   '20s each side': [20, 2, 'side'],
   '30s each side': [30, 2, 'side'],
   '40s each side': [40, 2, 'side'],
@@ -372,6 +377,23 @@ check(
   'a range counts to the BOTTOM of it, which is the length that was promised',
   clockSecondsIn('30-45s') === 30 && clockSecondsIn('30 - 45 s') === 30,
   '"at least 30" must not become "hold for 45"'
+);
+/**
+ * A PARENTHETICAL AFTER A DURATION IS A CUE, NOT A SECOND PRESCRIPTION.
+ *
+ * This used to be proved by a row in the table above, because the closing
+ * breathing card read "3 min (slow deep breaths)". Archie changed that card to
+ * "10 reps (10 breaths)" on 25 September 2026, so no live prescription is
+ * written this way any more - and the way a parenthetical is read is a property
+ * of the parser, not of the card, so it is asked of the parser directly. Written
+ * with the wording that used to exist, so a reader can see what it was.
+ */
+check(
+  'a cue in brackets after a duration is not counted as anything',
+  holdClockFor('3 min (slow deep breaths)')?.seconds === 180 &&
+    holdClockFor('3 min (slow deep breaths)')?.runs === 1 &&
+    holdClockFor('30s (slow and controlled)')?.runs === 1,
+  `"3 min (slow deep breaths)" reads ${JSON.stringify(holdClockFor('3 min (slow deep breaths)'))}`
 );
 
 // ─── [1c] The three groups Archie named ──────────────────────────────────────

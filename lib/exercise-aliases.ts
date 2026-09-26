@@ -163,6 +163,11 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   'Banded Good Morning': 'Banded Good Mornings',
   'Barbell Good Morning': 'Barbell Good Mornings',
   'Broad Jump': 'Broad Jumps',
+  // Archie's split of 25 September 2026 moved this jump out of the banded
+  // family and into the band resisted one, because the band adds resistance to
+  // a bodyweight jump rather than being the resistance itself. Same jump, same
+  // record, same id - so every set logged under the old name counts here.
+  'Banded Broad Jumps': 'Band Resisted Broad Jumps',
   'Cable Pull-Through': 'Cable Pull Through',
   // The library carries two single-leg RDLs on purpose, a dumbbell one at
   // Intermediate and a barbell one at Advanced, so both are qualified and the
@@ -216,6 +221,12 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   'Plank Shoulder Tap': 'Plank Taps',
   'Side Plank': 'Forearm Side Plank',
   'Suitcase Carry': 'Dumbbell Suitcase Carry',
+
+  // Conditioning
+  // Archie, 25 September 2026: the sled is pulled out and pushed back, so the
+  // name says both halves now. Everybody's sled weight and every set they have
+  // logged is filed under the old name, and this is what brings it forward.
+  'Sled Pull': 'Sled Pull and Push',
 };
 
 /**

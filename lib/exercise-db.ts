@@ -322,7 +322,13 @@ const COOLDOWN: ExerciseTemplate[] = [
     id: 'cooldown-1',
     name: 'Diaphragmatic Breathing',
     sets: 1,
-    reps: '3 min (slow deep breaths)',
+    // ARCHIE, 25 SEPTEMBER 2026: this should read "10 reps (10 breaths)" rather
+    // than three minutes. Ten breaths at his own tempo - four seconds in, six
+    // out - is about a hundred seconds, so it is a shorter close as well as a
+    // countable one. The card changes shape with the words: three minutes made
+    // it a clock with one "Mark Set Done" button, and ten breaths gives it a
+    // counter that starts on 10, which is the thing being counted.
+    reps: '10 reps (10 breaths)',
     cue: 'Inhale through nose 4s, exhale through mouth 6s - down-regulate nervous system, let heart rate drop',
     suggestedLoad: 'Bodyweight',
     category: 'cooldown',

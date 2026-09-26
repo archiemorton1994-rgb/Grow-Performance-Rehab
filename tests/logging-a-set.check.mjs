@@ -29,7 +29,7 @@
  * pure time work because the prescription says 30s.
  *
  * THE LAST ROW DOES NOT GO TO ZERO, ON PURPOSE. The thirteen that remain are
- * all Sled Push and Sled Pull, where the library describes the load ("Moderate
+ * all Sled Push and Sled Pull and Push, where the library describes the load ("Moderate
  * sled") instead of naming a number. Plates go on a sled, so the box belongs
  * there, it arrives empty, and nothing has to be typed into it. The ones that
  * DID have to go are the bike, the rower, the treadmill, the skipping rope and
@@ -468,7 +468,7 @@ console.log('\n[3b] Where the load is described in words, only the kit that hold
    * quiet default is what this whole phase was cleaning up. A new machine, a
    * new crawl or a new piece of loadable kit lands here and gets decided.
    */
-  const CAN_TAKE_A_WEIGHT = ['Sled Push', 'Sled Pull'];
+  const CAN_TAKE_A_WEIGHT = ['Sled Push', 'Sled Pull and Push'];
   const NO_WEIGHT_TO_CHOOSE = [
     'Assault Bike',
     'Rowing Machine',

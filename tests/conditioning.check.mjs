@@ -19,7 +19,7 @@
  *
  * AND THE SESSION IT GUARDS IS THE NEW ONE.
  * ─────────────────────────────────────────
- * Conditioning is built from Archie's nine records now - Sled Push, Sled Pull,
+ * Conditioning is built from Archie's nine records now - Sled Push, Sled Pull and Push,
  * Sled Rows, Assault Bike, Incline Treadmill Walk, Rowing Machine, Duck Walks,
  * Skipping and Bear Crawl - worked as interval blocks on a clock scaled by level
  * and energy, with a pulse raiser at the top and a Restore cool-down at the

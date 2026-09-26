@@ -289,6 +289,17 @@ const LADDER: Record<LadderPattern, Rung[]> = {
  */
 const KIT_LEVEL: { match: RegExp; level: ExerciseLevel }[] = [
   { match: /barbell|trap bar|smith|landmine|ez[- ]bar/i, level: 3 },
+  // BAND RESISTED IS NOT BANDED, and it has to be read before the band rule
+  // below or it never gets the chance. Archie's split of 25 September 2026:
+  // banded work uses a light band AS the resistance, band resisted work adds a
+  // band to something already heavy. In his library that something is a loaded
+  // barbell on four of the five - so this is the barbell stage, and it is the
+  // same 3 the barbell rule above gives, written out because three of those
+  // names ("Band Resisted Back Squats", "Front Squats", "Deadlifts") never say
+  // the word barbell. The fifth is a bodyweight broad jump against a band,
+  // which is Athlete work on his list; 3 understates it and 1 made it a
+  // beginner's exercise.
+  { match: /\bband resisted\b/i, level: 3 },
   { match: /dumbbell|\bdb\b|kettlebell|\bkb\b|cable|machine|plate/i, level: 2 },
   { match: /band|bodyweight/i, level: 1 },
 ];
@@ -309,8 +320,16 @@ const KIT_LEVEL: { match: RegExp; level: ExerciseLevel }[] = [
  */
 const HARDER = /\bdeficit\b|\bpause[ds]?\b|\btempo\b|\bweighted\b|\bring\b|\barcher\b|\bsingle[- ](arm|leg)\b|\bone[- ](arm|leg)\b|\boverhead\b|\bchain/i;
 
-/** And markers that hold it down, which beat the ones above. */
-const EASIER = /\bassisted\b|\bsupported\b|\bwall\b|\bkneeling\b|\bseated\b|\bbox\b|\bincline\b|\bisometric\b|\bhold\b|\bbanded?\b/i;
+/**
+ * And markers that hold it down, which beat the ones above.
+ *
+ * "banded" is here because a light band is the easiest way to load a movement.
+ * A BAND RESISTED movement is the opposite - the band is added to something
+ * already heavy - so the word band is only read as easier when "resisted" does
+ * not follow it. Without that, "Band Resisted Broad Jumps" read as a level 1
+ * beginner's exercise: the kit rule saw a band and this rule took a rung off.
+ */
+const EASIER = /\bassisted\b|\bsupported\b|\bwall\b|\bkneeling\b|\bseated\b|\bbox\b|\bincline\b|\bisometric\b|\bhold\b|\bbanded\b|\bband\b(?!\s+resisted\b)/i;
 
 const clamp = (n: number): ExerciseLevel =>
   (n < 1 ? 1 : n > 5 ? 5 : n) as ExerciseLevel;

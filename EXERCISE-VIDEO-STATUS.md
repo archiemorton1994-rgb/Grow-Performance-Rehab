@@ -408,7 +408,7 @@ A further 0 entries are circuits rather than movements — "Burpee + Reverse Lun
 
 ### Power and speed work (5)
 
-- Banded Broad Jumps
+- Band Resisted Broad Jumps
 - Broad Jumps
 - High Pulls
 - Slamball Split Jumps
@@ -422,7 +422,7 @@ A further 0 entries are circuits rather than movements — "Burpee + Reverse Lun
 - Incline Treadmill Walk
 - Rowing Machine
 - Skipping
-- Sled Pull
+- Sled Pull and Push
 - Sled Push
 
 ### Cool-downs and stretching (3)
