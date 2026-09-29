@@ -60,8 +60,13 @@ import {
   getStandaloneFlexibilityWorkout,
   getStandalonePrehabWorkout,
 } from '../lib/exercise-db.ts';
-import { CONDITIONING_EXERCISES } from '../lib/exercise-library.ts';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
+} from '../lib/exercise-library.ts';
 import { BLOCKS_BY_TIME, generateLibraryConditioningSession } from '../lib/library-conditioning.ts';
+import { NAMED_WARMUP_DRILLS } from '../lib/library-session.ts';
 import { trainTypeOf } from '../lib/session-type.ts';
 import { generateWorkout, LIBRARY_BUILT_TYPES } from '../lib/workout-engine.ts';
 
@@ -345,6 +350,31 @@ const restoreNames = new Set(
     ...getCooldown(),
   ].map((t) => t.name)
 );
+
+/**
+ * AND THE TWO OTHER THINGS A WARM-UP CARD MAY BE, BOTH ARCHIE'S OWN WORDS.
+ *
+ * 29 September 2026: two minutes of cardio opens every session, and where there
+ * is no machine that is a walk (WARMUP_CARDIO_EXERCISES, which is one record
+ * and is deliberately not on the nine); then the drills he named by name, which
+ * are records from his exercise library rather than from Restore
+ * (NAMED_WARMUP_DRILLS).
+ *
+ * Resolved from the real tables rather than spelled out, so a rename moves this
+ * with it - and an id in that table that matches no record simply contributes
+ * no name here, which is why tests/warmup-named.check.mjs checks the ids
+ * themselves as well.
+ *
+ * This does NOT widen what a conditioning BLOCK or a FINISHER may be: the
+ * assertion above still holds those to the nine and nothing else.
+ */
+const warmUpOnlyNames = new Set([
+  ...WARMUP_CARDIO_EXERCISES.map((e) => e.name),
+  ...Object.values(NAMED_WARMUP_DRILLS)
+    .flat(2)
+    .map((id) => LIBRARY_EXERCISES.find((e) => e.id === id)?.name)
+    .filter(Boolean),
+]);
 
 for (const tier of TIERS) {
   for (const energy of ENERGIES) {
@@ -668,7 +698,11 @@ for (const sessionType of SWEEP_TYPES) {
                 if (!NINE.has(card.name)) roleOffList.push(`${where}: ${card.name}`);
               } else if (card.category === 'prep') {
                 prepSeen++;
-                if (!NINE.has(card.name) && !restoreNames.has(card.name)) {
+                if (
+                  !NINE.has(card.name) &&
+                  !restoreNames.has(card.name) &&
+                  !warmUpOnlyNames.has(card.name)
+                ) {
                   prepOffList.push(`${where}: ${card.name}`);
                 }
               }
@@ -692,7 +726,7 @@ check(
   `${roleOffList.length} off-list, e.g. ${roleOffList.slice(0, 5).join(' / ')}`
 );
 check(
-  `every warm-up card is on the list or out of Restore (${prepSeen.toLocaleString()} cards)`,
+  `every warm-up card is on the list, out of Restore, or one Archie named (${prepSeen.toLocaleString()} cards)`,
   prepOffList.length === 0,
   `${prepOffList.length} off-list, e.g. ${prepOffList.slice(0, 5).join(' / ')}`
 );

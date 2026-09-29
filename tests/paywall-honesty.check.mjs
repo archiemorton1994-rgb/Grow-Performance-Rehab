@@ -405,12 +405,21 @@ const servableNames = new Set(
   [
     ...libRecords.LIBRARY_EXERCISES,
     ...libRecords.CONDITIONING_EXERCISES,
+    /**
+     * And the warm-up's own cardio, which is one record and is on none of the
+     * three lists: the Brisk Walk somebody with no machine opens a session on
+     * (Archie, 29 September 2026). It is kept off his conditioning nine on
+     * purpose, because the nine are what a block and a finisher draw on. The
+     * paywall counts it because the app can put it in front of somebody, which
+     * is the only question this assertion asks.
+     */
+    ...libRecords.WARMUP_CARDIO_EXERCISES,
     ...db.getRestoreExercises(),
     ...db.getCooldown(),
   ].map((e) => e.name.toLowerCase().trim())
 );
 check(
-  `the exercises stat (${db.distinctExerciseCount()}) is exactly what the three lists can serve (${servableNames.size})`,
+  `the exercises stat (${db.distinctExerciseCount()}) is exactly what the lists can serve (${servableNames.size})`,
   db.distinctExerciseCount() === servableNames.size,
   'the paywall counts one universe and the app serves another'
 );

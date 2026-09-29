@@ -26,7 +26,7 @@
  *       map the history screens read. A name the app counts and cannot serve is
  *       a claim it cannot keep.
  *
- * NOTHING HERE READS SOURCE. The allowed set is built by asking the three lists
+ * NOTHING HERE READS SOURCE. The allowed set is built by asking the lists
  * themselves, so a record renamed in any of them moves this check with it
  * rather than leaving it pinned to a spelling that no longer exists.
  *
@@ -38,7 +38,11 @@ globalThis.__DEV__ = false;
 
 import './_persist-shim.mjs';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
-import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from '../lib/exercise-library.ts';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
+} from '../lib/exercise-library.ts';
 import {
   distinctExerciseCount,
   getAllPickableExercises,
@@ -74,13 +78,33 @@ const own = (list, label) => {
 };
 own(LIBRARY_EXERCISES, 'library');
 own(CONDITIONING_EXERCISES, 'conditioning');
+/**
+ * AND THE ONE WARM-UP RECORD THAT IS ON NONE OF THE THREE, ON PURPOSE.
+ *
+ * Archie, 29 September 2026, asked for two minutes of cardio in front of every
+ * session and said that somebody at home with no machine walks or skips. His
+ * own decision 7 keeps skipping away from beginners, so a beginner at home
+ * walks - and there was no walk in the app to give them. WARMUP_CARDIO_EXERCISES
+ * holds it, and it is deliberately NOT on his conditioning nine, because the
+ * nine are what a session's blocks and its finisher draw on and two minutes of
+ * easy walking is neither.
+ *
+ * It is a list, not an exemption: the record is walked by the same index as
+ * everything else, so the two assertions below still hold it to having a record
+ * and to being reachable. What this line does is let the rule say four lists
+ * instead of three, which is what is true.
+ */
+own(WARMUP_CARDIO_EXERCISES, 'warm-up cardio');
 own(getRestoreExercises(), 'restore');
 own(getCooldown(), 'restore');
 
 check(
-  `the library, the nine and Restore between them name ${SOURCE.size} movements`,
-  LIBRARY_EXERCISES.length > 100 && CONDITIONING_EXERCISES.length === 9 && SOURCE.size > 200,
-  `${LIBRARY_EXERCISES.length} library, ${CONDITIONING_EXERCISES.length} conditioning, ${SOURCE.size} in total`
+  `the library, the nine, the warm-up walk and Restore name ${SOURCE.size} movements`,
+  LIBRARY_EXERCISES.length > 100 &&
+    CONDITIONING_EXERCISES.length === 9 &&
+    WARMUP_CARDIO_EXERCISES.length > 0 &&
+    SOURCE.size > 200,
+  `${LIBRARY_EXERCISES.length} library, ${CONDITIONING_EXERCISES.length} conditioning, ${WARMUP_CARDIO_EXERCISES.length} warm-up cardio, ${SOURCE.size} in total`
 );
 
 // ─── [1] The index the whole app picks from ──────────────────────────────────
@@ -106,7 +130,7 @@ const missingFromIndex = [...SOURCE.keys()].filter(
   (k) => !pickable.some((p) => key(p.template.name) === k)
 );
 check(
-  'and every record on the three lists is reachable through it',
+  'and every record on those lists is reachable through it',
   missingFromIndex.length === 0,
   `${missingFromIndex.length} records are not in the index, e.g. ${missingFromIndex
     .slice(0, 8)
@@ -283,11 +307,17 @@ check(
  * can catch the stat drifting rather than catch the two keys disagreeing.
  */
 const spellings = new Set();
-for (const list of [LIBRARY_EXERCISES, CONDITIONING_EXERCISES, getRestoreExercises(), getCooldown()]) {
+for (const list of [
+  LIBRARY_EXERCISES,
+  CONDITIONING_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
+  getRestoreExercises(),
+  getCooldown(),
+]) {
   for (const e of list) spellings.add(e.name.toLowerCase().trim());
 }
 check(
-  `distinctExerciseCount (${distinctExerciseCount()}) is the size of the three lists (${spellings.size})`,
+  `distinctExerciseCount (${distinctExerciseCount()}) is the size of those lists (${spellings.size})`,
   distinctExerciseCount() === spellings.size,
   'the paywall counts one universe and the app serves another'
 );
@@ -382,7 +412,7 @@ check(
   'a sweep that logs nothing awards nothing and would pass this section by accident'
 );
 check(
-  'every exercise badge that is not retired can still be earned from the three lists',
+  'every exercise badge that is not retired can still be earned from those lists',
   unearnable.length === 0,
   `${unearnable.length} cannot: ${unearnable.map((b) => `${b.name} (${b.id})`).join(', ')} - re-point the rule at Archie's spelling, or retire the badge`
 );

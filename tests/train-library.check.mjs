@@ -57,6 +57,7 @@ import { useAppStore, EXPERIENCE_LEVELS } from '../lib/store.ts';
 import {
   CONDITIONING_EXERCISES,
   LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
   patternsOf,
 } from '../lib/exercise-library.ts';
 import { canPerformWith } from '../lib/kit.ts';
@@ -75,6 +76,7 @@ import {
 } from '../lib/exercise-db.ts';
 import {
   MIN_SLOT_POOL,
+  NAMED_WARMUP_DRILLS,
   NO_KIT_PULL,
   SLOT_COUNTS,
   ageLoadFactor,
@@ -134,6 +136,17 @@ const mobilityByKey = new Map(
     .filter((t) => t.category === 'prehab')
     .map((t) => [key(t.name), t])
 );
+/**
+ * THE ONE RECORD THAT IS ON NONE OF THE THREE LISTS, AND WHY.
+ *
+ * Archie, 29 September 2026: two minutes of cardio opens every session, and
+ * somebody at home with no machine walks or skips. Decision 7 keeps skipping
+ * away from beginners, so a beginner at home walks, and there was no walk in
+ * the app to give them. It is kept off his conditioning nine on purpose: the
+ * nine are what a block and a finisher draw on, and two minutes of easy walking
+ * is neither.
+ */
+const warmUpOnlyByKey = new Map(WARMUP_CARDIO_EXERCISES.map((e) => [key(e.name), e]));
 
 console.log('\n[0] The lists this session may draw on');
 check(
@@ -243,6 +256,7 @@ const violations = {
 let swept = 0;
 let warmUpsFromNine = 0;
 let warmUpsFromMobility = 0;
+let warmUpsFromWalk = 0;
 
 for (const sessionType of SESSION_TYPES) {
   for (const equipment of KITS) {
@@ -310,6 +324,8 @@ for (const sessionType of SESSION_TYPES) {
                 const k = first ? key(first.name) : '';
                 if (conditioningByKey.has(k)) {
                   warmUpsFromNine++;
+                } else if (warmUpOnlyByKey.has(k)) {
+                  warmUpsFromWalk++;
                 } else if (mobilityByKey.has(k)) {
                   warmUpsFromMobility++;
                 } else {
@@ -333,9 +349,10 @@ for (const sessionType of SESSION_TYPES) {
                 const lib = libraryByKey.get(k);
                 const cond = conditioningByKey.get(k);
                 const restore = restoreByKey.get(k);
+                const warmUpOnly = warmUpOnlyByKey.get(k);
 
-                // [1] Only the three approved lists.
-                if (!lib && !cond && !restore) {
+                // [1] Only the approved lists, which the warm-up walk is now one of.
+                if (!lib && !cond && !restore && !warmUpOnly) {
                   violations.offList.push(`${where}: ${ex.name}`);
                   continue;
                 }
@@ -347,8 +364,9 @@ for (const sessionType of SESSION_TYPES) {
                 }
                 if (lib && patternsOf(lib).includes('pull')) hasPull = true;
                 // [3] Kit honoured, asked of whichever list owns the record.
-                const possible = lib || cond
-                  ? canPerformWith(lib ?? cond, equipment)
+                const asRecord = lib ?? cond ?? warmUpOnly;
+                const possible = asRecord
+                  ? canPerformWith(asRecord, equipment)
                   : possibleFor([restore], equipment.length > 0 ? equipment : ['bodyweight'])
                       .length === 1;
                 if (!possible) violations.wrongKit.push(`${where}: ${ex.name}`);
@@ -359,7 +377,7 @@ for (const sessionType of SESSION_TYPES) {
                 if (ex.category !== 'prehab' && banned.size > 0) {
                   const hits = new Set([
                     ...restrictedTagsOn(ex.name, banned, undefined, ex.cue),
-                    ...(lib || cond ? restrictedTagsOnRecord(lib ?? cond, banned) : []),
+                    ...(asRecord ? restrictedTagsOnRecord(asRecord, banned) : []),
                   ]);
                   if (hits.size > 0) {
                     violations.bannedTag.push(`${where}: ${ex.name} carries ${[...hits].join(', ')}`);
@@ -367,7 +385,7 @@ for (const sessionType of SESSION_TYPES) {
                 }
                 // [6] A beginner is never landed on, and never skips.
                 if (level === 'beginner') {
-                  const record = lib ?? cond ?? restore;
+                  const record = asRecord ?? restore;
                   if (stressTagsForRecord(record).includes('high_impact')) {
                     violations.beginnerImpact.push(`${where}: ${ex.name}`);
                   }
@@ -393,7 +411,7 @@ noneOf(violations.threw, 'nothing throws, whatever the answers');
 noneOf(violations.empty, 'every session has something in it');
 noneOf(
   violations.offList,
-  'every exercise comes from the library, the nine conditioning records or Restore',
+  'every exercise comes from the library, the nine, the warm-up walk or Restore',
   'anything else means the old catalogue has leaked back in'
 );
 noneOf(
@@ -418,13 +436,25 @@ noneOf(
 );
 noneOf(
   violations.warmUp,
-  `every session opens on one of the nine or on a Restore mobility drill (${warmUpsFromNine} from the nine, ${warmUpsFromMobility} stood in)`,
+  `every session opens on one of the nine, the warm-up walk or a Restore mobility drill (${warmUpsFromNine} from the nine, ${warmUpsFromWalk} on the walk, ${warmUpsFromMobility} stood in)`,
   'Restore’s own prep card names a stationary bike the app stopped offering'
 );
+/**
+ * BOTH ANSWERS THAT CAN HAPPEN, DO.
+ *
+ * This used to ask for the Restore stand-in to happen as well, and stage 8 has
+ * made that unreachable rather than deleted it: the person it existed for was a
+ * beginner at home with a sore ankle, who lost Skipping to the beginner rule
+ * and the Duck Walk and the Bear Crawl to the ankle. They now open on the Brisk
+ * Walk, which needs nothing and carries no stress tag. So the two answers the
+ * app can still give are a conditioning record and the walk, and both have to
+ * turn up or one half of the rule above is decoration. The stand-in is counted
+ * and printed rather than asserted, so if it ever fires again somebody sees it.
+ */
 check(
-  'both answers actually happen, so neither half of that rule is decoration',
-  warmUpsFromNine > 0 && warmUpsFromMobility > 0,
-  `${warmUpsFromNine} from the nine, ${warmUpsFromMobility} from mobility`
+  'both answers that can still happen do, so neither half of that rule is decoration',
+  warmUpsFromNine > 0 && warmUpsFromWalk > 0,
+  `${warmUpsFromNine} from the nine, ${warmUpsFromWalk} on the walk, ${warmUpsFromMobility} from mobility`
 );
 
 // ── [8] The same answers build the same session ──────────────────────────────
@@ -611,18 +641,32 @@ console.log('\n[11] The shape: pulse raiser, mobility, power, finisher, cool-dow
       /easy/i.test(full.exercises[0].suggestedLoad),
     `${full.exercises[0].name} / ${full.exercises[0].suggestedLoad}`
   );
-  const mobilityOf = (s) =>
-    s.exercises.filter((e) => e.category === 'prep' && restoreByKey.has(key(e.name))).length;
-  for (const [duration, expected] of [
-    ['30', 1],
-    ['45', 2],
-    ['60', 2],
-  ]) {
+  /**
+   * THE DRILLS, WHICH ARE EVERY WARM-UP CARD BEHIND THE CARDIO ONE.
+   *
+   * This used to count only the cards that came from Restore, and after Archie
+   * named the drills on 29 September 2026 that stopped being the same thing:
+   * two of the three he named - Banded Face Pulls and its no-band answer Door
+   * Frame Rows - are records from his exercise library. Counting Restore cards
+   * alone reported one drill where the session plainly had two, which is a
+   * check measuring the wrong thing rather than a session doing the wrong
+   * thing.
+   *
+   * AND THE NUMBER IS A FLOOR NOW, NOT A FIGURE. `mobilityCountFor` is what the
+   * clock allows and the count he named is what a day must have, so a Full Body
+   * day gets two drills at every length: he asked for Banded Face Pulls AND Hip
+   * Circles, and half an hour is not a reason to give somebody half the answer.
+   */
+  const drillsOf = (s) => s.exercises.filter((e) => e.category === 'prep').length - 1;
+  const expectedDrills = (type, duration, age) =>
+    Math.max(mobilityCountFor(duration, age), NAMED_WARMUP_DRILLS[type].length);
+  for (const duration of ['30', '45', '60']) {
+    const expected = expectedDrills('full_body', duration, 34);
     const s = build({ readiness: readinessFor(SITUATIONS[0], duration, 'normal') });
     check(
-      `${duration} minutes gets ${expected} mobility drill(s)`,
-      mobilityOf(s) === expected && mobilityCountFor(duration, 34) === expected,
-      `${mobilityOf(s)}`
+      `${duration} minutes gets ${expected} warm-up drill(s)`,
+      drillsOf(s) === expected,
+      `${drillsOf(s)}`
     );
   }
   const older = build({
@@ -630,9 +674,9 @@ console.log('\n[11] The shape: pulse raiser, mobility, power, finisher, cool-dow
     profile: profileFor('intermediate', SITUATIONS[0], { ageYears: 56 }),
   });
   check(
-    'from fifty the 45 minute session keeps a third mobility drill',
-    mobilityOf(older) === 3,
-    `${mobilityOf(older)}`
+    'from fifty the 45 minute session keeps a third warm-up drill',
+    drillsOf(older) === 3 && expectedDrills('full_body', '45', 56) === 3,
+    `${drillsOf(older)}`
   );
 
   const athlete = build({ profile: profileFor('athlete', SITUATIONS[0]) });
@@ -1298,22 +1342,24 @@ console.log('\n[14] generateWorkout serves the library for every live type');
                 const lib = libraryByKey.get(k);
                 const cond = conditioningByKey.get(k);
                 const restore = restoreByKey.get(k);
-                if (!lib && !cond && !restore) {
+                const warmUpOnly = warmUpOnlyByKey.get(k);
+                if (!lib && !cond && !restore && !warmUpOnly) {
                   offList.push(`${where}: ${ex.name}`);
                   continue;
                 }
                 if (lib && lib.level > ceiling) {
                   aboveCeiling.push(`${where}: ${ex.name} is level ${lib.level}`);
                 }
-                const possible = lib || cond
-                  ? canPerformWith(lib ?? cond, equipment)
+                const asRecord = lib ?? cond ?? warmUpOnly;
+                const possible = asRecord
+                  ? canPerformWith(asRecord, equipment)
                   : possibleFor([restore], equipment.length > 0 ? equipment : ['bodyweight'])
                       .length === 1;
                 if (!possible) wrongKit.push(`${where}: ${ex.name}`);
                 if (ex.category !== 'prehab' && banned.size > 0) {
                   const hits = new Set([
                     ...restrictedTagsOn(ex.name, banned, undefined, ex.cue),
-                    ...(lib || cond ? restrictedTagsOnRecord(lib ?? cond, banned) : []),
+                    ...(asRecord ? restrictedTagsOnRecord(asRecord, banned) : []),
                   ]);
                   if (hits.size > 0) {
                     bannedTagged.push(`${where}: ${ex.name} carries ${[...hits].join(', ')}`);
@@ -1357,7 +1403,7 @@ console.log('\n[14] generateWorkout serves the library for every live type');
     `${ALREADY_SWITCHED.filter((t) => !LIBRARY_LIVE_TYPES.includes(t)).join(', ')} left LIBRARY_LIVE_TYPES, so the old catalogue is building a session that was switched over`
   );
   check(
-    'nothing the app serves comes from anywhere but the library, the nine or Restore',
+    'nothing the app serves comes from anywhere but the library, the nine, the warm-up walk or Restore',
     offList.length === 0,
     `${offList.length} of ${built} sessions, e.g. ${offList[0]} — the switch in generateWorkout is what this catches`
   );

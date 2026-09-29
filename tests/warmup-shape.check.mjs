@@ -61,7 +61,12 @@ globalThis.__DEV__ = false;
 
 import './_persist-shim.mjs';
 import { EXPERIENCE_LEVELS } from '../lib/store.ts';
-import { CONDITIONING_EXERCISES, isPulseRaiser } from '../lib/exercise-library.ts';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
+  isPulseRaiser,
+} from '../lib/exercise-library.ts';
 import { canPerformWith } from '../lib/kit.ts';
 import { getStandalonePrehabWorkout } from '../lib/exercise-db.ts';
 import {
@@ -70,6 +75,7 @@ import {
   restrictedTagsOnRecord,
 } from '../lib/exercise-safety.ts';
 import {
+  NAMED_WARMUP_DRILLS,
   WARMUP_FAMILIES,
   WARMUP_ORDER,
   generateLibrarySession,
@@ -97,7 +103,39 @@ function check(label, condition, detail) {
 const key = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 const nineByKey = new Map(CONDITIONING_EXERCISES.map((e) => [key(e.name), e]));
 const drillPool = getStandalonePrehabWorkout().filter((t) => t.category === 'prehab');
-const drillByKey = new Map(drillPool.map((t) => [key(t.name), t]));
+
+/**
+ * WHAT STAGE 8 ADDED TO THE TWO LISTS ABOVE, AND WHY THIS FILE HAS TO KNOW.
+ *
+ * Archie, 29 September 2026, named the drills that lead each day - Banded Face
+ * Pulls, its no-band answer Door Frame Rows, and Hip Circles - and asked for
+ * two minutes of cardio in front of them, which for somebody at home with no
+ * machine is a walk.
+ *
+ * Two of the drills he named are records from his exercise library rather than
+ * from Restore, and the walk is on neither the nine nor Restore. Read off the
+ * real tables rather than spelled out here: every rule below is about what a
+ * warm-up DOES, and a card it could not identify would silently stop being
+ * judged. That is exactly what happened when this file was first run against
+ * stage 8 - an upper body day led with Banded Face Pulls and the family rule in
+ * section [5] saw no drill at all.
+ */
+const namedDrillRecords = [
+  ...new Set(
+    Object.values(NAMED_WARMUP_DRILLS)
+      .flat(2)
+      .map((id) => LIBRARY_EXERCISES.find((e) => e.id === id))
+      .filter(Boolean)
+  ),
+];
+const drillByKey = new Map(
+  [...drillPool, ...namedDrillRecords].map((t) => [key(t.name), t])
+);
+/** What may open a session: the nine, plus the walk that is on none of the lists. */
+const openerByKey = new Map([
+  ...nineByKey,
+  ...WARMUP_CARDIO_EXERCISES.map((e) => [key(e.name), e]),
+]);
 
 /**
  * SLED WORK, IDENTIFIED FROM THE RECORD'S OWN KIT LIST AND NOT FROM ITS NAME.
@@ -394,10 +432,10 @@ console.log('\n[3] Every session still opens on something, at every kit and leve
       .join(' | ')
   );
   const offList = rows.filter(
-    (r) => !nineByKey.has(key(r.opener.name)) && !drillByKey.has(key(r.opener.name))
+    (r) => !openerByKey.has(key(r.opener.name)) && !drillByKey.has(key(r.opener.name))
   );
   check(
-    'and what it opens on is one of the nine or a Restore mobility drill, never anything else',
+    'and what it opens on is one of the nine, the warm-up walk or a drill, never anything else',
     offList.length === 0,
     offList
       .slice(0, 3)
@@ -500,22 +538,37 @@ console.log(`\n[4] A warm-up knows which day it is in front of (${cells.size} ce
     `${allThreeSame} of ${cells.size}`
   );
   /**
-   * THE ONE OVERLAP THAT IS LEFT, ASSERTED RATHER THAN LEFT TO BE NOTICED.
+   * THE OVERLAP THAT USED TO BE LEFT, AND WHY IT IS GONE (Archie, 29 September).
    *
-   * At thirty minutes there is one drill, and a full body day opens on the same
-   * hip drill a lower body day does. That is the right answer for both, because
-   * they both squat and one slot is all there is, rather than a rule bent to
-   * make two rows of a table look different. It is written down here so that if
-   * it ever stops being true somebody has decided to change it.
+   * Stage 7 asserted the opposite of what is asserted here, and said so in as
+   * many words: at thirty minutes there was one drill slot, and a full body day
+   * opened on the same hip drill a lower body day did, because they both squat
+   * and one slot was all there was. It was written down so that if it ever
+   * stopped being true somebody would have decided to change it.
+   *
+   * Somebody did. Archie named two drills for a Full Body day - Banded Face
+   * Pulls AND Hip Circles - and one for a Lower Body day, so the floor on a
+   * full body warm-up is two drills at every length, and the half-hour session
+   * gets both of them rather than half of his answer. The lower body day still
+   * gets his one, which is still a hip drill, so the two still start alike and
+   * no longer finish alike.
    */
-  const singleDrillCells = [...cells.values()].filter((b) => b.lower_body.drills.length === 1);
-  const shared = singleDrillCells.filter(
-    (b) => listOf(b.lower_body) === listOf(b.full_body)
+  const shortLowerCells = [...cells.values()].filter((b) => b.lower_body.drills.length === 1);
+  const fullHasBoth = shortLowerCells.filter((b) => b.full_body.drills.length >= 2).length;
+  check(
+    `where a lower body day has one drill, a full body day still gets two (${fullHasBoth} of ${shortLowerCells.length})`,
+    shortLowerCells.length > 0 && fullHasBoth === shortLowerCells.length,
+    'Archie named two drills for a full body day, and the clock does not get to drop one'
+  );
+  const bothLeadTheHip = shortLowerCells.filter(
+    (b) =>
+      worksTheHip(drillByKey.get(key(b.lower_body.drills[0].name))) &&
+      b.full_body.drills.some((e) => worksTheHip(drillByKey.get(key(e.name))))
   ).length;
   check(
-    `with one drill to give, a lower and a full body day share it (${shared} of ${singleDrillCells.length})`,
-    singleDrillCells.length > 0 && shared === singleDrillCells.length,
-    'both days squat, so both open at the hip'
+    `and both days are still warming the hip up before they squat (${bothLeadTheHip} of ${shortLowerCells.length})`,
+    shortLowerCells.length > 0 && bothLeadTheHip === shortLowerCells.length,
+    'the named drills lead, and the family rule underneath still knows what day it is'
   );
   /**
    * AND THE SAME THING WRITTEN OUT, so the difference can be read rather than
@@ -925,7 +978,7 @@ console.log('\n[9] The swap button behind a warm-up is offered a warm-up');
       .map((p) => `${p.type}/${p.seed}: ${p.card.name} -> ${p.card.swapName} / ${p.card.swap2Name}`)
       .join(' | ')
   );
-  const nineWarmUps = prepCards.filter((p) => nineByKey.has(key(p.card.name)));
+  const nineWarmUps = prepCards.filter((p) => openerByKey.has(key(p.card.name)));
   const naked = nineWarmUps.filter((p) => !p.card.swapName);
   check(
     `and a pulse raiser still has something behind it (${nineWarmUps.length} checked)`,
@@ -947,7 +1000,7 @@ console.log('\n[9] The swap button behind a warm-up is offered a warm-up');
    */
   const bothSlots = (p) => [p.card.swapName, p.card.swap2Name].filter(Boolean);
   const offList = nineWarmUps.filter((p) =>
-    bothSlots(p).some((name) => !nineByKey.has(key(name)))
+    bothSlots(p).some((name) => !openerByKey.has(key(name)))
   );
   check(
     'and what it offers, in both slots, is another of the nine and not a strength movement',

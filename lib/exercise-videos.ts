@@ -119,6 +119,22 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   // rather than being forced onto this one.
   'Seated Cable Row': 'https://www.youtube.com/shorts/dKKsJMlmogM',
 
+  // ── Decided by Archie, 29 Sep 2026 ────────────────────────────────────
+  // He asked for the hip drill to be plain hip circles rather than banded ones
+  // - "change banded hip circles to just hip circles" - so the record needs no
+  // band and the app has a Hip Circles it has never had before. The only
+  // footage of the movement is his upload titled "Banded Hip Circles", filmed
+  // with a band on.
+  //
+  // THIS IS THE ONE PLACE A BAND IS ALLOWED TO DIFFER between the card and the
+  // demo, and it is a judgement rather than a rule. The note at the top of this
+  // file says a different implement is not a match, and it is right: a band
+  // changes a squat. Here the band is the optional part of the same movement,
+  // it is his own drill, and he asked for the band to come off - so the demo
+  // shows exactly what the card asks for, with a band the card does not
+  // mention. One line to delete if he would rather it ran a search.
+  'Hip Circles': 'https://www.youtube.com/shorts/K9wrVgGKcS4',
+
   // ── Same movement, different wording. Each one checked by hand. ────────
   // video "Barbell Back Squat"
   'Back Squat': 'https://www.youtube.com/shorts/MnJz6MVIoIE',

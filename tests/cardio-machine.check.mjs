@@ -61,7 +61,9 @@ import { readFileSync } from 'fs';
 
 const { generateWorkout, LIBRARY_BUILT_TYPES } = await import('../lib/workout-engine.ts');
 const { trainTypeOf } = await import('../lib/session-type.ts');
-const { CONDITIONING_EXERCISES } = await import('../lib/exercise-library.ts');
+const { CONDITIONING_EXERCISES, WARMUP_CARDIO_EXERCISES } = await import(
+  '../lib/exercise-library.ts'
+);
 const { canPerformWith } = await import('../lib/kit.ts');
 const { getStandalonePrehabWorkout } = await import('../lib/exercise-db.ts');
 const {
@@ -320,11 +322,26 @@ const restoreStandIns = new Set(
     .map((t) => t.name)
 );
 
+/**
+ * AND THE WALK, WHICH IS THE ONE RECORD THAT IS ON NEITHER LIST.
+ *
+ * Archie, 29 September 2026: two minutes of cardio opens every session, and
+ * somebody at home with no machine walks or skips. Skipping is on his nine and
+ * is kept away from beginners by decision 7, so a beginner at home opens on the
+ * walk - the one record in WARMUP_CARDIO_EXERCISES, which is kept off the nine
+ * because a two minute walk is a warm-up and not conditioning work.
+ *
+ * Read off that list rather than by name, and unioned into the conditioning map
+ * below so the "at an easy pace" and "never on kit they have not got" rules
+ * that follow are asked of the walk too rather than skipping past it.
+ */
+for (const record of WARMUP_CARDIO_EXERCISES) conditioningByName.set(record.name, record);
+
 const offTheList = fromLibrary.filter(
   (r) => !conditioningByName.has(r.first.name) && !restoreStandIns.has(r.first.name)
 );
 check(
-  `every library session opens on the conditioning list or Restore mobility (${fromLibrary.length} checked)`,
+  `every library session opens on the conditioning list, the warm-up walk or Restore mobility (${fromLibrary.length} checked)`,
   fromLibrary.length > 0 && offTheList.length === 0,
   offTheList
     .slice(0, 3)

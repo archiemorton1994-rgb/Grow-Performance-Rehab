@@ -241,8 +241,15 @@ Four levels, one per onboarding answer.
 ## Conditioning
 
 The only conditioning exercises in the app (Archie, 2026-09-15). Used for the
-pulse raiser at the start of a session, for finishers and for the Conditioning
+cardio at the start of a session, for finishers and for the Conditioning
 session.
+
+Not all nine may open a session. Since 2026-09-25 no sled work does (decision
+19), and since 2026-09-29 a session opens on a CARDIO option for two minutes,
+which is the bike, the treadmill, the rower or skipping (decision 25). The
+others are finisher and block work. A Brisk Walk was added for the person with
+no machine at all; it is deliberately NOT on this list, because it is a warm-up
+rather than conditioning work, and it lives on its own in lib/exercise-library.ts.
 
 - Sled Push - Sled
 - Sled Pull and Push - Sled (dragged backwards, then pushed back to the start)
@@ -333,6 +340,30 @@ gave when the clinical consequence was put to him. The numbering carries on.
     band pulls a bodyweight jump backwards, so it is listed above as Band
     Resisted Broad Jumps.
 24. The breathing drill a session closes on is ten breaths, not three minutes.
+
+## Decisions (Archie, 2026-09-29, third batch after testing on Expo)
+
+His words on the warm-up, and the answers he gave to the four questions they
+raised. The numbering carries on.
+
+25. Every session opens on a cardio option for two minutes: "the warm up
+    exercises should be a cardio option for 2 minutes (incline walk, assault
+    bike etc.)". At home with no machine that is skipping or walking, and
+    decision 7 still keeps skipping away from beginners, so a beginner at home
+    walks. A Brisk Walk record was written for them. It is not on the
+    conditioning list above: it is a warm-up, not a finisher and not a block.
+26. Then the drills he named, by day. Full Body gets Banded Face Pulls AND Hip
+    Circles, Upper Body gets Banded Face Pulls, Lower Body gets Hip Circles.
+    "These exercises should be the go to exercises but should still have swap
+    options if the client wants to do a different exercise." The family rule
+    from decision 19 is not deleted: it is demoted, and it fills every warm-up
+    slot these do not.
+27. The hip drill is plain Hip Circles rather than banded ones: "change banded
+    hip circles to just hip circles". It needs nothing, so every kit answer
+    gets it. Banded Face Pulls keeps its band and falls back to Door Frame Rows
+    where there is none - though today that fallback never fires, because Door
+    Frame Rows is the only pull anybody without a band owns and the session
+    needs it for the work.
 
 ## Notes taken while transcribing
 

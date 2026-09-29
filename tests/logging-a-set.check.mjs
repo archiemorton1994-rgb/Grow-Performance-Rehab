@@ -476,6 +476,10 @@ console.log('\n[3b] Where the load is described in words, only the kit that hold
     'Skipping',
     'Duck Walks',
     'Bear Crawl',
+    // The two minute opener somebody with no machine gets (Archie, 29 September
+    // 2026). Walking has nothing to put a weight on, so the decision this
+    // section asks for is made here: no box.
+    'Brisk Walk',
     'Isometric Adductor Squeeze (Ball or Towel)',
   ];
   const named = (list, name) => list.some((n) => key(n) === key(name));

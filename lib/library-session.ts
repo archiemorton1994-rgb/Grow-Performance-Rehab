@@ -24,11 +24,19 @@ import {
   restrictedTagsOnRecord,
   substitutionNote,
 } from './exercise-safety';
-import type { KitKey, LibraryExercise, LibraryLevel, LibraryPattern } from './exercise-library';
+import type {
+  ConditioningExercise,
+  KitKey,
+  LibraryExercise,
+  LibraryLevel,
+  LibraryPattern,
+} from './exercise-library';
 import {
   CONDITIONING_EXERCISES,
   LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
   hasAuthoredContent,
+  isCardioOpener,
   isPulseRaiser,
   patternsOf,
 } from './exercise-library';
@@ -60,10 +68,13 @@ import {
  *
  * WHAT IT BUILDS, IN ORDER (plan section 1; decisions 7 to 10)
  * ───────────────────────────────────────────────────────────
- *   1. Pulse raiser   one conditioning item at an easy pace, kit permitting,
- *                     and never sled work - see `isPulseRaiser`.
- *   2. Mobility       Restore drills, 1 / 2 / 2 by session length, chosen for
- *                     the day they stand in front of - see WARMUP_ORDER.
+ *   1. Cardio         two minutes of it, on a machine where there is one and on
+ *                     foot where there is not - see `warmupCardioTiers`, and
+ *                     never sled work - see `isPulseRaiser`.
+ *   2. Drills         the ones Archie named for this day first - see
+ *                     NAMED_WARMUP_DRILLS - and then Restore drills, 1 / 2 / 2
+ *                     by session length, chosen for the day they stand in front
+ *                     of - see WARMUP_ORDER.
  *   3. Power          Athlete ceiling only, and only at 45 or 60 minutes.
  *   4. Pattern slots  the movements the session is actually about.
  *   5. Finisher       at 60 minutes, or at 45 for a fat loss or fitness goal.
@@ -381,6 +392,79 @@ export function warmupFamilyOrder(sessionType: LibrarySessionType, slot: number)
   }
   return tried;
 }
+
+/**
+ * THE DRILLS ARCHIE NAMED, ONE ENTRY PER SLOT, BEST RECORD FIRST.
+ *
+ * Archie, 29 September 2026: Full Body gets Banded Face Pulls AND Hip Circles,
+ * Upper Body gets Banded Face Pulls, Lower Body gets Hip Circles. "These
+ * exercises should be the go to exercises but should still have swap options if
+ * the client wants to do a different exercise."
+ *
+ * A LIST OF NAMES, WHICH IS THE OPPOSITE OF WHAT WARMUP_ORDER ABOVE IS, AND ON
+ * PURPOSE. Three days earlier he described a RULE - glutes before a leg day -
+ * and a rule is what the family order holds, so that a drill written next year
+ * inherits it. This time he named the exercises themselves, and a rule dressed
+ * up to produce two particular records would be the code pretending to have
+ * reasons it has not got. The two live one above the other: these lead, and the
+ * family order fills every slot they do not.
+ *
+ * BY ID RATHER THAN BY NAME, so a spelling change cannot quietly empty a row;
+ * ids that match nothing are caught by tests/warmup-named.check.mjs.
+ *
+ * SECOND ENTRY IS THE NO-KIT ANSWER, in his words: "banded face pulls swaps to
+ * doorframe rows". Hip Circles has no second entry because it needs nothing -
+ * he asked for plain hip circles rather than banded ones for exactly that
+ * reason - so everybody gets it whatever they own.
+ */
+export const NAMED_WARMUP_DRILLS: Record<LibrarySessionType, readonly (readonly string[])[]> = {
+  lower_body: [['ph-s-16']],
+  upper_body: [['bn-acc-bw-8', 'lib-pull-door-frame-rows']],
+  full_body: [['bn-acc-bw-8', 'lib-pull-door-frame-rows'], ['ph-s-16']],
+};
+
+/**
+ * WHAT MAY OPEN A SESSION, IN TIERS, BEST TIER FIRST.
+ *
+ * Archie, 29 September 2026: "the warm up exercises should be a cardio option
+ * for 2 minutes (incline walk, assault bike etc.)". So the first tier is the
+ * cardio records that need a machine, because those are the ones he named and
+ * because a gym is where they are. The second is the cardio that needs nothing
+ * - skipping and the walk - which is his own answer for somebody at home, and
+ * which a beginner reaches as the walk alone, since decision 7 keeps skipping
+ * away from beginners and is not overruled here.
+ *
+ * THE THIRD TIER IS STAGE 7'S RULE, KEPT UNDERNEATH RATHER THAN DELETED. The
+ * Bear Crawl and the Duck Walk are still allowed to open a session when there
+ * is no cardio left at all. Today there always is - the walk needs nothing and
+ * carries no stress tag - so this tier cannot fire, which is exactly why it is
+ * a function that can be asked directly rather than a branch inside the builder
+ * that no sweep could reach.
+ *
+ * EMPTY TIERS ARE DROPPED, so a caller walking them in order never has to
+ * decide what an empty pool means.
+ */
+export function warmupCardioTiers(
+  available: readonly ConditioningExercise[]
+): ConditioningExercise[][] {
+  const cardio = available.filter(isCardioOpener);
+  return [
+    cardio.filter((e) => e.kit.length > 0),
+    cardio.filter((e) => e.kit.length === 0),
+    available.filter((e) => !isCardioOpener(e)),
+  ].filter((tier) => tier.length > 0);
+}
+
+/**
+ * How long the opening cardio card runs for. Archie's number, not a guess.
+ *
+ * Written over whatever the record itself asks for, because the records were
+ * written as conditioning work and say so: the treadmill walk is five minutes,
+ * the rower five hundred metres, skipping sixty seconds. Two minutes is what he
+ * asked a warm-up to be, and `doseOfPrescription` reads this sentence as time,
+ * so the card gets a countdown rather than a rep counter.
+ */
+export const CARDIO_OPENER_REPS = '2 min';
 
 /**
  * The pattern slots each session asks for, in order, and two versions of each.
@@ -1025,10 +1109,23 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     return null;
   };
 
-  // ── 1. Pulse raiser ───────────────────────────────────────────────────────
-  // One conditioning item, at a pace that raises the pulse and nothing more.
-  // Skipping is not offered to a beginner here or in the finisher (decision 7),
-  // which the beginner impact rule above takes care of.
+  /**
+   * WHICH MOVEMENTS THE WORK BELOW IS GOING TO ASK FOR.
+   *
+   * Read here, above the warm-up, rather than where the slots are filled,
+   * because one of the drills Archie named can collide with them - see
+   * `wouldStripTheWork`. Nothing about it depends on the warm-up, so moving it
+   * up changes no answer.
+   */
+  const patterns = SLOT_PATTERNS[sessionType][n % SLOT_PATTERNS[sessionType].length];
+  const slotCount = SLOT_COUNTS[sessionType][timeAvailable];
+  const asked = new Set<LibraryPattern>(patterns.slice(0, slotCount));
+
+  // ── 1. Two minutes of cardio ──────────────────────────────────────────────
+  // Archie, 29 September 2026: "the warm up exercises should be a cardio option
+  // for 2 minutes (incline walk, assault bike etc.)". Skipping is not offered to
+  // a beginner here or in the finisher (decision 7), which the beginner impact
+  // rule above takes care of, so a beginner at home opens on the walk.
   const conditioningPool = CONDITIONING_EXERCISES.filter(
     (e) => hasAuthoredContent(e) && canPerformWith(e, equipment)
   );
@@ -1039,21 +1136,62 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
    * applies to this slot and to the swap button behind it, and to nothing else:
    * the finisher below still draws on the whole list, so the sled keeps its
    * place in the session, just not at the top of it.
+   *
+   * It is now the second question rather than the first, because everything the
+   * cardio tiers offer is already something Archie named as a warm-up. The sled
+   * cannot reach the tiers at all: no sled record says it works the
+   * cardiovascular system, and the tier that would take one is the third, which
+   * this filter empties of sled work before `warmupCardioTiers` ever sees it.
    */
   const pulsePool = conditioningPool.filter(isPulseRaiser);
-  /** The same pool by id, so the swap pass below can tell one of the nine from a
+  /**
+   * The walk, when the kit and the day allow it, on the end of that list.
+   *
+   * It is not on Archie's nine and must not be: see WARMUP_CARDIO_EXERCISES in
+   * lib/exercise-library.ts. It is here because this is the one slot it is for.
+   */
+  const openerPool = [
+    ...pulsePool,
+    ...WARMUP_CARDIO_EXERCISES.filter((e) => hasAuthoredContent(e) && canPerformWith(e, equipment)),
+  ];
+  /** The same records by id, so the swap pass below can tell one of them from a
    *  Restore drill that stood in for it. */
-  const conditioningById = new Map(conditioningPool.map((e) => [e.id, e]));
-  const pulse = pickFrom(pulsePool, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
-  if (pulse) {
-    add({ ...templateToExercise(pulse), category: 'prep', sets: 1, suggestedLoad: 'Easy pace' });
+  const conditioningById = new Map(
+    [...conditioningPool, ...WARMUP_CARDIO_EXERCISES].map((e) => [e.id, e])
+  );
+  const openerTiers = warmupCardioTiers(openerPool);
+  /**
+   * The best tier that has something this person may do today.
+   *
+   * Every tier is walked from the same rotation position, so the choice within
+   * a tier turns over with the block exactly as it did before, and a tier that
+   * is empty or entirely withheld hands the slot to the next one rather than
+   * leaving the session without an opener.
+   */
+  let opener: ConditioningExercise | null = null;
+  for (const tier of openerTiers) {
+    opener = pickFrom(tier, Math.floor(n / SLOT_ROTATION_EVERY), choosable);
+    if (opener) break;
+  }
+  if (opener) {
+    /**
+     * TWO MINUTES, WRITTEN OVER THE RECORD'S OWN PRESCRIPTION.
+     *
+     * Only for a cardio option, which is all this slot can hold today. If the
+     * third tier ever fires, a Bear Crawl keeps the fifteen metres it is written
+     * at rather than being put on a two minute clock it was never written for.
+     */
+    const asCardio = isCardioOpener(opener);
+    add({
+      ...templateToExercise(opener),
+      category: 'prep',
+      sets: 1,
+      reps: asCardio ? CARDIO_OPENER_REPS : opener.reps,
+      suggestedLoad: 'Easy pace',
+    });
   } else {
     /**
-     * NOTHING ON THE NINE FITS, SO THE SESSION OPENS ON RESTORE MOBILITY.
-     *
-     * Reachable: a beginner with no kit and a sore ankle loses Skipping to the
-     * beginner rule and Duck Walks and Bear Crawl to the ankle, and owns none of
-     * the machines.
+     * NOTHING AT ALL FITS, SO THE SESSION OPENS ON RESTORE MOBILITY.
      *
      * It used to stand in with ph-s-1, "Cardio Warm-Up (Easy Walk / Bike)" - the
      * card the Restore Joint Health session opens on. That was the last place in
@@ -1066,6 +1204,12 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
      * draws on, so the session opens on something that can be demonstrated, and
      * the person simply gets one more drill than they otherwise would. Nothing
      * is hidden by that: every card still says what it is.
+     *
+     * It used to be reachable - a beginner with no kit and a sore ankle lost
+     * Skipping to the beginner rule and Duck Walks and Bear Crawl to the ankle -
+     * and it no longer is, because the Brisk Walk needs nothing and carries no
+     * stress tag. It stays because a content change that retired the walk would
+     * otherwise leave that person's session with no warm-up at all.
      */
     const stand = pickDrill(0);
     if (stand) {
@@ -1073,12 +1217,90 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     }
   }
 
-  // ── 2. Mobility ───────────────────────────────────────────────────────────
-  const mobilityCount = mobilityCountFor(timeAvailable, profile?.ageYears);
+  // ── 2. The drills Archie named, then the family order underneath ──────────
+  /**
+   * A NAMED DRILL THE SESSION IS ABOUT TO NEED FOR ITS OWN WORK IS LEFT ALONE.
+   *
+   * Door Frame Rows is the no-band answer Archie gave for Banded Face Pulls,
+   * and it is also the ONLY pulling exercise in the whole library that needs no
+   * equipment (lib/kit.ts says so, and decision 4 is why). Somebody at home has
+   * one pull; taking it into the warm-up would hand them an upper body session
+   * with no pulling in it at all, because `used` stops the same record being
+   * prescribed twice.
+   *
+   * So the rule is not about that record by name: a named drill is refused
+   * unless the session has ANOTHER exercise of that pattern to work with. At
+   * home with dumbbells or nothing, it has not, so the warm-up falls through to
+   * the family order and the one pull stays where it counts. With bands the
+   * pull pool holds three, so Archie's face pulls lead the warm-up and the work
+   * still has a pull.
+   *
+   * ASKED AT LEVEL 1, WHICH IS THE RUNG EVERYBODY CAN REACH, and this is the
+   * part a first attempt got wrong. Asking at the person's own ceiling said
+   * yes to an Athlete with dumbbells, because the library holds a harder pull
+   * they could in principle do - and then the accessory cap, which is a rung
+   * below the main lift, put it out of reach and the session came back with no
+   * pulling in it at all. The question is not "does a heavier one exist", it is
+   * "is there another one this session can certainly use".
+   */
+  const wouldStripTheWork = (record: LibraryExercise): boolean =>
+    patternsOf(record).some(
+      (pattern) =>
+        asked.has(pattern) &&
+        !slotPool(pattern, 1, equipment).some((e) => e.id !== record.id && choosable(e))
+    );
+  /**
+   * THE NAMED DRILLS THAT SURVIVE, IN ARCHIE'S ORDER.
+   *
+   * One entry per slot he named, each one the first record of its row that this
+   * person can do today. A row that comes back with nothing is dropped rather
+   * than left as a hole, which is what moves the family order up into its slot.
+   */
+  const namedDrills: ExerciseTemplate[] = [];
+  for (const row of NAMED_WARMUP_DRILLS[sessionType]) {
+    for (const id of row) {
+      const fromLibrary = LIBRARY_EXERCISES.find((e) => e.id === id);
+      const record =
+        fromLibrary ??
+        (mobilityPool.find((t) => t.id === id) as ExerciseTemplate | undefined) ??
+        null;
+      if (!record) continue;
+      if (fromLibrary && (!canPerformWith(fromLibrary, equipment) || wouldStripTheWork(fromLibrary)))
+        continue;
+      if (!choosable(record)) continue;
+      namedDrills.push(record);
+      break;
+    }
+  }
+  /**
+   * HOW MANY DRILLS GO IN, WHICH IS NEVER FEWER THAN THE ONES HE NAMED.
+   *
+   * `mobilityCountFor` protects the half-hour session by giving it one drill,
+   * and a Full Body day has two named drills. Archie asked for both of them on
+   * that day, so the floor is what he named and the clock decides the rest: a
+   * thirty-minute Full Body warm-up is the cardio and two drills, and a
+   * thirty-minute Lower Body warm-up is the cardio and one.
+   *
+   * COUNTED OFF WHAT HE NAMED, NOT OFF WHAT SURVIVED. A full body day whose
+   * face pulls are gone - no band, and the door frame row left where the work
+   * needs it - still gets two drills, and the family order fills the second.
+   * Counting the survivors instead would hand that person a shorter warm-up
+   * than the one next to them, which is the hole this is here to close.
+   */
+  const mobilityCount = Math.max(
+    mobilityCountFor(timeAvailable, profile?.ageYears),
+    NAMED_WARMUP_DRILLS[sessionType].length
+  );
   for (let i = 0; i < mobilityCount; i++) {
-    const drill = pickDrill(i);
+    const drill = namedDrills[i] ?? pickDrill(i);
     if (!drill) break;
-    add({ ...templateToExercise(drill), category: 'prep' });
+    /**
+     * Two sets, which is the dose every Restore drill in this block is written
+     * at. The two Archie named are Train records written as accessory work at
+     * three sets, and three sets of a band drill in front of the session is
+     * work rather than a warm-up.
+     */
+    add({ ...templateToExercise(drill), category: 'prep', sets: 2 });
   }
 
   // ── 3. Power ──────────────────────────────────────────────────────────────
@@ -1111,9 +1333,8 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
   }
 
   // ── 4. Pattern slots ──────────────────────────────────────────────────────
-  const patterns = SLOT_PATTERNS[sessionType][n % SLOT_PATTERNS[sessionType].length];
-  const slotCount = SLOT_COUNTS[sessionType][timeAvailable];
-  const asked = new Set<LibraryPattern>(patterns.slice(0, slotCount));
+  // `patterns`, `slotCount` and `asked` are read above the warm-up, because one
+  // of the drills Archie named can collide with the work these ask for.
   /** Why a pattern could not be filled, kept for the sweep below. */
   const reasons = new Map<LibraryPattern, string>();
   /**
@@ -1588,8 +1809,18 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
    * button would be the same card back, one tap away. So a warm-up card is
    * offered what could have opened the session instead, and the finisher, which
    * is conditioning and is meant to be hard, keeps the whole nine.
+   *
+   * IN THE SAME TIERS THE OPENER ITSELF WAS CHOSEN FROM (Archie, 29 September
+   * 2026), so the button behind two minutes of cardio leads with the other
+   * cardio options rather than with a Bear Crawl. Sorted, not filtered: the
+   * crawls are still reachable one place further down, because "I would rather
+   * do something else" is the whole point of the button.
    */
-  const sparePulse = spareConditioning.filter(isPulseRaiser);
+  const sparePulse = warmupCardioTiers(
+    openerPool.filter(
+      (record) => !usedIds.has(record.id) && !usedNames.has(sameMovementKey(record.name))
+    )
+  ).flat();
   /**
    * AND THE MOBILITY DRILLS, WHICH HAVE THE SAME PROBLEM FOR THE SAME REASON.
    *
@@ -1628,13 +1859,43 @@ export function generateLibrarySession(input: LibrarySessionInput): LibrarySessi
     .filter((t) => !usedIds.has(t.id) && !usedNames.has(sameMovementKey(t.name)))
     .sort((a, b) => swapRankOf(a) - swapRankOf(b));
   const mobilityByName = new Map(mobilityPool.map((t) => [sameMovementKey(t.name), t]));
+  /**
+   * AND THE DRILLS ARCHIE NAMED, WHICH ARE THE SAME PROBLEM AGAIN.
+   *
+   * Banded Face Pulls and Door Frame Rows are records from his exercise
+   * library, not from Restore, so neither list above finds them and a warm-up
+   * card built from one would have had nothing behind its button - on every
+   * upper body and full body session anybody with a band ever gets. He was
+   * plain about that: "These exercises should be the go to exercises but should
+   * still have swap options if the client wants to do a different exercise."
+   *
+   * They are answered from the mobility drills, in the family order this day
+   * uses, which is what the rest of the pool IS on a warm-up card. Hip Circles
+   * needs no entry here because it is a Restore drill and the line above
+   * already finds it.
+   */
+  const namedDrillIds = new Set(namedDrills.map((t) => t.id));
   const withOwnSwaps = capped.map((card) => {
     if (!conditioningRoles.has(card.category) || card.safetyNote) return card;
     const fromNine = conditioningById.has(card.id);
-    const fromRestore = mobilityByName.has(sameMovementKey(card.name));
+    const fromRestore =
+      mobilityByName.has(sameMovementKey(card.name)) || namedDrillIds.has(card.id ?? '');
     if (!fromNine && !fromRestore) return card;
+    /**
+     * A WARM-UP CARD IS NEVER LEFT WITH AN EMPTY BUTTON.
+     *
+     * The cardio card runs out first: at home a beginner opens on the walk, and
+     * a sore ankle and a sore wrist between them can take the Duck Walk and the
+     * Bear Crawl as well. The mobility drills go on the end of its list rather
+     * than an empty button being shipped, and they are last, so nobody at a gym
+     * is ever offered a Wall Slide in place of the rower.
+     */
     const options = (
-      fromNine ? (card.category === 'prep' ? sparePulse : spareConditioning) : spareMobility
+      fromNine
+        ? card.category === 'prep'
+          ? [...sparePulse, ...spareMobility]
+          : spareConditioning
+        : spareMobility
     ).filter((record) => choosable(record));
     if (options.length === 0) return card;
     const [first, second] = options;

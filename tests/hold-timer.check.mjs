@@ -65,6 +65,50 @@
 
 globalThis.__DEV__ = false;
 
+/**
+ * TODAY IS PINNED, AND THE SWEEP BELOW RUNS ON TWO OF THEM.
+ *
+ * Restore's Mobility session alternates between two halves of its stretch pool
+ * on even and odd days, so which prescriptions the app prints depends on the
+ * date. With the real clock this file passed on even days and failed on odd
+ * ones: "45s each leg" is the Supine Hamstring Stretch, which sits at index 4
+ * of the fourteen and is therefore in the even-day half and not the odd-day
+ * one, so section [1a]'s "every row of the table is a prescription the app
+ * still prints" went red every other day for a reason that had nothing to do
+ * with the code under test.
+ *
+ * So the date is fixed here rather than read, and `advanceADay` below is used
+ * to sweep the day after as well - which is what makes the enumeration honest,
+ * because between the two days the sweep reaches every stretch the app holds
+ * rather than half of them.
+ *
+ * Only a zero-argument `new Date()` is redirected, which is exactly what
+ * `getLocalDayIndex` calls, and its three calendar getters are answered with a
+ * fixed day so the index is the same in every timezone rather than the same on
+ * this machine. Everything else about Date is untouched.
+ */
+const FIXED_YEAR = 2026;
+const FIXED_MONTH = 0;
+let fixedDay = 15;
+const advanceADay = () => {
+  fixedDay += 1;
+};
+{
+  const RealDate = Date;
+  const fixed = () => {
+    const d = new RealDate(RealDate.UTC(FIXED_YEAR, FIXED_MONTH, fixedDay, 12, 0, 0));
+    d.getFullYear = () => FIXED_YEAR;
+    d.getMonth = () => FIXED_MONTH;
+    d.getDate = () => fixedDay;
+    return d;
+  };
+  globalThis.Date = new Proxy(RealDate, {
+    construct(target, args) {
+      return args.length === 0 ? fixed() : new target(...args);
+    },
+  });
+}
+
 import './_persist-shim.mjs';
 import { generateWorkout } from '../lib/workout-engine.ts';
 import { assembleSession, exercisesInCategory } from '../lib/session-builder.ts';
@@ -166,11 +210,22 @@ const remember = (list) => {
   }
 };
 
+/**
+ * SEEDS FAR ENOUGH APART TO WALK THE WHOLE FINISHER ROTATION.
+ *
+ * The finisher is picked at `floor(n / 3) + 1` of the nine conditioning
+ * records, so 0 to 7 only ever reaches the first four of them and the treadmill
+ * - the one prescribed at five minutes - was never the finisher in this sweep.
+ * That did not matter while the treadmill also opened sessions at its own five
+ * minutes; since 29 September 2026 the opener is written at two minutes
+ * (Archie), so five minutes is now printed ONLY by that finisher, and a sweep
+ * that cannot reach it would have declared a live prescription stale.
+ */
 for (const kit of KITS)
   for (const experienceLevel of LEVELS)
     for (const goals of GOALS)
       for (const timeAvailable of TIMES)
-        for (const seed of [0, 1, 2, 3, 4, 5, 6, 7]) {
+        for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 9, 12, 15]) {
           const profile = { name: 'T', sex: 'male', experienceLevel, goals, bodyweightKg: 80 };
           const readiness = { hasAches: false, energy: 'normal', timeAvailable };
           for (const sessionType of TYPES) {
@@ -178,6 +233,32 @@ for (const kit of KITS)
             sessionsBuilt++;
           }
         }
+
+/**
+ * AND THE SAME AGAIN ON THE FOLLOWING DAY, for the Mobility session alone.
+ *
+ * It is the one session whose content turns over with the calendar rather than
+ * with the session count, and it alternates between two halves of the stretch
+ * pool. One day of sweeping reads half the stretches the app can print.
+ */
+advanceADay();
+for (const kit of KITS)
+  for (const experienceLevel of LEVELS)
+    for (const timeAvailable of TIMES)
+      for (const seed of [0, 1, 2, 3]) {
+        const profile = {
+          name: 'T',
+          sex: 'male',
+          experienceLevel,
+          goals: ['muscle'],
+          bodyweightKg: 80,
+        };
+        const readiness = { hasAches: false, energy: 'normal', timeAvailable };
+        remember(
+          buildSession('flexibility', kit[0] ?? 'bodyweight', readiness, profile, seed, kit)
+        );
+        sessionsBuilt++;
+      }
 
 const FULL_KIT = ['fullgym', 'bench', 'sled', 'cable', 'trapbar'];
 for (const painRegion of REGIONS)

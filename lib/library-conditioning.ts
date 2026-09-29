@@ -16,10 +16,20 @@ import {
   restrictedTagsOnRecord,
 } from './exercise-safety';
 import type { KitKey, LibraryLevel } from './exercise-library';
-import { CONDITIONING_EXERCISES, hasAuthoredContent, isPulseRaiser } from './exercise-library';
+import {
+  CONDITIONING_EXERCISES,
+  hasAuthoredContent,
+  isCardioOpener,
+  isPulseRaiser,
+} from './exercise-library';
 import { canPerformWith } from './kit';
 import type { LibraryReadiness } from './library-session';
-import { kitSentence, levelCeilingFor } from './library-session';
+import {
+  CARDIO_OPENER_REPS,
+  kitSentence,
+  levelCeilingFor,
+  warmupCardioTiers,
+} from './library-session';
 import type { Exercise } from './workout-engine';
 import {
   applyInjurySafety,
@@ -467,7 +477,23 @@ export function generateLibraryConditioningSession(
    * anyway: if that ever stops being true the session opens on a mobility drill
    * and says so, rather than opening on a sled.
    */
-  const pulseCandidates = available.filter(isPulseRaiser);
+  /**
+   * AND THE CARDIO GOES FIRST (Archie, 29 September 2026).
+   *
+   * "The warm up exercises should be a cardio option for 2 minutes (incline
+   * walk, assault bike etc.)" - said of a training session, and a Conditioning
+   * session opens the same way, so the same order is used here as in
+   * lib/library-session.ts: the cardio this person owns leads, and the crawls
+   * fall in behind it rather than being taken out.
+   *
+   * WHAT IS NOT CHANGED IS WHETHER THERE IS AN OPENER AT ALL. The list still
+   * has to be able to SPARE one - a home beginner has two exercises and
+   * spending one of them on an easy-pace card would leave a single block of
+   * work - and the walk in WARMUP_CARDIO_EXERCISES is deliberately not reached
+   * from here, because it would change that answer rather than reorder it. That
+   * is a question for Archie, not a side effect of this one.
+   */
+  const pulseCandidates = warmupCardioTiers(available.filter(isPulseRaiser))[0] ?? [];
   const pulse =
     available.length > asked && pulseCandidates.length > 0
       ? pulseCandidates[n % pulseCandidates.length]
@@ -482,12 +508,20 @@ export function generateLibraryConditioningSession(
   /** Why the warm-up is not one of the nine, when it is not. See the interface. */
   let warmUpNote: string | null = null;
 
-  // ── 1. Pulse raiser ───────────────────────────────────────────────────────
+  // ── 1. Two minutes of cardio ──────────────────────────────────────────────
   if (pulse) {
     built.push({
       ...templateToExercise(pulse),
       category: 'prep',
       sets: 1,
+      /**
+       * Two minutes when what opened the session is cardio, and the record's
+       * own prescription when it is not: a Bear Crawl is written at fifteen
+       * metres and putting it on a clock it was never written for would be this
+       * file inventing a dose. Same rule, same constant, as the strength
+       * session next door.
+       */
+      reps: isCardioOpener(pulse) ? CARDIO_OPENER_REPS : pulse.reps,
       suggestedLoad: 'Easy pace',
     });
   } else {

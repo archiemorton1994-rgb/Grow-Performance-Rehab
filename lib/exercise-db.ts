@@ -15,7 +15,11 @@ import { ACUTE_PREHAB_BY_REGION } from './acute-rehab';
  * legs grey on the Stats tab. lib/exercise-library.ts imports only a TYPE from
  * here, so this adds no runtime cycle.
  */
-import { CONDITIONING_EXERCISES, LIBRARY_EXERCISES } from './exercise-library';
+import {
+  CONDITIONING_EXERCISES,
+  LIBRARY_EXERCISES,
+  WARMUP_CARDIO_EXERCISES,
+} from './exercise-library';
 
 export { ACUTE_PREHAB_BY_REGION, ACUTE_PROTOCOL_NOTES, PAIN_FREE_RULE } from './acute-rehab';
 export type { AcuteProtocolNotes } from './acute-rehab';
@@ -507,7 +511,7 @@ const STANDALONE_PREHAB: ExerciseTemplate[] = [
     isUnilateral: false,
     injuryFriendlyAlternatives: [],
   },
-  // ── Additional pool entries (13 total middle exercises; 7 picked per session via seeded rotation)
+  // ── Additional pool entries (14 total middle exercises; 7 picked per session via seeded rotation)
   {
     id: 'ph-s-10',
     name: 'Bird Dog',
@@ -615,6 +619,48 @@ const STANDALONE_PREHAB: ExerciseTemplate[] = [
     videoId: '',
     movementPattern: 'rehabilitation',
     primaryMuscle: 'Calves',
+    secondaryMuscles: [],
+    equipmentRequired: 'bodyweight',
+    difficulty: 'beginner',
+    isUnilateral: true,
+    injuryFriendlyAlternatives: [],
+  },
+  /**
+   * HIP CIRCLES, WRITTEN PLAIN AND WRITTEN NEW (Archie, 29 September 2026).
+   *
+   * He asked for it by name as the go-to hip drill in front of a lower body and
+   * a full body session, and then answered the kit question himself: "change
+   * banded hip circles to just hip circles". So it needs nothing at all, which
+   * is why the band is in neither `equipmentRequired` nor the cue.
+   *
+   * A NEW RECORD RATHER THAN A RENAME, because there was nothing to rename: the
+   * app has never held a hip circle of any spelling, banded or otherwise. So
+   * nobody has logged one, no history changes, and no id moves. His channel has
+   * a video called "Banded Hip Circles" that demonstrates exactly this movement
+   * with a band on, and lib/exercise-videos.ts attaches it and says why.
+   *
+   * FILED AT THE HIP AND THE GLUTES on its own record, which is what puts it in
+   * the glute and hip family in lib/library-session.ts rather than a list of
+   * names saying so. It is a Restore drill like the thirteen around it, so it
+   * also joins the Joint Health rotation and the warm-up's swap button for free.
+   *
+   * THE CUE AVOIDS THE WORDS "KNEE DRIVE" ON PURPOSE. That phrase is one of the
+   * patterns `deep_knee_flexion` matches in lib/exercise-safety.ts, and a hip
+   * circle tripping it would take the drill away from every sore knee for a
+   * turn of phrase rather than for anything the movement does.
+   */
+  {
+    id: 'ph-s-16',
+    name: 'Hip Circles',
+    sets: 2,
+    reps: '10 each side',
+    cue: 'Stand tall with a hand on something for balance, lift one knee up to hip height and draw a slow circle with it - five one way, five the other, then swap legs',
+    suggestedLoad: 'Bodyweight',
+    category: 'prehab',
+    targetRegions: ['hip_groin', 'glutes'],
+    videoId: '',
+    movementPattern: 'mobility',
+    primaryMuscle: 'Glute medius',
     secondaryMuscles: [],
     equipmentRequired: 'bodyweight',
     difficulty: 'beginner',
@@ -3138,12 +3184,19 @@ export function getAllPickableExercises(): PickableExercise[] {
        * the muscle maps, the video status document and the count on the paywall
        * all read one of these walks.
        *
-       * tests/library-only.check.mjs holds this to exactly the three lists, by
-       * name and in both directions: nothing reachable that has no record, and no
+       * tests/library-only.check.mjs holds this to exactly those lists, by name
+       * and in both directions: nothing reachable that has no record, and no
        * record that cannot be reached.
+       *
+       * WARMUP_CARDIO_EXERCISES is the one addition, and it is one record: the
+       * Brisk Walk somebody with no machine opens a session on (Archie,
+       * 29 September 2026). It is kept off his conditioning nine on purpose -
+       * see the note on it in lib/exercise-library.ts - and it is walked here
+       * because it is prescribed on a card like any other.
        */
       LIBRARY_EXERCISES,
       CONDITIONING_EXERCISES,
+      WARMUP_CARDIO_EXERCISES,
       STANDALONE_PREHAB,
       STANDALONE_FLEXIBILITY,
       PREHAB_BY_REGION,
@@ -3220,12 +3273,19 @@ export function getExerciseCategoryMap(): Record<string, ExerciseCategory> {
      * the muscle maps, the video status document and the count on the paywall
      * all read one of these walks.
      *
-     * tests/library-only.check.mjs holds this to exactly the three lists, by
-     * name and in both directions: nothing reachable that has no record, and no
+     * tests/library-only.check.mjs holds this to exactly those lists, by name
+     * and in both directions: nothing reachable that has no record, and no
      * record that cannot be reached.
+     *
+     * WARMUP_CARDIO_EXERCISES is the one addition, and it is one record: the
+     * Brisk Walk somebody with no machine opens a session on (Archie,
+     * 29 September 2026). It is kept off his conditioning nine on purpose - see
+     * the note on it in lib/exercise-library.ts - and it is walked here because
+     * it is prescribed on a card like any other.
      */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
+    WARMUP_CARDIO_EXERCISES,
     STANDALONE_PREHAB,
     STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
@@ -3275,12 +3335,19 @@ export function getExerciseTargetRegionsMap(): Record<string, PainRegion[]> {
      * the muscle maps, the video status document and the count on the paywall
      * all read one of these walks.
      *
-     * tests/library-only.check.mjs holds this to exactly the three lists, by
-     * name and in both directions: nothing reachable that has no record, and no
+     * tests/library-only.check.mjs holds this to exactly those lists, by name
+     * and in both directions: nothing reachable that has no record, and no
      * record that cannot be reached.
+     *
+     * WARMUP_CARDIO_EXERCISES is the one addition, and it is one record: the
+     * Brisk Walk somebody with no machine opens a session on (Archie,
+     * 29 September 2026). It is kept off his conditioning nine on purpose - see
+     * the note on it in lib/exercise-library.ts - and it is walked here because
+     * it is prescribed on a card like any other.
      */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
+    WARMUP_CARDIO_EXERCISES,
     STANDALONE_PREHAB,
     STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
@@ -3355,12 +3422,19 @@ export function getRegionsByExerciseNameMap(): Record<string, PainRegion[]> {
      * the muscle maps, the video status document and the count on the paywall
      * all read one of these walks.
      *
-     * tests/library-only.check.mjs holds this to exactly the three lists, by
-     * name and in both directions: nothing reachable that has no record, and no
+     * tests/library-only.check.mjs holds this to exactly those lists, by name
+     * and in both directions: nothing reachable that has no record, and no
      * record that cannot be reached.
+     *
+     * WARMUP_CARDIO_EXERCISES is the one addition, and it is one record: the
+     * Brisk Walk somebody with no machine opens a session on (Archie,
+     * 29 September 2026). It is kept off his conditioning nine on purpose - see
+     * the note on it in lib/exercise-library.ts - and it is walked here because
+     * it is prescribed on a card like any other.
      */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
+    WARMUP_CARDIO_EXERCISES,
     STANDALONE_PREHAB,
     STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,
@@ -3414,12 +3488,19 @@ export function getExerciseNameMap(): Record<string, string> {
      * the muscle maps, the video status document and the count on the paywall
      * all read one of these walks.
      *
-     * tests/library-only.check.mjs holds this to exactly the three lists, by
-     * name and in both directions: nothing reachable that has no record, and no
+     * tests/library-only.check.mjs holds this to exactly those lists, by name
+     * and in both directions: nothing reachable that has no record, and no
      * record that cannot be reached.
+     *
+     * WARMUP_CARDIO_EXERCISES is the one addition, and it is one record: the
+     * Brisk Walk somebody with no machine opens a session on (Archie,
+     * 29 September 2026). It is kept off his conditioning nine on purpose - see
+     * the note on it in lib/exercise-library.ts - and it is walked here because
+     * it is prescribed on a card like any other.
      */
     LIBRARY_EXERCISES,
     CONDITIONING_EXERCISES,
+    WARMUP_CARDIO_EXERCISES,
     STANDALONE_PREHAB,
     STANDALONE_FLEXIBILITY,
     PREHAB_BY_REGION,

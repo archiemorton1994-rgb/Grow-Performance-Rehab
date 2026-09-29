@@ -4147,3 +4147,87 @@ export function isPulseRaiser(exercise: ConditioningExercise): boolean {
     (requirement) => requirement.length > 0 && requirement.every((key) => key === 'sled')
   );
 }
+
+/**
+ * THE WALK SOMEBODY WITH NO MACHINE OPENS ON, AND THE ONLY REASON IT EXISTS.
+ *
+ * Archie, 29 September 2026: "the warm up exercises should be a cardio option
+ * for 2 minutes (incline walk, assault bike etc.)", and asked what that means
+ * for somebody at home with nothing: "skipping or walking". His own decision 7
+ * keeps skipping away from beginners and is not overruled here, so a beginner
+ * at home gets the walk - and until now there was no walk to give them. Every
+ * cardio record on his list needs a machine except Skipping, which is exactly
+ * the person this record is for.
+ *
+ * NOT ON THE NINE, DELIBERATELY. `CONDITIONING_EXERCISES` is Archie's
+ * conditioning list, and what a session's blocks and its finisher draw on. Two
+ * minutes of easy walking is a warm-up and is not conditioning work: sitting it
+ * on that list would offer it as the hard finish to an hour of training and as
+ * a round of a Conditioning session, which is neither what he asked for nor
+ * anything a physiotherapist would write. Keeping it in a list of its own means
+ * no filter anywhere has to remember to take it out again.
+ *
+ * IT IS STILL A FULL RECORD, and is walked by `getAllPickableExercises` and the
+ * two id maps beside it in lib/exercise-db.ts, so the swap sheet, the injury
+ * screen, the muscle maps and the video report all know it exists. A prescribed
+ * card whose record none of those can find is the fault that list of walks
+ * exists to prevent.
+ *
+ * NEEDS NOTHING AND CARRIES NO STRESS TAG, which is what makes it the floor of
+ * the warm-up: there is no kit answer and no sore area that can take it away,
+ * so no session can be left without something to open on.
+ */
+export const WARMUP_CARDIO_EXERCISES: readonly ConditioningExercise[] = [
+  {
+    id: 'warm-cardio-brisk-walk',
+    name: 'Brisk Walk',
+    libraryName: 'Brisk Walk',
+    kit: [],
+    role: 'conditioning',
+    movementPattern: 'conditioning',
+    equipmentRequired: 'bodyweight',
+    category: 'cardio',
+    dose: 'time',
+    sets: 1,
+    reps: '2 min',
+    cue: 'Walk at a pace that makes holding a conversation a bit of an effort - outdoors, around the house or on the spot if there is no room',
+    suggestedLoad: 'Steady pace',
+    primaryMuscle: 'Cardiovascular system',
+    secondaryMuscles: ['Calves', 'Glutes', 'Quadriceps'],
+    targetRegions: ['calf_shin', 'glutes'],
+    videoId: '',
+    stress: [],
+  },
+];
+
+/** The muscle name a record uses to say that what it trains is the heart and lungs. */
+const CARDIO_MUSCLE = 'Cardiovascular system';
+
+/**
+ * WHETHER A RECORD IS THE "CARDIO OPTION" A SESSION IS MEANT TO OPEN ON.
+ *
+ * Archie, 29 September 2026: "the warm up exercises should be a cardio option
+ * for 2 minutes (incline walk, assault bike etc.)". Two of the nine that stage
+ * 7 was happy to open a session with are not that: a Bear Crawl and a Duck Walk
+ * are measured in metres, are hard work rather than easy work, and nobody would
+ * call either one cardio.
+ *
+ * READ OFF THE RECORD'S OWN MUSCLES, not off a list of names and not off the
+ * kit. A record that says it works the cardiovascular system is making that
+ * claim about itself, and the four on Archie's list that do - the assault bike,
+ * the treadmill, the rower and skipping - are exactly the four he would name.
+ * The crawls and the sled drags name quadriceps and abdominals instead, which
+ * is the honest description of what they are. A conditioning record written
+ * next year is placed by what it says it does rather than by somebody
+ * remembering to add it here.
+ *
+ * SECONDARY COUNTS, and it has to: Skipping names the calves first and the
+ * cardiovascular system second, and it is the one cardio option somebody at
+ * home with no machine has.
+ */
+export function isCardioOpener(exercise: ConditioningExercise): boolean {
+  return (
+    exercise.primaryMuscle === CARDIO_MUSCLE ||
+    (exercise.secondaryMuscles ?? []).includes(CARDIO_MUSCLE)
+  );
+}
