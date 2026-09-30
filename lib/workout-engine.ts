@@ -1662,6 +1662,86 @@ export interface LibraryFacts {
 }
 
 /**
+ * A CARD KEEPS ONLY THE ALTERNATIVES ITS OWN BUILDER CHOSE.
+ *
+ * `fillSwapAlternatives` does two jobs at once. It CLASSIFIES what a card
+ * already carries - same movement with other kit, or different work for the
+ * same muscles - and writes the sentence that explains it on the sheet, which is
+ * worth having on every card in the app. And where a slot is still empty it
+ * reaches into the old catalogue's index by muscle group to fill it, which for
+ * some cards is plainly the wrong pool to reach into.
+ *
+ * A CONDITIONING CARD IS ONE OF THOSE, and Archie said so on 30 September 2026:
+ * "When swapping the conditioning exercise at the end of the session it should
+ * only give other conditioning exercises as an option rather than suggesting a
+ * TRX row instead of sled rows." Measured over 3,816 conditioning cards across
+ * every session type, kit, level, length and three situations: 306 of the
+ * options offered were strength records out of the library rather than records
+ * on Archie's nine, in twelve distinct pairings, and 32 of them were the exact
+ * one he named - Sled Rows offered a TRX Row. Every one of the 306 was on a
+ * library session's FINISHER, because the conditioning session next door has
+ * been held to its list since it was written and contributed none.
+ *
+ * So this runs the fill for its labels and then throws away anything the fill
+ * ADDED, keeping the builder's own choices in the order the fill ranked them.
+ * Where the builder chose none the button stays empty, which is the honest
+ * answer to "what else on this list could I be doing" - stage 5 settled that an
+ * empty swap button beats a wrong one, and reaching back into a pool the rest of
+ * the app has stopped prescribing from is what "wrong" means here.
+ *
+ * `holds` decides which cards are subject to it. A safety substitution never is:
+ * its swap slot holds the exercise it REPLACED, which is the revert, and the
+ * fill leaves those alone for the same reason.
+ */
+function heldToTheBuildersList(
+  filled: Exercise[],
+  built: Exercise[],
+  holds: (card: Exercise) => boolean
+): Exercise[] {
+  return filled.map((ex, i) => {
+    if (!holds(ex) || ex.safetyNote) return ex;
+    const own = built[i];
+    const onTheList = new Set(
+      [own?.swapName, own?.swap2Name].filter((name): name is string => !!name)
+    );
+    const kept = [
+      {
+        id: ex.swapId,
+        name: ex.swapName,
+        cue: ex.swapCue,
+        load: ex.swapLoad,
+        kind: ex.swapKind,
+        reason: ex.swapReason,
+      },
+      {
+        id: ex.swap2Id,
+        name: ex.swap2Name,
+        cue: ex.swap2Cue,
+        load: ex.swap2Load,
+        kind: ex.swap2Kind,
+        reason: ex.swap2Reason,
+      },
+    ].filter((option) => !!option.name && onTheList.has(option.name));
+    return {
+      ...ex,
+      hasSwap: kept.length > 0,
+      swapId: kept[0]?.id,
+      swapName: kept[0]?.name,
+      swapCue: kept[0]?.cue,
+      swapLoad: kept[0]?.load,
+      swapKind: kept[0]?.kind,
+      swapReason: kept[0]?.reason,
+      swap2Id: kept[1]?.id,
+      swap2Name: kept[1]?.name,
+      swap2Cue: kept[1]?.cue,
+      swap2Load: kept[1]?.load,
+      swap2Kind: kept[1]?.kind,
+      swap2Reason: kept[1]?.reason,
+    };
+  });
+}
+
+/**
  * Every generation path, then the injury screen.
  *
  * The screen runs LAST, over the finished list, rather than being threaded
@@ -1927,8 +2007,11 @@ export function generateWorkout(
      *
      * Every other card is left exactly as the fill made it: the Restore warm-up
      * and cool-down swap within Restore, which is their own job and is right.
+     *
+     * The pass itself is `heldToTheBuildersList` above, which a library session's
+     * finisher now goes through as well. It was written here first and was lifted
+     * out unchanged, so this branch behaves exactly as it did.
      */
-    const ownAlternatives = conditioning.exercises;
     /**
      * And the kit ceiling last, exactly as the old path applied it.
      *
@@ -1938,55 +2021,17 @@ export function generateWorkout(
      * they cannot lift", and dropping it here because the arithmetic happens to
      * be empty is how a guarantee goes missing.
      */
-    const withSwaps = fillSwapAlternatives(
+    const withSwaps = heldToTheBuildersList(
+      fillSwapAlternatives(
+        conditioning.exercises,
+        screenedReadiness,
+        equipmentTier,
+        profile,
+        conditioningRotation + getLocalDayIndex()
+      ),
       conditioning.exercises,
-      screenedReadiness,
-      equipmentTier,
-      profile,
-      conditioningRotation + getLocalDayIndex()
-    ).map((ex, i) => {
-      // A safety substitution's swap slot holds the exercise it REPLACED, which
-      // is the revert. Leave it, exactly as the fill does.
-      if (ex.category !== 'cardio' || ex.safetyNote) return ex;
-      const own = ownAlternatives[i];
-      const onTheList = new Set(
-        [own?.swapName, own?.swap2Name].filter((name): name is string => !!name)
-      );
-      const kept = [
-        {
-          id: ex.swapId,
-          name: ex.swapName,
-          cue: ex.swapCue,
-          load: ex.swapLoad,
-          kind: ex.swapKind,
-          reason: ex.swapReason,
-        },
-        {
-          id: ex.swap2Id,
-          name: ex.swap2Name,
-          cue: ex.swap2Cue,
-          load: ex.swap2Load,
-          kind: ex.swap2Kind,
-          reason: ex.swap2Reason,
-        },
-      ].filter((option) => !!option.name && onTheList.has(option.name));
-      return {
-        ...ex,
-        hasSwap: kept.length > 0,
-        swapId: kept[0]?.id,
-        swapName: kept[0]?.name,
-        swapCue: kept[0]?.cue,
-        swapLoad: kept[0]?.load,
-        swapKind: kept[0]?.kind,
-        swapReason: kept[0]?.reason,
-        swap2Id: kept[1]?.id,
-        swap2Name: kept[1]?.name,
-        swap2Cue: kept[1]?.cue,
-        swap2Load: kept[1]?.load,
-        swap2Kind: kept[1]?.kind,
-        swap2Reason: kept[1]?.reason,
-      };
-    });
+      (card) => card.category === 'cardio'
+    );
 
     return capToKit(withSwaps, profile?.maxKitKg ?? 0, equipmentTier);
   }
@@ -2024,26 +2069,50 @@ export function generateWorkout(
       daysSinceLastSession,
       loadUnit,
     });
-    return fillSwapAlternatives(
+    /**
+     * AND THE FINISHER IS HELD TO ARCHIE'S NINE, the same way a conditioning
+     * session's blocks are.
+     *
+     * `heldToTheBuildersList` above says what the pass does and what Archie asked
+     * for. It is the FINISHER and nothing else in this session, because that is
+     * the one card doing conditioning work: the builder already chose what else
+     * on the nine this person could be doing instead, and the fill was topping
+     * that up out of the strength library.
+     *
+     * NOT THE WARM-UP, deliberately, and this is the boundary between this change
+     * and the one shipped the day before. The card at the top of the session is
+     * doing a warm-up's job, not conditioning's. Its own builder leads it with
+     * the other cardio options and puts the Restore mobility drills on the end so
+     * that the button is never blank, which is Archie's own rule about the two
+     * minutes of cardio ("should still have swap options if the client wants to
+     * do a different exercise"). Holding that card to the nine would empty the
+     * button at home, where two of the three kit-free records have already been
+     * used by the time the warm-up is picked.
+     */
+    return heldToTheBuildersList(
+      fillSwapAlternatives(
+        librarySession.exercises,
+        /**
+         * THE MERGED ONE, not the raw answer from the readiness screen.
+         *
+         * The builder above was handed the raw `readiness` on purpose - it does
+         * this same merge itself, with today's report leading so the rehab slot
+         * treats the right area - but the swap sheet is filled out here, and with
+         * the raw answer it offered exercises that load an area a clinician had
+         * ruled out. Somebody with a standing knee problem who says nothing hurts
+         * today was shown a clean session and a knee-loading alternative one tap
+         * behind it, which is the same failure the injury screen exists to stop,
+         * with an extra step.
+         */
+        screenedReadiness,
+        equipmentTier,
+        profile,
+        // The same seed the old path uses, so which alternative comes up first
+        // moves with the training and the day rather than sitting still.
+        libraryRotation + getLocalDayIndex()
+      ),
       librarySession.exercises,
-      /**
-       * THE MERGED ONE, not the raw answer from the readiness screen.
-       *
-       * The builder above was handed the raw `readiness` on purpose - it does
-       * this same merge itself, with today's report leading so the rehab slot
-       * treats the right area - but the swap sheet is filled out here, and with
-       * the raw answer it offered exercises that load an area a clinician had
-       * ruled out. Somebody with a standing knee problem who says nothing hurts
-       * today was shown a clean session and a knee-loading alternative one tap
-       * behind it, which is the same failure the injury screen exists to stop,
-       * with an extra step.
-       */
-      screenedReadiness,
-      equipmentTier,
-      profile,
-      // The same seed the old path uses, so which alternative comes up first
-      // moves with the training and the day rather than sitting still.
-      libraryRotation + getLocalDayIndex()
+      (card) => card.category === 'finisher'
     );
   }
 

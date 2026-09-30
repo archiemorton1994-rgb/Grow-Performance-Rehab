@@ -492,11 +492,56 @@ export const CARDIO_OPENER_REPS = '2 min';
  * so a session that opens on a press cannot ask for a second press, and a full
  * hour comes back as one press, two rows and two core pieces. Lower Body loses
  * nothing: it has three leg patterns and only needs two of them.
+ *
+ * AND A FULL BODY DAY ASKS FOR TWO CORE PIECES RATHER THAN A THIRD LEG ONE.
+ * ──────────────────────────────────────────────────────────────────────
+ * Archie, 30 September 2026: "In the full body session it should remove the last
+ * leg exercise (for example deficit split squats) and add an additional core
+ * exercise instead as there are too many leg exercises in the session." The last
+ * leg entry in both full body rows is the lunge, and a lunge is exactly the
+ * example he gave, so that entry is now core.
+ *
+ * MEASURED OVER 896 FULL BODY HOURS, every kit, every level, four situations and
+ * seven rotation positions, counting the lifting slots these rows fill. Before:
+ * 2.74 leg pieces and 1.00 core piece on average, and 684 of the 896 held three
+ * or more leg pieces - with nothing sore it was three legs and one core in all
+ * 224 of them, every time. After: 1.93 leg and 2.00 core, two core pieces in all
+ * 896, and not one session anywhere in the sweep holds three.
+ *
+ * AN ATHLETE CAN STILL SEE THREE LEG MOVEMENTS ON THE SHEET, and that is not
+ * this list. The explosive card above is not a slot: it is added on top at
+ * Athlete only, and where it is a jump it is a leg movement. Counting it in, 50
+ * of the 896 hours show three, every one of them an Athlete session with a leg
+ * jump. Archie's sentence is about the work slots, so that is what moved.
+ *
+ * AND IT HELPS THE 45 MINUTE SESSION A LITTLE, which was not the aim and is worth
+ * saying. The loop walks the whole row and stops once the clock is full, so a
+ * session that drops one of its first five slots reaches the sixth - and the
+ * sixth used to be a lunge. At 45 minutes: 1.98 leg and 1.00 core before, 1.93
+ * leg and 1.05 core after. At 30 minutes nothing moves at all, because four
+ * slots never get that far.
+ *
+ * THE HOUR ALSO FILLS BETTER THAN IT DID, 5.92 pieces of work on average before
+ * and 6.01 after, because the core pool has something left at rungs and kit
+ * lists where the lunge pool did not.
+ *
+ * IT DOES NOT TOUCH A LEG DAY, which is the opposite rule and has to stay put:
+ * `SLOT_PATTERNS.lower_body` still asks for legs in all five slots, and the
+ * leg-day-only core fallback below is still the last thing tried there rather
+ * than the first. Re-measured the same way afterwards and identical to the digit
+ * at all three lengths and all four situations: with nothing sore a lower body
+ * hour is still five leg pieces and no core work at every kit and every level,
+ * and an upper body day holds no leg work either side.
+ *
+ * 'lunge' STAYS IN `SESSION_PATTERNS` BELOW, deliberately. That list is what an
+ * accessory slot may fall back on when the pattern it asked for has nothing
+ * left, and a full body day with no pressing in reach is better served by a
+ * lunge than by a dropped slot. What changed is what the day ASKS for.
  */
 const SLOT_PATTERNS: Record<LibrarySessionType, readonly (readonly LibraryPattern[])[]> = {
   full_body: [
-    ['squat', 'push', 'hinge', 'pull', 'core', 'lunge'],
-    ['hinge', 'push', 'squat', 'pull', 'core', 'lunge'],
+    ['squat', 'push', 'hinge', 'pull', 'core', 'core'],
+    ['hinge', 'push', 'squat', 'pull', 'core', 'core'],
   ],
   upper_body: [
     ['push', 'pull', 'core', 'pull', 'core'],
