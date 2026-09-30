@@ -184,7 +184,7 @@ const EXPECTED = [
   ['Dead Bug', 'core_prehab'],
   ['Banded Clamshell', 'core_prehab'],
   ['Plank', 'core_prehab'],
-  ['Sled Push', 'conditioning'],
+  ['Sled Push and Pull', 'conditioning'],
   ['Dumbbell Farmers Carry', 'conditioning'],
 ];
 for (const [name, expected] of EXPECTED) {

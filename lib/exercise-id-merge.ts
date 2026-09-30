@@ -189,6 +189,22 @@ export const ID_MERGE: Readonly<Record<string, string>> = {
   'cond-db-e-6a': 'sq-acc-db-14',
   // Ab Wheel Rollout (Kneeling)
   'dl-acc-bw-17': 'sq-acc-fg-13',
+  /**
+   * Sled Push and Pull. Not a catalogue duplicate like every line above it, but
+   * the same problem with the same answer: Archie collapsed two of his own
+   * conditioning records into one on 30 September 2026, so the push-only record
+   * is gone and everybody who logged a sled weight against it would otherwise
+   * meet the merged drill with nothing behind it.
+   *
+   * THE SURVIVOR IS THE ROUND TRIP, deliberately. It is prescribed at "Light to
+   * moderate sled" where the push-only record said "Moderate sled", so the rule
+   * this whole file works by - copied forward, and only onto an id that has
+   * nothing - lands the right way round: somebody who logged both keeps the
+   * lighter of the two anchors on a drill that now includes a backwards drag,
+   * and somebody who only ever pushed gets their own weight rather than a
+   * beginner's estimate. See lib/exercise-library.ts for why that id won.
+   */
+  'lib-cond-sled-push': 'lib-cond-sled-pull',
 };
 
 /** The suffix the engine puts on an exercise served to somebody with an ache. */

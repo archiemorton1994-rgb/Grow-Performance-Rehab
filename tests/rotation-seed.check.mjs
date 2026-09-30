@@ -271,7 +271,25 @@ check(
  * experiment the right one: the only thing that differs between these two
  * sessions is the history behind them.
  */
-const ROTATION = 4;
+/**
+ * AND WHICH POSITION IT IS HELD AT IS MEASURED RATHER THAN WRITTEN DOWN.
+ *
+ * A lower body hour at a full gym does not carry the same number of loaded cards
+ * at every rotation position: at some of them the main lift and one accessory are
+ * the only two with a weight on them, because the finisher that position lands on
+ * is a bike rather than a sled. Position 4 was hard-coded here and had three
+ * until 30 September 2026, when Archie's two sled records became one ("remove the
+ * conditioning exercises sled push and sled pull and push from the database and
+ * swap for sled push and pull instead") and the finisher pool shifted by one
+ * place. Nothing about the weights got worse; the fixture moved under the test.
+ *
+ * So the position is chosen by asking, and the assertions below still refuse to
+ * run on fewer than three shared cards, which is the guard that caught it.
+ */
+const ROTATION = (() => {
+  for (let r = 0; r < 12; r++) if (weights(gen('lower_body', 0, 0, r)).size >= 3) return r;
+  return 4;
+})();
 const beforeWeekly = weights(gen('lower_body', 0, 0, ROTATION));
 const afterWeekly = weights(
   gen(

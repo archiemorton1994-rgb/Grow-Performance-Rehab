@@ -20,6 +20,24 @@ import { EquipmentIcon } from './EquipmentIcon';
  *
  * So the map and the fallback live here, once. A fourth screen that asks the
  * equipment question gets both for free, and cannot get one without the other.
+ *
+ * WHAT IS STILL MISSING, AND IT IS A PHOTOGRAPH OF A BENCH
+ * ───────────────────────────────────────────────────────
+ * Archie, 30 September 2026: the tile "should be a gym bench not a green
+ * rectangle". The rectangle is gone - the fallback now draws the bench from the
+ * app's own icon set, which is what every illustration in onboarding is drawn
+ * from, rather than the flattest outline glyph Ionicons had. See
+ * components/EquipmentIcon.
+ *
+ * That answers the complaint and it is not the finished job. The five
+ * photographs in the map below are real photographs, taken to one look, and a
+ * drawing beside them reads as a drawing however well it is done. What this tile
+ * needs is a sixth photograph in that set: a flat gym bench, shot the same way,
+ * on the same background, saved as
+ * assets/images/equipment/bench.png. The moment that file exists, one line in
+ * the map below picks it up and the drawing stops being used for this tier.
+ * Nobody can take that photograph from inside the code, which is why it is
+ * written down here rather than approximated.
  */
 const EQUIPMENT_PHOTOS: Partial<Record<EquipmentTier, ReturnType<typeof require>>> = {
   bodyweight: require('@/assets/images/equipment/bodyweight.png'),

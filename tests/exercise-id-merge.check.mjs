@@ -217,6 +217,12 @@ const WAS_CALLED = {
   "wub-db-shoulder-press": "DB Shoulder Press",
   "wub-fg-pulldown": "Lat Pulldown",
   "wub-fg-row": "Barbell Row",
+  // Not an old catalogue duplicate. Archie collapsed two of his own conditioning
+  // records into one on 30 September 2026 ("remove the conditioning exercises
+  // sled push and sled pull and push from the database and swap for sled push
+  // and pull instead"), so this library id is retired and its sled weight is
+  // carried onto the record that survived.
+  "lib-cond-sled-push": "Sled Push",
 };
 
 const unnamed = pairs.filter(([from]) => !WAS_CALLED[from]);
@@ -348,14 +354,44 @@ check(
   stolen.map(([f]) => f).join(', ')
 );
 
-// Every survivor named here has to be one of the reused ids, never a fresh one:
-// a lib- id has no history behind it, so merging onto it would be copying a
-// duplicate's loads onto a movement the app has never served.
-const freshSurvivor = pairs.filter(([, to]) => to.startsWith('lib-'));
+/**
+ * A FRESH lib- ID MAY ONLY SURVIVE A MERGE FROM ANOTHER lib- ID.
+ *
+ * This used to be "no survivor is one of the new lib- records" flat out, and the
+ * reason was sound while every duplicate on the left was an old catalogue entry:
+ * a lib- id has no history behind it, so merging a catalogue duplicate onto one
+ * would copy somebody's loads onto a movement the app had never served under
+ * that id, while the catalogue duplicate's real library survivor is the id
+ * actually being served.
+ *
+ * What changed is that the library now merges records of its OWN. Archie
+ * collapsed two conditioning records into one on 30 September 2026, and
+ * `lib-cond-sled-push` is an id the app really did serve and log against, so the
+ * weight behind it has to go somewhere. That is the same problem this whole file
+ * is about, one list to the left.
+ *
+ * So the rule is the narrower one it should always have been: a lib- survivor is
+ * allowed only where the retired id is itself a lib- record. A catalogue id
+ * pointing at a lib- id is still exactly the mistake described above, and is
+ * still refused.
+ */
+const catalogueOntoFresh = pairs.filter(
+  ([from, to]) => to.startsWith('lib-') && !from.startsWith('lib-')
+);
 check(
-  'no survivor is one of the new lib- records',
-  freshSurvivor.length === 0,
-  freshSurvivor.map(([f, t]) => `${f} -> ${t}`).join(', ')
+  'no catalogue duplicate is merged onto one of the new lib- records',
+  catalogueOntoFresh.length === 0,
+  catalogueOntoFresh.map(([f, t]) => `${f} -> ${t}`).join(', ')
+);
+const libraryMerges = pairs.filter(
+  ([from, to]) => from.startsWith('lib-') && to.startsWith('lib-')
+);
+check(
+  `and the ${libraryMerges.length} library-to-library merge(s) are records Archie retired himself`,
+  libraryMerges.every(([from]) => Boolean(WAS_CALLED[from])) &&
+    libraryMerges.every(([from]) => !liveNames[from]),
+  libraryMerges.map(([f, t]) => `${f} -> ${t}`).join(', ') +
+    ' - a lib- id on the left has to be one nothing serves any more'
 );
 
 // ─── 4. The carry-forward itself ─────────────────────────────────────────────

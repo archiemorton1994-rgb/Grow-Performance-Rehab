@@ -427,9 +427,17 @@ check(
 //
 // What each kit answer really yields, written out rather than derived, because
 // a floor computed the same way the builder computes it would pass whatever the
-// builder did. Home is three records, and a beginner may not be given the one
-// that lands, so a beginner at home tops out at two blocks however long they
-// have got. Read the rows as [30 min, 45 min, 60 min].
+// builder did. Bodyweight at home is three records, and a beginner may not be
+// given the one that lands, so a beginner with nothing tops out at two blocks
+// however long they have got. Read the rows as [30 min, 45 min, 60 min].
+//
+// A DUMBBELL OR A KETTLEBELL NOW BUYS A FOURTH RECORD (Archie, 30 September
+// 2026): "add farmer carries as a conditioning exercise." That row used to be
+// identical to the bodyweight rows above it and is not any more, which is the
+// change worth reading here - a beginner at home with dumbbells gets three
+// blocks at 45 and 60 minutes rather than two, and everybody else finally gets
+// the four blocks the hour asks for. A loaded carry may not OPEN the session, so
+// the fourth record goes where it counts.
 console.log('\n[7] The per-kit achievable floor, with nothing sore');
 const FLOOR = [
   { equipment: [], beginner: [2, 2, 2], other: [2, 3, 3], names: 3 },
@@ -438,9 +446,9 @@ const FLOOR = [
   { equipment: ['bodyweight', 'bench'], beginner: [2, 2, 2], other: [2, 3, 3], names: 3 },
   {
     equipment: ['bodyweight', 'bands', 'dumbbells', 'kettlebells'],
-    beginner: [2, 2, 2],
-    other: [2, 3, 3],
-    names: 3,
+    beginner: [2, 3, 3],
+    other: [2, 3, 4],
+    names: 4,
   },
   { equipment: ['fullgym'], beginner: [2, 3, 4], other: [2, 3, 4], names: 9 },
   { equipment: ['fullgym', 'bench'], beginner: [2, 3, 4], other: [2, 3, 4], names: 9 },

@@ -47,9 +47,25 @@ const session = read('app/session.tsx');
 
 console.log('\n[1] The session records what it asked for');
 
+/**
+ * IT IS THE TARGET THE CARD SHOWED, WHICH IS NOT ALWAYS THE ONE IT WAS BUILT
+ * WITH.
+ *
+ * This used to look for `targetReps: ex.reps`, and that was the whole claim while
+ * a swapped card kept the prescription of the exercise it replaced. Archie's
+ * correction of 30 September 2026 ("Banded Clamshells should say reps not
+ * seconds") ended that: a card showing a movement counted in reps now asks for
+ * reps rather than for the clock it landed on, so the log has to record the same
+ * thing the person was looking at. Recording "2 min" beside fifteen clamshells
+ * would hand double progression the prescription of a movement nobody did.
+ *
+ * The rule itself is asserted over real generated sessions in
+ * tests/conditioning-content.check.mjs section [3]; this line is the wiring, the
+ * same way the rest of this file is.
+ */
 check(
-  'the prescribed target is written onto the completed log',
-  /targetReps: ex\.reps,/.test(session) && /category: ex\.category,/.test(session),
+  'the prescribed target is written onto the completed log, as the card showed it',
+  /targetReps: swapPrescription\(ex\.reps,/.test(session) && /category: ex\.category,/.test(session),
   '"12 reps logged" only answers "did they hit the target" against the target that was on screen'
 );
 check(

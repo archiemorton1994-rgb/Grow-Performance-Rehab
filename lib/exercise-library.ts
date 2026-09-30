@@ -3898,43 +3898,57 @@ export const LIBRARY_EXERCISES: readonly LibraryExercise[] = [
 /**
  * The nine conditioning exercises, from the doc's Conditioning section.
  *
- * Kept apart from LIBRARY_EXERCISES because they have no movement pattern and
- * no level: they fill the pulse raiser, the finisher and the Conditioning
- * session, and every one of them is offered at every level (with the one
- * exception in decision 7, which Phase 22 applies: beginners are not given
- * skipping in warm-ups or finishers).
+ * Kept apart from LIBRARY_EXERCISES because they have no level: they fill the
+ * pulse raiser, the finisher and the Conditioning session, and every one of them
+ * is offered at every level (with the one exception in decision 7, which Phase
+ * 22 applies: beginners are not given skipping in warm-ups or finishers).
+ *
+ * STILL NINE, THOUGH NOT THE SAME NINE (Archie, 30 September 2026). The two sled
+ * drags became one record and a Farmers Carry was added, so the count did not
+ * move. Anything reading "the nine" in a comment nearby means this list, however
+ * long it happens to be.
  */
 export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
   {
-    id: 'lib-cond-sled-push',
-    name: 'Sled Push',
-    libraryName: 'Sled Push',
-    kit: [['sled']],
-    role: 'conditioning',
-    movementPattern: 'conditioning',
-    equipmentRequired: 'fullgym',
-    category: 'cardio',
-    dose: 'distance',
-    sets: 4,
-    reps: '20 m',
-    cue: 'Low arms, long strides and keep the sled moving - never let it stop, because starting it again is the hard part',
-    suggestedLoad: 'Moderate sled',
-    primaryMuscle: 'Quadriceps',
-    secondaryMuscles: ['Glutes', 'Calves'],
-    targetRegions: ['quads', 'glutes', 'calf_shin'],
-    videoId: '',
-    stress: ['ankle_load', 'loaded_ground_drive'],
-  },
-  {
+    /**
+     * TWO SLED RECORDS BECAME ONE (Archie, 30 September 2026).
+     *
+     * His words: "Remove the conditioning exercises sled push and sled pull and
+     * push from the database and swap for sled push and pull instead." So there
+     * is no push-only drill and no pull-then-push drill any more, only this: the
+     * sled goes out and comes back, which is the one thing he actually coaches
+     * and the one thing his channel has footage of ("Sled Push & Pull").
+     *
+     * THIS ID SURVIVED, AND THE CHOICE IS ABOUT WEIGHT RATHER THAN TIDINESS.
+     * `lib-cond-sled-pull` is the record that already described the round trip,
+     * so only its name has changed and its prescription, its cue and its two
+     * stress tags are the right ones for the merged movement unaltered. It also
+     * carries the LIGHTER anchor: "Light to moderate sled" against the push-only
+     * record's "Moderate sled". Somebody's logged weights, rep targets, streaks
+     * and feedback are filed by id (lib/exercise-id-merge.ts), so keeping this
+     * id means a drill that now includes a backwards drag is loaded from the
+     * weight they chose for a drill that already included one, rather than from
+     * the heavier push-only number. `lib-cond-sled-push` is mapped onto this id
+     * in ID_MERGE, so a person who only ever logged the push still gets their
+     * weight back - copied, never overwriting, so somebody who logged both keeps
+     * the lighter of the two.
+     *
+     * AND ALL THREE OLD NAMES ARE ALIASED ONTO THIS ONE in
+     * lib/exercise-aliases.ts, because personal bests, the progress chart and
+     * the recalled note key off the NAME. Sled Push, Sled Pull and Sled Pull and
+     * Push all read as this record now.
+     *
+     * THE CLINICAL RULE IS CARRIED OVER UNCHANGED. Decision 22 gave the drag the
+     * `ankle_load` tag, so a sore ankle, Achilles, calf and shin all lose it, and
+     * the push-only record carried the same tag for the same reason. Decision 16
+     * gave both `loaded_ground_drive`, so a sore knee loses it too. The merged
+     * record carries both, and the name it is served under matches the two name
+     * tests in lib/exercise-safety.ts as well, so there are three independent
+     * locks rather than one.
+     */
     id: 'lib-cond-sled-pull',
-    // ARCHIE, 25 SEPTEMBER 2026: "Sled pull should be sled push and pull (they
-    // pull it then push it back to starting point)." So this was never a
-    // one-way drag in his gym, and the name now says both halves. The id is
-    // kept on purpose: everybody who has dragged a sled logged it against this
-    // one, and lib/exercise-aliases.ts carries the old name onto the new so
-    // their chart and their sled weight come with it.
-    name: 'Sled Pull and Push',
-    libraryName: 'Sled Pull and Push',
+    name: 'Sled Push and Pull',
+    libraryName: 'Sled Push and Pull',
     kit: [['sled']],
     role: 'conditioning',
     movementPattern: 'conditioning',
@@ -3942,29 +3956,34 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     category: 'cardio',
     dose: 'distance',
     sets: 4,
-    // The round trip written out, because a bare "20 m" now hides half the
-    // work. Twenty metres is still the distance a set covers, which is what it
-    // always was and what the sled weight was chosen for; it is ten out and ten
-    // back rather than twenty in one direction.
+    // The round trip written out, because a bare "20 m" hides half the work.
+    // Twenty metres is still the distance a set covers, which is what it always
+    // was and what the sled weight was chosen for; it is ten out and ten back
+    // rather than twenty in one direction.
     reps: '20 m (10 m out, 10 m back)',
-    cue: 'Straps at arm height, walk backwards and stay low for ten metres, then get behind the sled, low arms and long strides, and push it back to where you started',
+    // Pushed out, then dragged home, which is the order the name reads in. The
+    // work is the same either way round - a loaded push and a loaded pull over
+    // the same ten metres - and a card whose title says push first and whose
+    // instructions start with a backwards walk is the kind of small
+    // contradiction somebody notices in a gym.
+    cue: 'Low arms and long strides, and push the sled out for ten metres without ever letting it stop, then take the straps at arm height, stay low and walk it backwards all the way to where you started',
     suggestedLoad: 'Light to moderate sled',
     primaryMuscle: 'Quadriceps',
     secondaryMuscles: ['Glutes', 'Calves'],
-    targetRegions: ['quads', 'glutes'],
+    // The union of what the two records named. The push half drives off the toes
+    // for ten metres, so the calves and shins belong here as the push-only
+    // record always said they did.
+    targetRegions: ['quads', 'glutes', 'calf_shin'],
     videoId: '',
-    // The cue used to end "which is why a sore knee can usually still do this".
-    // Archie ruled that out on 21 September 2026, so the sentence went with it.
-    //
-    // `ankle_load` IS THE PUSH BACK, AND ARCHIE SETTLED IT HIMSELF ON
-    // 26 SEPTEMBER 2026. A sore ankle, Achilles, calf or shin used to keep this
-    // exercise while losing Sled Push, and the reason was written down: walking
-    // backwards has no toe drive. Pushing the sled home is toe drive, so the
+    // `ankle_load` IS THE PUSH, AND ARCHIE SETTLED IT HIMSELF ON
+    // 26 SEPTEMBER 2026. A sore ankle, Achilles, calf or shin used to keep the
+    // backwards drag while losing the push, and the reason was written down:
+    // walking backwards has no toe drive. Pushing the sled is toe drive, so the
     // reason is gone and all four lose it. He was asked whether the push half
     // could be kept light enough to spare them and said no, and that no
     // pull-only version is kept. The tag is what withholds it - the two regions
     // that restrict `ankle_load` are ankle_achilles and calf_shin - so nothing
-    // anywhere reads this exercise's name to decide who may do it.
+    // anywhere has to read this exercise's name to decide who may do it.
     stress: ['ankle_load', 'loaded_ground_drive'],
   },
   {
@@ -4108,6 +4127,77 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
     videoId: '',
     stress: ['horizontal_press', 'wrist_load'],
   },
+  {
+    /**
+     * A LOADED CARRY AS CONDITIONING WORK (Archie, 30 September 2026).
+     *
+     * His words: "Add farmer carries as a conditioning exercise." One record, not
+     * three: it accepts a dumbbell, a kettlebell or a trap bar, and it is
+     * prescribed by distance the way the rest of the conditioning list is. The
+     * kit list below is what decides who is offered it; the cue deliberately
+     * names none of the three, and the note above it says why.
+     *
+     * THE THREE STRENGTH CARRIES ARE UNTOUCHED. Dumbbell Farmers Carry,
+     * Kettlebell Farmers Carry and Trapbar Farmers Carry stay exactly where they
+     * are, at Intermediate, Intermediate and Advanced, as core accessory work
+     * with their own ids and their own logged history. This is a new entry in a
+     * different list, so it can be the finisher on a training day and a block in
+     * a Conditioning session, which is what "a conditioning exercise" means in
+     * this app. Nothing was moved and nobody's carry history changes hands.
+     *
+     * ONE NAME HAD TO BE FREED UP FOR IT. The old catalogue's plain "Farmers
+     * Carry" was aliased onto Trapbar Farmers Carry, and an alias key cannot
+     * also be a live exercise name - the chart would file this record's sets
+     * against the trap bar. That line is removed in lib/exercise-aliases.ts,
+     * where the consequence is written out.
+     *
+     * WITHHELD FROM THE SAME AREAS AS EVERY OTHER CARRY IN THE LIBRARY, using
+     * the tags they already carry rather than a new one: `grip_load`, which a
+     * sore wrist and a sore bicep restrict, and `spinal_compression`, which a
+     * sore lower back, upper back, neck and lat restrict. The name matches the
+     * `/farmer/` test in both of those tag rules as well, so the screen holds
+     * even if the authored tags were ever dropped. A SORE SHOULDER KEEPS IT,
+     * exactly as it keeps the other seven carries - neither shoulder region
+     * restricts either tag today. That is not a decision taken here; it is the
+     * existing answer, and changing it would change every carry, every deadlift
+     * and every row at once, which is Archie's to rule on.
+     *
+     * FILED AS A `carry` MOVEMENT PATTERN, which is what decides the logging
+     * bar: the distance stays fixed as an instruction and the box asks for the
+     * weight, because a carry gets harder by picking up more rather than by
+     * walking further. That is the answer the other seven already give, and it
+     * is the difference between this and the sled work, which counts its metres.
+     */
+    id: 'lib-cond-farmers-carry',
+    name: 'Farmers Carry',
+    libraryName: 'Farmers Carry',
+    kit: [['dumbbell', 'kettlebell', 'trapbar']],
+    role: 'conditioning',
+    movementPattern: 'carry',
+    equipmentRequired: 'fullgym',
+    category: 'cardio',
+    dose: 'distance',
+    sets: 3,
+    reps: '40 m',
+    /**
+     * THE CUE NAMES NO IMPLEMENT, AND THAT IS DELIBERATE RATHER THAN VAGUE.
+     *
+     * One record accepts a dumbbell, a kettlebell or a trap bar, and the kit list
+     * above is what decides who is offered it. The cue cannot enumerate all three,
+     * because a card is only honest if every word on it is about kit the person
+     * reading it actually owns - somebody with two dumbbells at home should not be
+     * told about a trap bar, which is what tests/equipment-honesty.check.mjs
+     * refuses. "Something heavy in each hand" is true of all three: a trap bar is
+     * one handle in each hand as much as a pair of bells is.
+     */
+    cue: 'Something heavy in each hand, shoulders back and ribs down, then walk with short quick steps - the grip usually gives out first, so hold it all the way to the end',
+    suggestedLoad: '20-32 kg per hand',
+    primaryMuscle: 'Grip/Forearms',
+    secondaryMuscles: ['Trapezius', 'Core', 'Glutes'],
+    targetRegions: ['core_ribs', 'upper_back'],
+    videoId: '',
+    stress: ['grip_load', 'spinal_compression'],
+  },
 ];
 
 /**
@@ -4141,8 +4231,20 @@ export const CONDITIONING_EXERCISES: readonly ConditioningExercise[] = [
  * the things it needs is a sled and nothing else will do. A name test would
  * have to be kept in step with any renaming, and "prowler" is the same movement
  * under another word.
+ *
+ * AND NEITHER MAY ANYTHING PRESCRIBED AT A WEIGHT IN KILOGRAMS, which is the
+ * same sentence of his applied to the Farmers Carry added on 30 September 2026.
+ * A warm-up is easy-pace work; picking up twenty-five kilograms in each hand and
+ * walking forty metres is the opposite of that, and it would otherwise have been
+ * eligible to open somebody's session because it needs no sled. Read off the
+ * load line rather than off the name or the movement pattern: a load written in
+ * kilograms is a claim the record makes about itself, and a conditioning record
+ * written next year is placed by what it says it asks for. Nothing else on the
+ * list names a weight, so this takes away exactly one candidate - Sled Rows says
+ * "30-50 kg sled" and is already out under the sled rule above.
  */
 export function isPulseRaiser(exercise: ConditioningExercise): boolean {
+  if (/\d+(?:\.\d+)?\s*(?:kg|lbs?)\b/i.test(exercise.suggestedLoad ?? '')) return false;
   return !exercise.kit.some(
     (requirement) => requirement.length > 0 && requirement.every((key) => key === 'sled')
   );

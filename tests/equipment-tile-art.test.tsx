@@ -66,10 +66,23 @@ function photographs(node: TreeNode | null): TreeNode[] {
   return out;
 }
 
-/** The line glyphs: the vector-icon mock renders them as `icon-<name>`. */
+/**
+ * The glyphs, of either kind.
+ *
+ * An Ionicon, which the vector-icon mock renders as `icon-<name>`, and a drawing
+ * from the app's own set, which renders as an <Svg>. The bench tile moved from
+ * the first to the second on 30 September 2026 (Archie: it "should be a gym
+ * bench not a green rectangle"), and the claim this file makes is unchanged by
+ * that: there is ink in the frame rather than an empty box. Counting only
+ * Ionicons would have made a tile that draws a real bench look blank.
+ */
 function glyphs(node: TreeNode | null): TreeNode[] {
   const out: TreeNode[] = [];
   walk(node, (n) => {
+    if (n.type === 'Svg') {
+      out.push(n);
+      return;
+    }
     const id = n.props?.testID;
     if (typeof id === 'string' && id.startsWith('icon-')) out.push(n);
   });
@@ -127,6 +140,26 @@ describe('the equipment tiles are never blank', () => {
     expect(photographs(tile)).toEqual([]);
     // Two glyphs: the equipment icon and the tick box's own.
     expect(glyphs(tile).length).toBeGreaterThanOrEqual(1);
+  });
+
+  /**
+   * Archie, 30 September 2026: the tile "should be a gym bench not a green
+   * rectangle". It was drawing Ionicons' `tablet-landscape-outline`, which is a
+   * rounded rectangle. So the claim is narrower than "something is drawn": what
+   * is drawn is the app's own bench, which renders as an <Svg> rather than as a
+   * borrowed font glyph. tests/conditioning-content.check.mjs section [4] holds
+   * the drawing itself to being a bench rather than one rectangle; this is the
+   * half that proves the tile reaches it.
+   */
+  test("and what it draws is the app's own bench, not a borrowed rectangle", () => {
+    let root!: renderer.ReactTestRenderer;
+    act(() => {
+      root = renderer.create(React.createElement(EquipmentTileArt, { tier: 'bench' }));
+    });
+    const tree = root.toJSON() as unknown as TreeNode | null;
+    const drawn = glyphs(tree);
+    expect(drawn.length).toBe(1);
+    expect(drawn[0].type).toBe('Svg');
   });
 
   test('a tile with a photograph on the readiness picker really has its source', () => {

@@ -58,6 +58,8 @@ export type GrowIconName =
   | 'gift'
   | 'sparkle'
   | 'medal'
+  // ── Equipment: the one tile with no photograph ──
+  | 'bench'
   // ── Set feedback: how hard was that set ──
   | 'effort1'
   | 'effort2'
@@ -361,5 +363,37 @@ export const GROW_ICONS: Record<GrowIconName, ArtShape[]> = {
     { k: 'path', d: 'M34.6 34.6 L38.8 38.8', stroke: 'glyph', sw: 3.4, o: 0.7 },
     { k: 'path', d: 'M9.2 38.8 L13.4 34.6', stroke: 'glyph', sw: 3.4, o: 0.7 },
     { k: 'path', d: 'M34.6 13.4 L38.8 9.2', stroke: 'glyph', sw: 3.4, o: 0.7 },
+  ],
+
+  /**
+   * A FLAT GYM BENCH, seen from the side (Archie, 30 September 2026).
+   *
+   * His words: the "Bench, box or sturdy step" tile "should be a gym bench not a
+   * green rectangle". It was drawing Ionicons' `tablet-landscape-outline`, which
+   * is a rounded rectangle, in whatever colour the row it sat in was using - so
+   * on a selected tile it was a green rectangle, exactly as he described.
+   *
+   * The other five equipment tiers have PHOTOGRAPHS and this one has none, so
+   * there is no photograph to reach for and one cannot be invented here. What the
+   * app does have is its own drawn icon set, which is what every other
+   * illustration in onboarding uses, so the bench is drawn in the same style as
+   * the rest of it: a padded top with its side showing, an A-frame under each
+   * end and the floor bar that joins the feet. Those three parts are what makes
+   * a bench read as a bench rather than as a slab.
+   *
+   * A PHOTOGRAPH OF A BENCH IS STILL OUTSTANDING. Five photographs and one
+   * drawing in a row of six tiles is better than five photographs and a
+   * rectangle, and it is not the finished answer. See
+   * components/EquipmentTileArt.
+   */
+  bench: [
+    // The pad, and the thin band under it that is the side of the upholstery.
+    { k: 'rect', x: 5, y: 16, w: 38, h: 8, rx: 3.5, fill: 'glyph' },
+    { k: 'rect', x: 5, y: 24.5, w: 38, h: 3, rx: 1.5, fill: 'glyph', o: 0.32 },
+    // An A-frame at each end, splayed, which is how a bench actually stands.
+    { k: 'path', d: 'M13 28 L8 41 M13 28 L18 41', stroke: 'glyph', sw: 3.2 },
+    { k: 'path', d: 'M35 28 L30 41 M35 28 L40 41', stroke: 'glyph', sw: 3.2 },
+    // The floor bar between the feet.
+    { k: 'rect', x: 7, y: 42, w: 34, h: 3, rx: 1.5, fill: 'glyph', o: 0.32 },
   ],
 };

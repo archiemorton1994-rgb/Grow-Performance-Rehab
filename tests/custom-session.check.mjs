@@ -216,7 +216,13 @@ const OFF_LIBRARY = [
   "World's Greatest Stretch",
   'Assault Bike Warm-Up',
   'Rowing Machine Warm-Up',
-  'Farmers Carry',
+  // 'Farmers Carry' USED TO BE ON THIS LIST AND IS DELIBERATELY OFF IT NOW.
+  // Archie added a Farmers Carry to the conditioning list on 30 September 2026
+  // ("add farmer carries as a conditioning exercise"), so it is one of his own
+  // records and a custom session is entitled to hold it. The check below, which
+  // requires every name here to be a movement the library does NOT serve, is what
+  // caught it - leaving it listed would have asserted that a record on Archie's
+  // list must never be reachable.
   'Sled Drag',
 ];
 

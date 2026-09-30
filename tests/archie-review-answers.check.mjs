@@ -148,29 +148,37 @@ const namesIn = (cards) => new Set(cards.map((c) => c.name));
 
 // ═════════════════════════════════════════════════════════════════════════════
 console.log('\n[1] "Rule sled work out for a sore knee and keep the rest."');
-console.log('    Archie, 21 September 2026. Sled Push and Sled Pull and Push, the drag');
-console.log('    out and back, are both driven through a loaded knee over the ground.');
+console.log('    Archie, 21 September 2026. He was answering about a sled push and a');
+console.log('    drag out and back. Both are driven through a loaded knee over the');
+console.log('    ground, and on 30 September 2026 they became one record.');
 
 const kneeCards = everythingOffered(['knee']);
 const kneeNames = namesIn(kneeCards);
 
 /**
- * Named rather than derived, and that is right here: Archie's answer WAS these
- * two exercises. Deriving the list from the tag that withholds them would be
- * the tag testing itself. What the naming needs instead is a guard against a
- * rename quietly emptying it, which is the line below.
+ * Named rather than derived, and that is right here: Archie's answer WAS the
+ * sled drag. Deriving the list from the tag that withholds it would be the tag
+ * testing itself. What the naming needs instead is a guard against a rename
+ * quietly emptying it, which is the line below - and it has already earned its
+ * place twice, on 25 September when the drag was renamed and again on
+ * 30 September when the push and the drag became one record.
  */
-const sledDrags = ['Sled Push', 'Sled Pull and Push'];
+const sledDrags = ['Sled Push and Pull'];
 const conditioningNames = new Set(CONDITIONING_EXERCISES.map((e) => e.name));
 check(
-  'both sled drags are still on the conditioning list under these names',
+  'the sled drag is still on the conditioning list under this name',
   sledDrags.every((n) => conditioningNames.has(n)),
   `a rename would leave the sweep below looking for nothing: ${[...conditioningNames].join(', ')}`
+);
+check(
+  'and the two records it replaced are gone rather than lurking',
+  !conditioningNames.has('Sled Push') && !conditioningNames.has('Sled Pull and Push'),
+  [...conditioningNames].join(', ')
 );
 
 const dragsServed = kneeCards.filter((c) => sledDrags.includes(c.name));
 check(
-  'a sore knee is never offered Sled Push or Sled Pull and Push, in any block',
+  'a sore knee is never offered the sled drag, in any block',
   dragsServed.length === 0,
   `${dragsServed.length} cards, e.g. ${dragsServed
     .slice(0, 3)
@@ -218,7 +226,7 @@ check(
  * knee rule written too widely is exactly how they would have been lost.
  */
 const backNames = namesIn(everythingOffered(['lower_back']));
-for (const name of ['Sled Rows', 'Sled Push', 'Sled Pull and Push']) {
+for (const name of ['Sled Rows', 'Sled Push and Pull']) {
   check(`a sore lower back still keeps ${name}`, backNames.has(name), 'nothing changed there');
 }
 check(
@@ -228,15 +236,15 @@ check(
 );
 
 /**
- * AND THE SLEDS ARE REACHABLE AT ALL, so the assertion above has teeth.
+ * AND THE SLED IS REACHABLE AT ALL, so the assertion above has teeth.
  *
- * Without this, deleting both records from the library outright would turn
- * every line in this section green.
+ * Without this, deleting the record from the library outright would turn every
+ * line in this section green.
  */
 const healthyNames = namesIn(everythingOffered([]));
 check(
-  'somebody with nothing sore is still offered both sled drags',
-  healthyNames.has('Sled Push') && healthyNames.has('Sled Pull and Push'),
+  'somebody with nothing sore is still offered the sled drag',
+  sledDrags.every((n) => healthyNames.has(n)),
   'otherwise "withheld from a sore knee" would be true of everybody'
 );
 

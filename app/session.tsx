@@ -125,6 +125,7 @@ import {
   expandSetTargets,
 } from '@/lib/workout-engine';
 import { SWAP_KIND_HEADINGS, loggedExerciseFor, swapSlotFor } from '@/lib/exercise-swaps';
+import { swapPrescription } from '@/lib/swap-prescription';
 import {
   asksHowItFelt,
   setInputShapeFor,
@@ -4202,6 +4203,19 @@ export default function SessionScreen() {
         cue: slot.cue ?? exercise.cue,
         suggestedLoad: slot.load ?? exercise.suggestedLoad,
         loadKg: slot.load ? undefined : exercise.loadKg,
+        /**
+         * AND WHAT IT ASKS TO BE COUNTED IN (Archie, 30 September 2026).
+         *
+         * "Banded Clamshells should say reps not seconds." The slot used to take
+         * the name, the cue and the load and leave the prescription behind, so a
+         * movement written in reps arrived on whatever clock the card it
+         * replaced was on - two minutes of clamshells, with a countdown under
+         * it. A movement counted in reps is never put on a clock now and a
+         * movement on a clock is never given a rep count. Everything else keeps
+         * the card's prescription on purpose; see lib/swap-prescription.ts for
+         * why distance is one of the things that has to.
+         */
+        reps: swapPrescription(exercise.reps, slot),
         hasSwap: true,
         badge: undefined,
       };
@@ -4325,7 +4339,12 @@ export default function SessionScreen() {
         // What was ASKED for, recorded alongside what was done. Double
         // progression compares the two, and the target has to be the one that
         // was on the card at the time, not the one next session will show.
-        targetReps: ex.reps,
+        //
+        // Which means the SWAPPED card's target, for the same reason its sets are
+        // filed under the swapped exercise's id. A card showing fifteen
+        // clamshells each side and recording a target of "2 min" would hand
+        // double progression the prescription of a movement nobody did.
+        targetReps: swapPrescription(ex.reps, swapSlotFor(ex, exerciseData[i]?.swapCount ?? 0)),
         category: ex.category,
       };
     });

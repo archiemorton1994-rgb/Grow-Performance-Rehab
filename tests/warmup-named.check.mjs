@@ -159,11 +159,11 @@ console.log('\n[0] What the tables say, before any session is built');
     wrong.map((e) => `${e.name} reads as ${isCardioOpener(e) ? 'cardio' : 'not cardio'}`).join(', ')
   );
   check(
-    'so the crawls and the sled drags are not offered as one',
-    ['Bear Crawl', 'Duck Walks', 'Sled Push', 'Sled Rows'].every(
+    'so the crawls, the sled work and the loaded carry are not offered as one',
+    ['Bear Crawl', 'Duck Walks', 'Sled Push and Pull', 'Sled Rows', 'Farmers Carry'].every(
       (name) => !everyRecord.some((e) => e.name === name && isCardioOpener(e))
     ),
-    'a twenty metre crawl is not two minutes of cardio'
+    'a twenty metre crawl is not two minutes of cardio, and neither is a loaded walk'
   );
   check(
     `the walk is a record of its own and is NOT on Archie's nine (${WARMUP_CARDIO_EXERCISES.length})`,
@@ -189,11 +189,13 @@ console.log('\n[1] What may open a session, in tiers, asked of the function itse
   );
   const take = (...names) => names.map((n) => byName.get(n)).filter(Boolean);
 
-  const gym = warmupCardioTiers(take('Assault Bike', 'Bear Crawl', SKIPPING, WALK, 'Sled Push'));
+  const gym = warmupCardioTiers(
+    take('Assault Bike', 'Bear Crawl', SKIPPING, WALK, 'Sled Push and Pull')
+  );
   check(
     'a machine leads, then the cardio that needs nothing, then everything else',
     gym.map((tier) => tier.map((e) => e.name).join('+')).join(' > ') ===
-      `Assault Bike > ${SKIPPING}+${WALK} > Bear Crawl+Sled Push`,
+      `Assault Bike > ${SKIPPING}+${WALK} > Bear Crawl+Sled Push and Pull`,
     gym.map((tier) => tier.map((e) => e.name).join('+')).join(' > ')
   );
   const home = warmupCardioTiers(take('Bear Crawl', 'Duck Walks', SKIPPING, WALK));

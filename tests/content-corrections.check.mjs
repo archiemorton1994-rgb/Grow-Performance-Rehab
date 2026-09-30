@@ -56,6 +56,7 @@ import { holdClockFor } from '../lib/hold-timer.ts';
 import { levelOf } from '../lib/exercise-levels.ts';
 import { isEquipmentVariant, kitOf, swapReasonFor } from '../lib/exercise-swaps.ts';
 import { canonicalExerciseName } from '../lib/exercise-aliases.ts';
+import { ID_MERGE, carryProgressForward } from '../lib/exercise-id-merge.ts';
 
 let failures = 0;
 let total = 0;
@@ -145,7 +146,17 @@ const namesIn = (cards) => new Set(cards.map((c) => c.name));
 // ═════════════════════════════════════════════════════════════════════════════
 console.log('\n[1] "Sled pull should be sled push and pull"');
 
-const SLED = 'Sled Pull and Push';
+/**
+ * ARCHIE RENAMED IT AGAIN ON 30 SEPTEMBER 2026, AND MERGED THE OTHER ONE IN.
+ *
+ * "Remove the conditioning exercises sled push and sled pull and push from the
+ * database and swap for sled push and pull instead." So there is one sled drag
+ * left, it is called Sled Push and Pull, and it is this same record - the id has
+ * not moved, which is the whole point of the section. Everything below is the
+ * same rule read against the name it is served under now.
+ */
+const SLED = 'Sled Push and Pull';
+const OLD_SLED_NAMES = ['Sled Push', 'Sled Pull', 'Sled Pull and Push'];
 const sled = CONDITIONING_EXERCISES.find((e) => e.id === 'lib-cond-sled-pull');
 
 check(
@@ -159,9 +170,20 @@ check(
   `name "${sled?.name}", libraryName "${sled?.libraryName}"`
 );
 check(
-  'and a set logged under the old name still counts towards it',
-  canonicalExerciseName('Sled Pull') === SLED,
-  `"Sled Pull" charts as "${canonicalExerciseName('Sled Pull')}"`
+  'and a set logged under any of the three old names still counts towards it',
+  OLD_SLED_NAMES.every((n) => canonicalExerciseName(n) === SLED),
+  OLD_SLED_NAMES.map((n) => `"${n}" charts as "${canonicalExerciseName(n)}"`).join(' | ')
+);
+check(
+  'and the record that was merged away hands its sled weight over',
+  ID_MERGE['lib-cond-sled-push'] === sled?.id &&
+    carryProgressForward({ 'lib-cond-sled-push': 70 })[sled?.id ?? ''] === 70,
+  `ID_MERGE says ${ID_MERGE['lib-cond-sled-push']} - without it a push-only history meets the beginner estimate`
+);
+check(
+  'but a weight already logged against the survivor is never overwritten by it',
+  carryProgressForward({ 'lib-cond-sled-push': 70, [sled?.id ?? '']: 40 })[sled?.id ?? ''] === 40,
+  'the survivor is the lighter prescription of the two, so it has to win'
 );
 check(
   'the cue describes the drag out AND the push back',
@@ -253,8 +275,8 @@ for (const region of ['quads', 'glutes', 'lower_back']) {
   );
 }
 check(
-  'and nothing anywhere is still served under the old name',
-  !healthy.has('Sled Pull'),
+  'and nothing anywhere is still served under any of the three old names',
+  OLD_SLED_NAMES.every((n) => !healthy.has(n)),
   'two spellings of one exercise split somebody progress chart in half'
 );
 

@@ -130,7 +130,7 @@ check(
     'Door Frame Rows',
     'Skipping',
     'Duck Walks',
-    'Sled Push',
+    'Sled Push and Pull',
     'Box Step Downs',
     'Wall Hip Hinge',
     'Pull Ups',

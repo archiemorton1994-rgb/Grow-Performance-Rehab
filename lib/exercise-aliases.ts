@@ -216,17 +216,50 @@ export const EXERCISE_ALIASES: Record<string, string> = {
   'DB Farmer Carry': 'Dumbbell Farmers Carry',
   'DB Overhead Carry': 'Waiter Carry',
   'Dead Bug': 'Deadbug',
-  'Farmers Carry': 'Trapbar Farmers Carry',
+  // 'Farmers Carry' USED TO POINT AT THE TRAP BAR AND CANNOT ANY MORE.
+  //
+  // Archie added a Farmers Carry to the conditioning list on 30 September 2026,
+  // so "Farmers Carry" is a live exercise the app serves in its own right. An
+  // alias key that is also a live name is the one thing this table must never
+  // hold: every set logged on the new conditioning carry would be charted
+  // against Trapbar Farmers Carry, which is a different implement at three times
+  // the load. tests/exercise-aliases.check.mjs section [2] fails on exactly
+  // that, which is how it was caught.
+  //
+  // WHAT THIS COSTS, SAID PLAINLY. The old catalogue's plain "Farmers Carry" was
+  // the trap bar walk, and Trapbar Farmers Carry kept its id (dl-acc-fg-3), so
+  // the ID half of anybody's history - their logged weights, rep target, streaks
+  // and feedback - is untouched and still comes back on the trap bar card. Only
+  // the NAME half moves: a personal best or a progress chart row recorded under
+  // the bare words "Farmers Carry" now counts towards the conditioning carry
+  // rather than the trap bar one. Both are farmer's walks, the load line on the
+  // new record covers the same kind of weight, and the alternative was filing
+  // new sets under the wrong exercise for ever.
   'Pallof Press': 'Cable Pallof Press',
   'Plank Shoulder Tap': 'Plank Taps',
   'Side Plank': 'Forearm Side Plank',
   'Suitcase Carry': 'Dumbbell Suitcase Carry',
 
   // Conditioning
-  // Archie, 25 September 2026: the sled is pulled out and pushed back, so the
-  // name says both halves now. Everybody's sled weight and every set they have
-  // logged is filed under the old name, and this is what brings it forward.
-  'Sled Pull': 'Sled Pull and Push',
+  // THREE OLD NAMES, ONE RECORD (Archie, 30 September 2026).
+  //
+  // "Remove the conditioning exercises sled push and sled pull and push from the
+  // database and swap for sled push and pull instead." So the app served a sled
+  // push, then a sled pull, then a sled pull and push, and now serves one drill
+  // that goes out and comes back. All three of the names it has worn point at
+  // it, because a personal best, a progress chart and the recalled note are keyed
+  // on the name and every one of those sets is real sled work.
+  //
+  // FLAT, NOT STACKED. 'Sled Pull' used to point at 'Sled Pull and Push', which
+  // is now itself an old name - and an alias that points at another alias
+  // resolves to the wrong name in one pass. All three point straight at the
+  // record's current name.
+  //
+  // The ID half of the same merge is in lib/exercise-id-merge.ts, which is what
+  // carries the sled WEIGHT forward rather than the chart.
+  'Sled Push': 'Sled Push and Pull',
+  'Sled Pull': 'Sled Push and Pull',
+  'Sled Pull and Push': 'Sled Push and Pull',
 };
 
 /**

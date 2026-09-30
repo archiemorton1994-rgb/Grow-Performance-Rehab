@@ -4,7 +4,7 @@
 
 Every exercise the app can put in front of someone, and whether there is a @GrowPerformanceRehabilitation video for it yet.
 
-**71 of 299 recorded (23.7%). 228 still to go.**
+**72 of 299 recorded (24.1%). 227 still to go.**
 
 An exercise with no video is not broken — its red button runs a YouTube search on the exercise name, which is what the app has always done. Recording one is a single line in `lib/exercise-videos.ts`; see the instructions at the top of that file.
 
@@ -166,6 +166,7 @@ Each one is either a movement the app does not have — in which case the exerci
 - Side Lunge
 - Single Arm Dumbbell Press
 - Skater Jumps
+- Sled Push and Pull
 - Sled Rows
 - Split Squat Jumps
 - Split Stance Romanian Deadlift
@@ -180,7 +181,7 @@ Each one is either a movement the app does not have — in which case the exerci
 
 ## Still to record
 
-**228 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
+**227 single movements.** Grouped by where the exercise appears, and within each group the ones used in the most sessions come first — those are the buttons most people will press.
 
 A further 0 entries are circuits rather than movements — "Burpee + Reverse Lunge + Plank Hold", "DB Complex: Deadlift, Row, Clean, Press". They are not on this list because every movement inside them is filmed as its own exercise, so there is nothing separate to shoot.
 
@@ -415,17 +416,16 @@ A further 0 entries are circuits rather than movements — "Burpee + Reverse Lun
 - Slamball Split Jumps
 - Slamball Squat Jumps
 
-### Conditioning (9)
+### Conditioning (8)
 
 - Assault Bike
 - Bear Crawl
 - Brisk Walk
 - Duck Walks
+- Farmers Carry
 - Incline Treadmill Walk
 - Rowing Machine
 - Skipping
-- Sled Pull and Push
-- Sled Push
 
 ### Cool-downs and stretching (3)
 

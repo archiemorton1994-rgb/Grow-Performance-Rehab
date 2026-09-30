@@ -245,14 +245,18 @@ cardio at the start of a session, for finishers and for the Conditioning
 session.
 
 Not all nine may open a session. Since 2026-09-25 no sled work does (decision
-19), and since 2026-09-29 a session opens on a CARDIO option for two minutes,
-which is the bike, the treadmill, the rower or skipping (decision 25). The
-others are finisher and block work. A Brisk Walk was added for the person with
-no machine at all; it is deliberately NOT on this list, because it is a warm-up
-rather than conditioning work, and it lives on its own in lib/exercise-library.ts.
+19), since 2026-09-29 a session opens on a CARDIO option for two minutes, which
+is the bike, the treadmill, the rower or skipping (decision 25), and since
+2026-09-30 nothing prescribed at a weight in kilograms does either (decision 29).
+The others are finisher and block work. A Brisk Walk was added for the person
+with no machine at all; it is deliberately NOT on this list, because it is a
+warm-up rather than conditioning work, and it lives on its own in
+lib/exercise-library.ts.
 
-- Sled Push - Sled
-- Sled Pull and Push - Sled (dragged backwards, then pushed back to the start)
+Still nine, but not the same nine: on 2026-09-30 the two sled drags became one
+record and a Farmers Carry was added (decisions 28 and 29).
+
+- Sled Push and Pull - Sled (pushed out, then dragged backwards to the start)
 - Sled Rows - Sled
 - Assault Bike - Assault Bike
 - Incline Treadmill Walk - Treadmill
@@ -260,6 +264,7 @@ rather than conditioning work, and it lives on its own in lib/exercise-library.t
 - Duck Walks - Bodyweight
 - Skipping - Skipping Rope (or on the spot)
 - Bear Crawl - Bodyweight
+- Farmers Carry - Dumbbells or Kettlebells or Trap Bar
 
 ## Decisions (Archie, 2026-09-17)
 
@@ -364,6 +369,43 @@ raised. The numbering carries on.
     where there is none - though today that fallback never fires, because Door
     Frame Rows is the only pull anybody without a band owns and the session
     needs it for the work.
+
+## Decisions (Archie, 2026-09-30, fourth batch after testing on Expo)
+
+More of his own words from the Expo feedback, and the answers given where a
+consequence had to be settled. The numbering carries on.
+
+28. The two sled drags are one exercise: "remove the conditioning exercises sled
+    push and sled pull and push from the database and swap for sled push and
+    pull instead." It is listed above as Sled Push and Pull: pushed out for ten
+    metres, then dragged backwards to the start, twenty metres of work in all.
+    His own video is titled "Sled Push & Pull" and is attached to it. The record
+    that survived is the one that already described the round trip, so the
+    clinical rule is unchanged - a sore knee loses it under decision 16, and a
+    sore ankle, Achilles, calf and shin lose it under decision 22 - and it keeps
+    the lighter of the two sled weights. All three old names read as this one, so
+    no chart restarts.
+29. A Farmers Carry is conditioning work: "add farmer carries as a conditioning
+    exercise." One record that takes dumbbells, kettlebells or a trap bar,
+    prescribed at forty metres and loaded by choice rather than by level. Its cue
+    names none of the three on purpose: a card is only honest if every word on it
+    is about kit the person reading it owns, and "something heavy in each hand"
+    is true of all three. The
+    three implement-specific carries in the Core list stay exactly as they are;
+    this is a new conditioning entry rather than a move. It is withheld from the
+    same areas as every other carry - a sore wrist, bicep, lower back, upper
+    back, neck or lat - and, like them, a sore shoulder keeps it. A loaded carry
+    is not a warm-up, so it may not open a session: nothing on the conditioning
+    list that names a weight in kilograms can.
+30. Banded Clamshells is counted in reps, not seconds. The record always said
+    fifteen each side; what put it on a clock was the swap button, which handed
+    the new movement the prescription belonging to the card it replaced. A swap
+    now carries its own count, so a movement written in reps is never put on a
+    clock and a movement written on a clock is never given a rep count.
+31. The "Bench, box or sturdy step" tile should show a gym bench rather than a
+    plain rectangle. It is drawn in the app's own icon set now. The other five
+    equipment tiles are photographs and there is still no photograph of a bench,
+    so that one is outstanding.
 
 ## Notes taken while transcribing
 

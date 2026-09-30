@@ -178,15 +178,39 @@ check(
 {
   const refused = CONDITIONING_EXERCISES.filter((e) => !isPulseRaiser(e));
   const allowed = CONDITIONING_EXERCISES.filter((e) => isPulseRaiser(e));
+  /**
+   * TWO REASONS A WARM-UP REFUSES SOMETHING, AND THERE ARE ONLY TWO.
+   *
+   * Sled work, because Archie said so on 25 September 2026 ("Sled push and pull
+   * is a conditioning exercise not a warm up exercise"). And, since 30 September
+   * 2026, anything prescribed at a weight in kilograms: he added a Farmers Carry
+   * to the conditioning list that day, and picking up twenty-five kilograms in
+   * each hand is not two minutes of easy cardio either. Both are read off the
+   * record - the kit for the first, the load line for the second - so a
+   * conditioning record written next year is placed by what it says it asks for
+   * rather than by somebody remembering to add it here.
+   */
+  const namesAWeight = (e) => /\d+(?:\.\d+)?\s*(?:kg|lbs?)\b/i.test(e.suggestedLoad ?? '');
   check(
-    `every record the warm-up refuses is sled work (${refused.length})`,
-    refused.length > 0 && refused.every(needsSled),
-    refused.map((e) => e.name).join(', ')
+    `every record the warm-up refuses is sled work or a loaded movement (${refused.length})`,
+    refused.length > 0 && refused.every((e) => needsSled(e) || namesAWeight(e)),
+    refused
+      .filter((e) => !needsSled(e) && !namesAWeight(e))
+      .map((e) => e.name)
+      .join(', ')
   );
   check(
-    `and nothing it allows is (${allowed.length})`,
-    allowed.length > 0 && !allowed.some(needsSled),
-    allowed.filter(needsSled).map((e) => e.name).join(', ')
+    `and nothing it allows is either (${allowed.length})`,
+    allowed.length > 0 && !allowed.some((e) => needsSled(e) || namesAWeight(e)),
+    allowed
+      .filter((e) => needsSled(e) || namesAWeight(e))
+      .map((e) => e.name)
+      .join(', ')
+  );
+  check(
+    'and both reasons are really in use, so neither half is decoration',
+    refused.some(needsSled) && refused.some((e) => namesAWeight(e) && !needsSled(e)),
+    refused.map((e) => `${e.name} (${e.suggestedLoad})`).join(', ')
   );
   check(
     'so the whole list is accounted for, with work left on both sides of the line',

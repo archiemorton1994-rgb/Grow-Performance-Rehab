@@ -45,13 +45,16 @@ export const CLINICAL = {
       'Curtsy Lunge',
       'Side Lunge',
       // ARCHIE, 21 SEPTEMBER 2026, AND IT REVERSES WHAT THIS TABLE USED TO SAY.
-      // Both of these sat in `still` below, on the argument that concentric-only
+      // The sled drags sat in `still` below, on the argument that concentric-only
       // conditioning is what a sore knee is for and that a backwards drag is a
       // knee rehab staple. He was asked directly and ruled sled work out for a
-      // sore knee, the backwards drag included: both are minutes of continuous
+      // sore knee, the backwards drag included: it is minutes of continuous
       // loaded knee extension over ground with nowhere to unload.
-      'Sled Push',
-      'Sled Pull and Push',
+      //
+      // ONE LINE WHERE THERE WERE TWO (30 September 2026). Sled Push and Sled
+      // Pull and Push were both withheld here and are now one record, so the
+      // rule is unchanged and there is one name left to write it against.
+      'Sled Push and Pull',
     ],
     still: [
       // The other half of his answer, in his words: keep the rest. Sled Rows is
@@ -85,16 +88,18 @@ export const CLINICAL = {
       'Skater Jumps',
       'Broad Jumps',
       'Duck Walks',
-      'Sled Push',
       // ARCHIE, 26 SEPTEMBER 2026, AND IT REVERSES WHAT THIS LINE USED TO SAY.
       // The backwards drag sat in `still` below, and the reason was written out:
       // walking backwards has no toe drive, so it was the sled work a sore ankle
-      // or Achilles kept while Sled Push was withheld. He then told us the drag
-      // was always a drag out and a push back. Pushing the sled home is toe
+      // or Achilles kept while the sled push was withheld. He then told us the
+      // drag was always a drag out and a push back. Pushing the sled home is toe
       // drive, he was asked whether the push half could be kept light enough to
       // spare these regions, and he said no and that no pull-only version is
       // kept. So it is withheld here and in calf_shin below.
-      'Sled Pull and Push',
+      //
+      // The two records became one on 30 September 2026 and the answer did not
+      // move: both were withheld from this region before, and the survivor is.
+      'Sled Push and Pull',
       'Squat Jumps',
       'Split Squat Jumps',
     ],
@@ -106,9 +111,8 @@ export const CLINICAL = {
       'Box Jumps',
       'Skater Jumps',
       'Duck Walks',
-      'Sled Push',
       // The same answer. See the note in ankle_achilles above.
-      'Sled Pull and Push',
+      'Sled Push and Pull',
       'Depth Jumps',
     ],
     still: ['Sled Rows', 'Assault Bike', 'Rowing Machine', 'Bodyweight Squats'],
@@ -129,6 +133,13 @@ export const CLINICAL = {
       'Kettlebell Swings',
       'High Pulls',
       'Dumbbell Farmers Carry',
+      // Archie's conditioning Farmers Carry, added 30 September 2026. It carries
+      // `spinal_compression` exactly as the three implement carries beside it do,
+      // and its name matches the same /farmer/ test, so a sore lower back loses
+      // it. Pinned here because a conditioning record that quietly lost that tag
+      // would be a loaded walk offered as the finisher to somebody with a sore
+      // back and nothing else in the app would notice.
+      'Farmers Carry',
       'Waiter Carry',
       'Standing Dumbbell Press',
       'Hanging Knee Raises',
@@ -138,10 +149,10 @@ export const CLINICAL = {
     still: [
       // Conditioning a sore back keeps. Sled Rows is upright, concentric
       // pulling; Archie can overrule it, and the note in exercise-safety.ts
-      // says where to change it if he does.
+      // says where to change it if he does. The two sled drags became one record
+      // on 30 September 2026 and a sore back still keeps all the sled work.
       'Sled Rows',
-      'Sled Push',
-      'Sled Pull and Push',
+      'Sled Push and Pull',
       'Assault Bike',
       'Rowing Machine',
       'Glute Bridge',
@@ -178,7 +189,7 @@ export const CLINICAL = {
       'Kettlebell Goblet Squats',
       'Glute Bridge',
       'Plank',
-      'Sled Push',
+      'Sled Push and Pull',
       'Assault Bike',
     ],
   },
@@ -203,7 +214,7 @@ export const CLINICAL = {
       'Glute Bridge',
       'Bodyweight Squats',
       'Box Squats',
-      'Sled Pull and Push',
+      'Sled Push and Pull',
     ],
   },
   hamstrings: {
@@ -223,7 +234,7 @@ export const CLINICAL = {
       'Broad Jumps',
       'Skater Jumps',
     ],
-    still: ['Bodyweight Squats', 'Wall Sit', 'Box Squats', 'Plank', 'Sled Push', 'Assault Bike'],
+    still: ['Bodyweight Squats', 'Wall Sit', 'Box Squats', 'Plank', 'Sled Push and Pull', 'Assault Bike'],
   },
   glutes: {
     never: [
@@ -239,7 +250,7 @@ export const CLINICAL = {
       'Duck Walks',
       'Skipping',
     ],
-    still: ['Glute Bridge', 'Bodyweight Squats', 'Box Squats', 'Plank', 'Sled Pull and Push', 'Assault Bike'],
+    still: ['Glute Bridge', 'Bodyweight Squats', 'Box Squats', 'Plank', 'Sled Push and Pull', 'Assault Bike'],
   },
   chest: {
     // Decision 11 in full. Section 4 below spells out the press-up half of it.
@@ -416,6 +427,11 @@ export const CLINICAL = {
       'Barbell Deadlift',
       'Rack Pull',
       'Dumbbell Farmers Carry',
+      // Archie's conditioning Farmers Carry, added 30 September 2026. It carries
+      // `grip_load` like every other carry in the library, so a sore wrist loses
+      // it - as a finisher and as a Conditioning block, which is the whole reason
+      // to pin a conditioning record here rather than trust the tag.
+      'Farmers Carry',
       'Dumbbell Suitcase Carry',
       'Dumbbell Suitcase Hold',
       'Barbell Suitcase Hold',

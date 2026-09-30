@@ -178,6 +178,13 @@ export const EXERCISE_VIDEOS: Record<string, string> = {
   'Pull-Up': 'https://www.youtube.com/shorts/x3lc-RqEcag',
   // video "Sled Push & Pull"
   'Sled Push/Pull Complex': 'https://www.youtube.com/shorts/7KYhdRNN8c8',
+  // The same footage, under the name the app actually serves it as. Archie's two
+  // sled drags became one record called "Sled Push and Pull" on 30 September
+  // 2026, and his video is titled "Sled Push & Pull", so the demo button on that
+  // card opens the right clip instead of running a YouTube search. The line
+  // above is the old catalogue's name for the same complex and is kept because
+  // this file is the only record of which video shows which movement.
+  'Sled Push and Pull': 'https://www.youtube.com/shorts/7KYhdRNN8c8',
 
   // ───────────────────────────────────────────────────────────────────────────
   // SECOND BATCH — 24 uploads added after the 13 August snapshot.

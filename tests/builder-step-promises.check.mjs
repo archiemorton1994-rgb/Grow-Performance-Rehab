@@ -506,7 +506,7 @@ console.log('\n[4] Reopening a saved session gives back the same session, in blo
     saved('Glute Bridge', 'accessory', 3, '12'),
     saved('Dead Bug', 'prehab', 2, '8 each side'),
     saved('Banded Clamshell', 'prehab', 2, '15'),
-    saved('Sled Push', 'finisher', 3, '20m'),
+    saved('Sled Push and Pull', 'finisher', 3, '20m'),
     saved('Dumbbell Farmers Carry', 'finisher', 3, '30m'),
   ];
   check(

@@ -3831,9 +3831,27 @@ export const useAppStore = create<AppState>()(
             !tiers.includes('bench');
         }
 
+        /**
+         * v39 - THE SLED WEIGHT FOLLOWS THE SLED (Archie, 30 September 2026).
+         *
+         * "Remove the conditioning exercises sled push and sled pull and push
+         * from the database and swap for sled push and pull instead." Two
+         * records became one, `lib-cond-sled-push` is gone, and ID_MERGE now
+         * carries it onto the record that survived. Nothing new is written here:
+         * the v37 carry-forward above is unconditional and idempotent, so it
+         * applies the new pair on its own.
+         *
+         * WHAT THE VERSION NUMBER IS FOR, THEN. `migrate` only runs when the
+         * stored version differs from this one, so on a phone already sitting at
+         * 38 the carry-forward would never be asked again and the merged drill
+         * would open at the beginner's estimate for anybody who had only ever
+         * pushed. Bumping it is the whole mechanism. mergeServerData already
+         * mirrors the same call, so a copy uploaded by an older build cannot
+         * undo it on the next sign-in.
+         */
         return persistedState;
       },
-      version: 38,
+      version: 39,
     }
   )
 );

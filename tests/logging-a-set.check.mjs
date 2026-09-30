@@ -21,15 +21,15 @@
  *   cards prescribed a weight in kg with no weight box           26       0
  *   cards asked for reps when the prescription is metres        111       0
  *   rehab drills whose rep count was swallowed by a hold         35       0
- *   cards showing a weight box with no suggestion in it          23      13
+ *   cards showing a weight box with no suggestion in it          23       5
  *
  * The 26 were four barbell main lifts at 40-100 kg printing the word
  * "Bodyweight" because the load line also mentions a band, and the loaded holds
  * - Dumbbell Suitcase Hold, Cable Pallof Hold and the rest - which were read as
  * pure time work because the prescription says 30s.
  *
- * THE LAST ROW DOES NOT GO TO ZERO, ON PURPOSE. The thirteen that remain are
- * all Sled Push and Sled Pull and Push, where the library describes the load ("Moderate
+ * THE LAST ROW DOES NOT GO TO ZERO, ON PURPOSE. The five that remain are
+ * all Sled Push and Pull, where the library describes the load ("Light to moderate
  * sled") instead of naming a number. Plates go on a sled, so the box belongs
  * there, it arrives empty, and nothing has to be typed into it. The ones that
  * DID have to go are the bike, the rower, the treadmill, the skipping rope and
@@ -468,7 +468,7 @@ console.log('\n[3b] Where the load is described in words, only the kit that hold
    * quiet default is what this whole phase was cleaning up. A new machine, a
    * new crawl or a new piece of loadable kit lands here and gets decided.
    */
-  const CAN_TAKE_A_WEIGHT = ['Sled Push', 'Sled Pull and Push'];
+  const CAN_TAKE_A_WEIGHT = ['Sled Push and Pull'];
   const NO_WEIGHT_TO_CHOOSE = [
     'Assault Bike',
     'Rowing Machine',
@@ -534,10 +534,12 @@ console.log('\n[3b] Where the load is described in words, only the kit that hold
   // though the library never names a number for it. This is the one place the
   // phrase "loadable in real life" has to be honoured against the app rather
   // than against the prescription.
+  // The count dropped from thirteen to five on 30 September 2026, when Archie's
+  // two sled drags became one record. Same rule, one name to apply it to.
   const sleds = describedNotPrescribed.filter((r) => named(CAN_TAKE_A_WEIGHT, r.card.name));
   check(
     `while a sled, which takes plates, still gets one (${sleds.length} cards)`,
-    sleds.length > 5 && sleds.every((r) => setInputShapeFor(r.card).weight === true),
+    sleds.length > 3 && sleds.every((r) => setInputShapeFor(r.card).weight === true),
     sample(
       new Set(
         sleds.filter((r) => !setInputShapeFor(r.card).weight).map((r) => `${r.card.name} "${r.card.suggestedLoad}"`)

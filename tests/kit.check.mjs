@@ -172,10 +172,25 @@ check(
 );
 check(
   'the sled, the bike, the treadmill and the rower still need the machine',
-  ['Sled Push', 'Sled Pull and Push', 'Sled Rows', 'Assault Bike', 'Incline Treadmill Walk', 'Rowing Machine']
+  ['Sled Push and Pull', 'Sled Rows', 'Assault Bike', 'Incline Treadmill Walk', 'Rowing Machine']
     .map((n) => conditioning.get(n))
     .every((e) => !canPerformWith(e, HOME_WITH_BENCH) && canPerformWith(e, ['fullgym'])),
   'a home user cannot be handed a sled push'
+);
+/**
+ * Archie, 30 September 2026: "add farmer carries as a conditioning exercise",
+ * cued for dumbbells, kettlebells or a trap bar. So it is the one entry on that
+ * list somebody at home can be given - and only if they own one of the three.
+ * A bodyweight home user must not be handed it, which is the half that would
+ * fail silently if the record's kit group were ever emptied.
+ */
+check(
+  'the conditioning Farmers Carry takes any of the three implements, and nothing less',
+  ['dumbbells', 'kettlebells', 'fullgym'].every((t) =>
+    canPerformWith(conditioning.get('Farmers Carry'), [t])
+  ) &&
+    !canPerformWith(conditioning.get('Farmers Carry'), ['bodyweight', 'bands', 'bench']),
+  'dumbbells, kettlebells or a trap bar - and somebody with only bands and a bench is not handed a loaded carry'
 );
 
 // ─── 3. The bench ────────────────────────────────────────────────────────────

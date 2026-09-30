@@ -124,6 +124,11 @@ const KIT_PHRASES = {
   'Dumbbell (or Kettlebell)': ['dumbbell', 'kettlebell'],
   'Dumbbell or Kettlebell': ['dumbbell', 'kettlebell'],
   Dumbbells: ['dumbbell'],
+  // Archie's conditioning Farmers Carry (30 September 2026) is one record cued
+  // for whichever of the three the person owns, so the phrase names all three
+  // without a comma in it - a comma is what separates one REQUIREMENT from the
+  // next, and "any of these three" is a single requirement.
+  'Dumbbells or Kettlebells or Trap Bar': ['dumbbell', 'kettlebell', 'trapbar'],
   Kettlebell: ['kettlebell'],
   Kettlebells: ['kettlebell'],
   'Kettlebells (or Dumbbells)': ['kettlebell', 'dumbbell'],
@@ -140,7 +145,7 @@ const KIT_PHRASES = {
   // required. It is declared as optionalKit on the record instead.
   'Skipping Rope (or on the spot)': [],
   Sled: ['sled'],
-  'Sled (dragged backwards, then pushed back to the start)': ['sled'],
+  'Sled (pushed out, then dragged backwards to the start)': ['sled'],
   'Trap Bar': ['trapbar'],
   Treadmill: ['treadmill'],
   'TRX (or Suspension Trainer)': ['trx'],
@@ -609,14 +614,48 @@ check(
  * it then push it back to starting point)." So the row has to describe both
  * halves, and a document that drops either half is a document that disagrees
  * with the exercise the app now serves.
+ *
+ * AND THERE IS ONLY ONE SLED DRAG LEFT TO DESCRIBE (30 September 2026): "remove
+ * the conditioning exercises sled push and sled pull and push from the database
+ * and swap for sled push and pull instead." Both halves of the round trip still
+ * have to be in the row; the two records that each described half of it are gone.
  */
-const sledPull = doc.conditioning.find((r) => r.name === 'Sled Pull and Push');
+const sledPull = doc.conditioning.find((r) => r.name === 'Sled Push and Pull');
 check(
-  'the document describes Sled Pull and Push as a backwards drag AND a push back',
+  'the document describes Sled Push and Pull as a push out AND a backwards drag',
   Boolean(sledPull) &&
     /backwards|backward/i.test(sledPull.equipment) &&
     /push/i.test(sledPull.equipment),
-  sledPull ? sledPull.equipment : 'there is no Sled Pull and Push row'
+  sledPull ? sledPull.equipment : 'there is no Sled Push and Pull row'
+);
+check(
+  'and neither of the two records it replaced is still listed',
+  !doc.conditioning.some((r) => r.name === 'Sled Push' || r.name === 'Sled Pull and Push') &&
+    !CONDITIONING_EXERCISES.some(
+      (e) => e.libraryName === 'Sled Push' || e.libraryName === 'Sled Pull and Push'
+    ),
+  doc.conditioning
+    .map((r) => r.name)
+    .filter((n) => n === 'Sled Push' || n === 'Sled Pull and Push')
+    .join(', ') || CONDITIONING_EXERCISES.map((e) => e.libraryName).join(', ')
+);
+/**
+ * Archie, 30 September 2026: "add farmer carries as a conditioning exercise."
+ * One conditioning record, and the three implement-specific carries in the Core
+ * list untouched beside it - this was an addition, not a move, and a document
+ * that had lost one of those four would be describing a library that took
+ * somebody's carry history away.
+ */
+const docCarries = [
+  ...doc.conditioning.map((r) => r.name),
+  ...doc.rows.map((r) => r.name),
+].filter((n) => /farmers carry/i.test(n));
+check(
+  'the document lists the conditioning Farmers Carry and all three strength carries',
+  ['Farmers Carry', 'Dumbbell Farmers Carry', 'Kettlebell Farmers Carry', 'Trapbar Farmers Carry'].every(
+    (n) => docCarries.includes(n)
+  ) && docCarries.length === 4,
+  docCarries.join(', ')
 );
 
 const condRoleWrong = CONDITIONING_EXERCISES.filter((e) => e.role !== 'conditioning');
