@@ -117,11 +117,36 @@ try {
 } catch {
   // Optional. Without it the report simply omits this section.
 }
-const attachedIds = new Set(
-  Object.values(EXERCISE_VIDEOS)
-    .map((u) => u.match(/(?:shorts\/|watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/)?.[1])
-    .filter(Boolean) as string[]
-);
+const idInLink = (url: string) =>
+  url.match(/(?:shorts\/|watch\?v=|youtu\.be\/)([A-Za-z0-9_-]+)/)?.[1];
+/**
+ * Every video the app can actually open, from BOTH places a link can live.
+ *
+ * The table is the normal one. The other is a bare videoId written on the
+ * exercise record itself, which lib/exercise-videos.ts resolves as well, so a
+ * video reached that way is in use, and listing it as unused sends somebody off
+ * to attach footage that is already attached or to film it again.
+ *
+ * TODAY THIS SECOND LOOP FINDS NOTHING NEW. Every record that carries its own
+ * videoId also has a line in the table now, because its name matches the video
+ * title exactly and the September pass wrote all of those out. It is here
+ * because the report should be right about a record that has a videoId and no
+ * table line, which is a state the repo can reach again in one edit -
+ * tests/videos-linked.check.mjs fails if that ever produces a wrong unused
+ * list, and this is the fix it would be asking for.
+ */
+const attachedIds = new Set<string>();
+for (const url of Object.values(EXERCISE_VIDEOS)) {
+  const id = idInLink(url);
+  if (id) attachedIds.add(id);
+}
+for (const template of everyTemplate) {
+  if (template.videoId) attachedIds.add(template.videoId);
+  if (template.youtubeUrl) {
+    const id = idInLink(template.youtubeUrl);
+    if (id) attachedIds.add(id);
+  }
+}
 const unattached = (snapshot?.videos ?? []).filter((v) => !attachedIds.has(v.id));
 
 const byCategory = new Map<string, typeof todo>();

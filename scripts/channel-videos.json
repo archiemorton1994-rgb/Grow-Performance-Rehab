@@ -2,51 +2,567 @@
   "$comment": "Snapshot of every video on @GrowPerformanceRehabilitation. Used by `npm run video-status` to report which uploads are not yet attached to an exercise. Refresh it whenever new videos go up - see CHANNEL-REFRESH.md.",
   "channel": "@GrowPerformanceRehabilitation",
   "channelId": "UCp7CeSgTe519dmGuCxgMFJg",
-  "capturedOn": "2026-08-18",
+  "capturedOn": "2026-09-26",
   "videos": [
     {
-      "id": "tZQ94VAPp1w",
-      "title": "Single Leg Romanian Deadlift"
+      "id": "a7D1h_9B8gc",
+      "title": "Dumbbell Wrist Curls"
     },
     {
-      "id": "PYhFE-z9RFY",
-      "title": "Bodyweight Squats"
+      "id": "eo7GgSh4Sag",
+      "title": "Isometric Wrist Extension"
     },
     {
-      "id": "xVFiyGocri0",
-      "title": "Bent Knee Ankle Dorsiflexion"
+      "id": "O8NM4NYmM1w",
+      "title": "Isometric Wrist Flexion"
     },
     {
-      "id": "GzW9LKufDVM",
-      "title": "Hip Hinges"
+      "id": "5kNDNWs9tbs",
+      "title": "Isometric Elbow Flexion"
     },
     {
-      "id": "mRNLmtW2bQ8",
-      "title": "Seated Butterflies"
+      "id": "rwpYc9123d4",
+      "title": "Isometric Elbow Extension"
     },
     {
-      "id": "LoMfSTdFTgg",
-      "title": "Lateral Leg Swings"
+      "id": "o-23DJeFOXw",
+      "title": "Doorframe Rows"
     },
     {
-      "id": "wx2ZP3GTHTA",
-      "title": "Leg Swings"
+      "id": "uHecEl_1xx0",
+      "title": "Duck Walks"
     },
     {
-      "id": "IOTqFAgZuKc",
-      "title": "Banded VMO Extensions"
+      "id": "SPOdO2okxwo",
+      "title": "Bear Crawls"
     },
     {
-      "id": "a7NjWDSBxHI",
-      "title": "Spanish Squats"
+      "id": "S1aLTFj_xTE",
+      "title": "Kettlebell Box Squats"
+    },
+    {
+      "id": "iimUf-jXK-0",
+      "title": "Pin Squats"
+    },
+    {
+      "id": "ho3tkJ5eI6Y",
+      "title": "High Pulls"
+    },
+    {
+      "id": "71RMsWY-ir4",
+      "title": "Band Resisted Back Squat"
+    },
+    {
+      "id": "2zA7DPiN9uc",
+      "title": "Band Resisted Front Squat"
+    },
+    {
+      "id": "bI5dKMy50vc",
+      "title": "Pause Squats"
+    },
+    {
+      "id": "XY1PVJtBjr8",
+      "title": "Bird Dog"
+    },
+    {
+      "id": "itN9hv0tEOM",
+      "title": "Superman Planks"
+    },
+    {
+      "id": "HijWQP870QY",
+      "title": "Landmine Rotations"
+    },
+    {
+      "id": "gpvzkexdReo",
+      "title": "Barbell Front Squat"
+    },
+    {
+      "id": "dW0dsA7Oqek",
+      "title": "14 September 2026"
+    },
+    {
+      "id": "AxKaqXKYpec",
+      "title": "Zercher Squats"
+    },
+    {
+      "id": "JF5kANvI5aY",
+      "title": "Side Plank"
+    },
+    {
+      "id": "1D-geVl_1Bk",
+      "title": "Hanging Knee Raises"
+    },
+    {
+      "id": "vxQKnZyUm6s",
+      "title": "Box Squat"
+    },
+    {
+      "id": "hRo6y9yJWcU",
+      "title": "Pause Deadlifts"
+    },
+    {
+      "id": "9AIEC3yGft4",
+      "title": "Single Leg Barbell Romanian Deadlift"
+    },
+    {
+      "id": "E50FUvQoFt4",
+      "title": "Suitcase Deadlift"
+    },
+    {
+      "id": "TfSTcvjDJf4",
+      "title": "Reeves Deadlift"
+    },
+    {
+      "id": "VCGtuNUmmDM",
+      "title": "Snatch Grip Deficit Deadlift"
+    },
+    {
+      "id": "XklHwpwpLqM",
+      "title": "Band Resisted Deadlifts"
+    },
+    {
+      "id": "FQX8xghigIA",
+      "title": "Rack Rows"
+    },
+    {
+      "id": "-9Gwn68csPM",
+      "title": "Elevated Feet Rack Rows"
+    },
+    {
+      "id": "-yTqNYbssTQ",
+      "title": "Assisted Squats"
+    },
+    {
+      "id": "L3rN8BcAPhc",
+      "title": "Assisted Bulgarian Split Squats"
+    },
+    {
+      "id": "LFpa78G9-ow",
+      "title": "Assisted Reverse Lunges"
+    },
+    {
+      "id": "r-9T61bUcCo",
+      "title": "Deficit Split Squat"
+    },
+    {
+      "id": "iAW5xkBndCs",
+      "title": "Clock Lunge Series"
+    },
+    {
+      "id": "O-PV4nRP1q4",
+      "title": "Ab Wheel Rollout"
+    },
+    {
+      "id": "tdee0mAz2xU",
+      "title": "Atlas Lunges"
+    },
+    {
+      "id": "LbSW7NoxNaA",
+      "title": "Single Arm Dumbbell Row"
+    },
+    {
+      "id": "4v4cnn0-r0M",
+      "title": "Decline Press Ups"
+    },
+    {
+      "id": "H2MpKsqe7EE",
+      "title": "Band Assisted Chin Up"
+    },
+    {
+      "id": "0HpiLlesfNs",
+      "title": "Bench Press Ups"
+    },
+    {
+      "id": "xwptes-6N4Q",
+      "title": "TRX Rows"
+    },
+    {
+      "id": "qNu_HoAIVFk",
+      "title": "TRX Face Pulls"
+    },
+    {
+      "id": "3F44yRdK5cQ",
+      "title": "TRX Push Ups"
+    },
+    {
+      "id": "iAM0R9JXLnI",
+      "title": "Kneeling Press Ups"
+    },
+    {
+      "id": "XCmXWPQLvSg",
+      "title": "Band resisted Barbell Press"
+    },
+    {
+      "id": "OC4SEg1-DAc",
+      "title": "Barbell Floor Press"
+    },
+    {
+      "id": "mjsDYU-zMoQ",
+      "title": "Bench Dips"
+    },
+    {
+      "id": "pLjf2g4Nrrg",
+      "title": "Kneeling Incline Press Ups"
+    },
+    {
+      "id": "LXa5PRe6vX8",
+      "title": "Deficit Press Ups"
+    },
+    {
+      "id": "cf4IYtzLPFc",
+      "title": "Wall Hip Hinge"
+    },
+    {
+      "id": "6duZDJ4PdXs",
+      "title": "Sumo Deadlift"
+    },
+    {
+      "id": "a5Yg3f-RgKU",
+      "title": "Rack Pull"
+    },
+    {
+      "id": "fqiukOX81Gc",
+      "title": "Deficit Kettlebell Deadlift"
+    },
+    {
+      "id": "dNEiynURLvg",
+      "title": "Trapbar Deadlift (Low Handles)"
+    },
+    {
+      "id": "ZbEe2t25Kf4",
+      "title": "Deficit Barbell Deadlift"
+    },
+    {
+      "id": "Y1k8JyLDzTg",
+      "title": "Deficit Romanian Deadlift"
+    },
+    {
+      "id": "gQhe-mYcteQ",
+      "title": "Dumbbell Chest Fly"
+    },
+    {
+      "id": "yJznf1hiL0E",
+      "title": "Plate Bench Press"
+    },
+    {
+      "id": "Wf0nhUidHaU",
+      "title": "Plate Squeeze Press"
+    },
+    {
+      "id": "U8cmf7vRzms",
+      "title": "Chest Supported Dumbbell Rows"
+    },
+    {
+      "id": "BAu5JkTNPwY",
+      "title": "Cable Tricep Extension"
+    },
+    {
+      "id": "DxvHI-JucQI",
+      "title": "Cable Pull Through"
+    },
+    {
+      "id": "Vd8IRI-iAaA",
+      "title": "Cable Front Raise"
+    },
+    {
+      "id": "1ic0MBrhQ3s",
+      "title": "Cable Bicep Curls"
+    },
+    {
+      "id": "tj1ynFut8MY",
+      "title": "Barbell Row"
+    },
+    {
+      "id": "ixaMn2pUAY4",
+      "title": "Barbell Deadlift"
+    },
+    {
+      "id": "gqhHHOJQ3dY",
+      "title": "Dumbbell Floor Press"
+    },
+    {
+      "id": "rOyobzypmAE",
+      "title": "Banded Serratus Punch"
+    },
+    {
+      "id": "tP8AleAgC88",
+      "title": "Cable Facepull"
+    },
+    {
+      "id": "0esQ9q7F10s",
+      "title": "Cable Palloff Press"
+    },
+    {
+      "id": "dz6hVWO2N2w",
+      "title": "Cable Reverse Woodchops"
+    },
+    {
+      "id": "QWNDmcKA_W8",
+      "title": "Cable Palloff Hold"
+    },
+    {
+      "id": "jNO0cmTvaMo",
+      "title": "Cable Woodchops"
+    },
+    {
+      "id": "bZKa57FVxRg",
+      "title": "Cable Romanian Deadlift"
+    },
+    {
+      "id": "Bo19adoX96o",
+      "title": "Kneeling Cable Rotations"
+    },
+    {
+      "id": "F3CVY9Jp5Cc",
+      "title": "Assault Bike"
+    },
+    {
+      "id": "cW-vS8737PI",
+      "title": "Bridge Marches"
+    },
+    {
+      "id": "LoviMBNTOs8",
+      "title": "Bridge Walkouts"
+    },
+    {
+      "id": "yyKpmjILhkw",
+      "title": "Box Step Over"
+    },
+    {
+      "id": "kwsBaYjN8UA",
+      "title": "Kettlebell Box Step Over"
+    },
+    {
+      "id": "hRYFNJHtgSw",
+      "title": "Box Single Leg Bridge"
+    },
+    {
+      "id": "3weEfp-HaBk",
+      "title": "Banded Deadbug"
+    },
+    {
+      "id": "-Yi9Yr_mTZU",
+      "title": "Box Bridge"
+    },
+    {
+      "id": "17WEgsFmCTc",
+      "title": "Box Bridge Marches"
+    },
+    {
+      "id": "W_PtQlh1lps",
+      "title": "Prayer Pose Stretch"
+    },
+    {
+      "id": "Kk7pygLYW7c",
+      "title": "Figure 4 Stretch"
+    },
+    {
+      "id": "K9wrVgGKcS4",
+      "title": "Banded Hip Circles"
+    },
+    {
+      "id": "ffrVTB1Sfg0",
+      "title": "Kneeling Hip Flexor Stretch"
+    },
+    {
+      "id": "kYSmIECqHwU",
+      "title": "Adductor Rock Backs"
+    },
+    {
+      "id": "8hiFKtyYNfE",
+      "title": "Standing Quad Stretch"
+    },
+    {
+      "id": "rVU3BezY21E",
+      "title": "Barbell Calf Raises"
+    },
+    {
+      "id": "ClH1En6rT5I",
+      "title": "Slamball Split Jumps"
+    },
+    {
+      "id": "XI8jEKUCelE",
+      "title": "Slamball Squat Jumps"
+    },
+    {
+      "id": "lyU-zhUyaZU",
+      "title": "Barbell Reverse Lunges"
+    },
+    {
+      "id": "EqwawkAPPr0",
+      "title": "Kettlebell Suitcase Carry"
+    },
+    {
+      "id": "R7tyUCNMftA",
+      "title": "Dumbbell Suitcase Carry"
+    },
+    {
+      "id": "Wr8Kgr54soE",
+      "title": "Kettlebell Farmers Carry"
+    },
+    {
+      "id": "_H6hztGwlMk",
+      "title": "Dumbbell Farmers Carry"
+    },
+    {
+      "id": "veXGQD_Dj5s",
+      "title": "Trapbar Farmers Carry"
+    },
+    {
+      "id": "Q2kj16PHB10",
+      "title": "Earthquake Carry"
+    },
+    {
+      "id": "TsmHp1nysP8",
+      "title": "Kettlebell Marches"
+    },
+    {
+      "id": "_9vJRZ34Fxc",
+      "title": "Kettlebell Halos"
+    },
+    {
+      "id": "6NJG0qXgLVw",
+      "title": "Side Plank Reach Thru"
+    },
+    {
+      "id": "0kzWaGiHxJU",
+      "title": "Side Plank with Abduction"
+    },
+    {
+      "id": "p8TWOIt7ieA",
+      "title": "Banded Skiers"
+    },
+    {
+      "id": "l_k0lL8K54A",
+      "title": "Banded Chest Flies"
+    },
+    {
+      "id": "GEo3bz2oR3U",
+      "title": "Copenhagen Plank"
+    },
+    {
+      "id": "sOJ2LtQMfmA",
+      "title": "Curtsy Lunge"
+    },
+    {
+      "id": "ZY1Uq4ivua8",
+      "title": "Kettlebell Curtsy Lunge"
+    },
+    {
+      "id": "ZnwYwtUVc8U",
+      "title": "Dumbbell Curtsy Lunge"
+    },
+    {
+      "id": "y0t-sFKoYes",
+      "title": "Dumbbell Calf Raises"
+    },
+    {
+      "id": "3TcCn3cz2cc",
+      "title": "Weighted Back Extensions"
+    },
+    {
+      "id": "kInfBbbNgZ8",
+      "title": "Back Extensions"
+    },
+    {
+      "id": "8c_Aa15OV20",
+      "title": "Banded Hip Thrust"
+    },
+    {
+      "id": "DpzaM2aZQTE",
+      "title": "Single Leg Hip Thrust"
+    },
+    {
+      "id": "oc2RaD9s2gk",
+      "title": "Kettlebell Hip Thrust"
+    },
+    {
+      "id": "hiJHWhanCLA",
+      "title": "Barbell Hip Thrust"
+    },
+    {
+      "id": "31qjtgLqROs",
+      "title": "Dumbbell Suitcase Hold"
+    },
+    {
+      "id": "qKVtaBiyEZw",
+      "title": "Broad Jumps"
+    },
+    {
+      "id": "XBCZf9wiCAs",
+      "title": "Barbell Suitcase Hold"
+    },
+    {
+      "id": "ds2HDjF4dfk",
+      "title": "Banded Broad Jumps"
+    },
+    {
+      "id": "yXKRIO3zDs8",
+      "title": "Alternating Reverse Lunges"
+    },
+    {
+      "id": "NMkJFomcBN0",
+      "title": "Kettlebell Reverse Lunges"
+    },
+    {
+      "id": "Uw1bUuNKv9Y",
+      "title": "Box Step Ups"
+    },
+    {
+      "id": "SN-Whqyd2Ks",
+      "title": "Dumbbell Alternating Reverse Lunges"
+    },
+    {
+      "id": "IGgdX1KzzBI",
+      "title": "Banded Bicep Curls"
+    },
+    {
+      "id": "kDietxFGmTs",
+      "title": "Box Step Downs"
     },
     {
       "id": "jiU3ETsPeKU",
       "title": "Wall Sit"
     },
     {
+      "id": "a7NjWDSBxHI",
+      "title": "Spanish Squats"
+    },
+    {
+      "id": "IOTqFAgZuKc",
+      "title": "Banded VMO Extensions"
+    },
+    {
+      "id": "wx2ZP3GTHTA",
+      "title": "Leg Swings"
+    },
+    {
+      "id": "LoMfSTdFTgg",
+      "title": "Lateral Leg Swings"
+    },
+    {
+      "id": "mRNLmtW2bQ8",
+      "title": "Seated Butterflies"
+    },
+    {
+      "id": "GzW9LKufDVM",
+      "title": "Hip Hinges"
+    },
+    {
+      "id": "xVFiyGocri0",
+      "title": "Bent Knee Ankle Dorsiflexion"
+    },
+    {
+      "id": "PYhFE-z9RFY",
+      "title": "Bodyweight Squats"
+    },
+    {
+      "id": "tZQ94VAPp1w",
+      "title": "Single Leg Romanian Deadlift"
+    },
+    {
       "id": "SU3KkNX7cCg",
-      "title": "Single Arm Cable Tricep Extensions"
+      "title": "Cable Single Arm Tricep Extensions"
     },
     {
       "id": "wtGks2lKJ9M",
@@ -58,7 +574,7 @@
     },
     {
       "id": "hMJysvlxaqY",
-      "title": "Single Arm Cable Curls"
+      "title": "Cable Single Arm Curls"
     },
     {
       "id": "qrJC1I1XaWQ",
@@ -70,7 +586,7 @@
     },
     {
       "id": "U5EdqKJDX6s",
-      "title": "Single Arm Cable Rows"
+      "title": "Cable Single Arm Rows"
     },
     {
       "id": "Ml92Kc8xaA0",
@@ -126,7 +642,7 @@
     },
     {
       "id": "di7H803LkK0",
-      "title": "Tib Raises"
+      "title": "Seated Tib Raises"
     },
     {
       "id": "2qz5IqK9w6o",
@@ -138,7 +654,7 @@
     },
     {
       "id": "UsZgojyINOg",
-      "title": "Seated Lateral Raises"
+      "title": "Seated Dumbbell Lateral Raises"
     },
     {
       "id": "gnCpgLadixo",
@@ -234,7 +750,7 @@
     },
     {
       "id": "XTbgWQAyO6Y",
-      "title": "Standing Dumbbell Rows"
+      "title": "Bent Over Dumbbell Rows"
     },
     {
       "id": "763mOmEIQI8",
@@ -258,7 +774,7 @@
     },
     {
       "id": "3yjg8We2hEc",
-      "title": "Trapbar Deadlift"
+      "title": "Trapbar Deadlift (high handles)"
     },
     {
       "id": "sK90sn5FYgo",
@@ -302,7 +818,7 @@
     },
     {
       "id": "6uPr0ee_wa4",
-      "title": "Box Squat"
+      "title": "Barbell Box Squat"
     },
     {
       "id": "uI9Bp7vrICg",
@@ -394,7 +910,7 @@
     },
     {
       "id": "80Ro5q41PJw",
-      "title": "Alternating Dumbbell Press"
+      "title": "Alternating Dumbbell Shoulder Press"
     },
     {
       "id": "JDiuwl1C6gY",

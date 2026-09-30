@@ -406,6 +406,27 @@ consequence had to be settled. The numbering carries on.
     plain rectangle. It is drawn in the app's own icon set now. The other five
     equipment tiles are photographs and there is still no photograph of a bench,
     so that one is outstanding.
+32. Every exercise whose name is EXACTLY the title of a video on the channel is
+    linked to it: "ensure every exercise is linked to the grow performance and
+    rehabilitation YouTube page to the exercise with the same exact same name".
+    The app's list of his uploads was two months old and held 103 of the 232 on
+    the channel, so 129 recordings were invisible to it. Refreshed, and every
+    exact name match wired in one pass: 150 of the app's 299 exercises now open
+    one of his videos, up from 72.
+    EXACT MEANS EXACT. Trailing spaces and capital letters are ignored, nothing
+    else is, so "Door Frame Rows" did not take the upload called "Doorframe
+    Rows" and "Tibialis Raise" did not take "Seated Tib Raises". Those are
+    guesses about which movement was filmed, and a red demo button is a claim
+    rather than a hint: the wrong video on a card is worse than no video, because
+    an exercise without footage searches YouTube for its own name and always has.
+    The 44 near misses are listed with both spellings in
+    docs/VIDEO-LINKING-REVIEW.md, with the 86 uploads nothing opens and the 149
+    exercises still to film, and none of them is wired until Archie says so.
+    Three things on that page need him rather than a rule: one upload is titled
+    "14 September 2026" and gives no clue what it shows, two uploads are both
+    titled "Kettlebell Swings" so an exact match cannot say which, and the two
+    trap bar deadlifts (high and low handles) were each linked on their own exact
+    name and want one look to confirm they are the right way round.
 
 ## Notes taken while transcribing
 

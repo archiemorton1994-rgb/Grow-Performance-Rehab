@@ -1,7 +1,7 @@
 # Cross-referencing the YouTube channel
 
 After an upload session, this is how the app finds out about the new videos.
-Two files and two commands.
+Four files and three commands.
 
 ## What the files are
 
@@ -10,8 +10,9 @@ Two files and two commands.
 | `scripts/channel-videos.json` | A snapshot of every video on the channel — title and id. | Refreshed from YouTube (below). |
 | `lib/exercise-videos.ts` | Which video belongs to which exercise. | By hand, one line each. |
 | `EXERCISE-VIDEO-STATUS.md` | The report: what has footage, what still needs recording, and which uploads nothing is using yet. | Generated. Never edit. |
+| `docs/VIDEO-LINKING-REVIEW.md` | The decision list: near misses with both spellings, uploads nothing opens, and what is still to film. | Generated. Never edit. |
 
-## The two commands
+## The three commands
 
 ```bash
 npm run video-status
@@ -20,12 +21,22 @@ npm run video-status
 Rewrites the report. Run it after changing either of the first two files.
 
 ```bash
+npm run video-review
+```
+
+Rewrites the decision list. Run it after the same two files, and after any
+change to the library, because it names every exercise that has no footage.
+
+```bash
 npm run check
 ```
 
 The gate. It fails if a mapped exercise name does not exist, if a link is not a
 YouTube video, or if the report is out of date — so a typo can never quietly
-become a dead button.
+become a dead button. It also fails if a link points at a video that
+is not in the snapshot, if an exercise whose name IS an upload's title has not
+been given it, or if a link was made on a near miss without being written down
+in `VIDEO_LINKS_DECIDED_BY_HAND`.
 
 ## Refreshing the snapshot after uploading
 
@@ -95,6 +106,19 @@ Three possibilities, and the report tells you which:
 - **Two videos could claim one exercise** (two takes of the same movement, or a
   wide- and close-grip pair against a single generic entry) — pick one, or split
   the app's exercise in two.
+
+## What exact means
+
+The bulk of the table is filled by matching an exercise name against a video
+title with nothing between them: trim the spaces, ignore the capitals, and that
+is all. "Door Frame Rows" is NOT a match for the upload called "Doorframe Rows",
+and "Tibialis Raise" is NOT a match for "Seated Tib Raises". Those go on the
+decision list instead, with both spellings shown, because a near miss is a guess
+about which movement was filmed and only somebody who has watched it can say.
+
+A link that is genuinely a judgement goes in `VIDEO_LINKS_DECIDED_BY_HAND` in
+the same file, with the title of the video it was given. That is how somebody
+says out loud that they watched it. Without that line the gate refuses the link.
 
 Nothing is ever attached on a guess. An exercise with no video runs a YouTube
 search on its own name, which is what the app has always done, and is far better
